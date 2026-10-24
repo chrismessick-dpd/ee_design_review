@@ -21,13 +21,26 @@ and the package is what's worth keeping.
     "name": "PCB-1042-04_fabrication.zip",
     "size": 1671680
   },
-  "settings": { "profile": "standard", "thickness": 1.6, "variant": null },
+  "settings": {
+    "profile": "standard",
+    "profileName": "Standard (quick-turn)",
+    "rules": { "minTrace": 0.127, "minSpace": 0.127, "minDrill": 0.2, "…": "every rule value used, in mm" },
+    "thickness": 1.6,
+    "variant": null
+  },
   "summary": { "error": 12, "warn": 32, "info": 37 },
   "stored": { "repo": "chrismessick-dpd/review-ee-sensor-hub", "dir": "fabcheck/<projectId>/" }
 }
 ```
 
 `stored` is `null` while the run only exists in the browser that made it.
+
+`settings.rules` is a full copy of the fab rules the run used. Profiles can be edited (a
+fab house's capabilities change, or someone tweaks a limit), so re-running or reopening a
+run always uses this copy, never the profile as it is now. `profile` and `profileName` are
+only for display; the profile may since have been changed or deleted, or may not exist on
+the computer reopening the run. Runs made before this field existed fall back to the
+built-in profile named by `profile`.
 
 ## Stage 1: in the browser
 
