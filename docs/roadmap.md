@@ -6,7 +6,7 @@
   against `templates/` rather than committing directly.
 - **Review rounds:** snapshot a review at a milestone (e.g. "Rev B schematic"), then start the
   next revision from it. Carry open issues forward and reset passes.
-- **Attachments:** screenshots on findings, stored in the repo under `data/attachments/`.
+- **Attachments:** screenshots on findings, stored in the project's repo under `attachments/`.
 - **Mentions and notifications:** `@name` in comments, and a "waiting on me" filter.
 - **Auto-sync:** sync on a timer and when the tab regains focus. Show other reviewers'
   presence.

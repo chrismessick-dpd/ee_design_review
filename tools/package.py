@@ -20,9 +20,9 @@ START_HERE = """Signoff - Dovetail design review
 1. Unzip this folder anywhere and open index.html in Chrome, Edge or Safari.
 2. If you don't have one, create a free GitHub account at https://github.com/signup
    and send your username to your Dovetail contact.
-3. Accept the invitation email from GitHub.
-4. In Signoff, click the gear (bottom left) and follow "New to GitHub? Set up in four
+3. In Signoff, click the gear (bottom left) and follow "New to GitHub? Set up in four
    steps" to create a token. Paste it in and click Save & sync.
+4. Click Accept on the invitation that appears in the sidebar.
 
 Your projects then appear in the sidebar. Click Sync (or press Ctrl+S) to get the latest
 changes and send yours. When the sidebar says "Newer tool available", ask for a new copy.

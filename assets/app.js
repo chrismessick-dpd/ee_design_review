@@ -24,15 +24,26 @@
     } catch (e) { /* storage blocked */ }
   }
 
-  var DEFAULT_SETTINGS = { user: '', owner: 'chrismessick-dpd', repo: 'ee_design_review', branch: 'main', dataPath: 'data', templatePath: 'templates', theme: 'auto' };
+  // owner: the GitHub account or organization that holds every repository.
+  // toolRepo: the tool and checklists. dataRepo: internal reviews and People (FTEs only).
+  // prefix: name prefix for the private repos of projects shared with contractors.
+  var DEFAULT_SETTINGS = { user: '', owner: 'chrismessick-dpd', toolRepo: 'ee_design_review', dataRepo: 'ee_design_review_data', dataPath: '', prefix: 'review-', branch: 'main', templatePath: 'templates', theme: 'auto' };
   var settings = Object.assign({}, DEFAULT_SETTINGS, load('settings', {}));
+  if (settings.repo) {
+    // Before the data repo existed, reviews lived in the tool repo's data/ folder.
+    settings.toolRepo = settings.repo; settings.dataRepo = DEFAULT_SETTINGS.dataRepo; settings.dataPath = '';
+    delete settings.repo; save('settings', settings);
+  }
   var projects = load('projects', {});      // slug -> project document (working copy)
   var dirty = load('dirty', {});            // project id (or 'roster') -> time of last unsynced edit
-  var cache = load('cache', {});            // repo path -> { sha } as of the last sync
-  var roster = load('roster', M.emptyRoster());   // data/users.json: who sees which projects
+  var homes = load('homes', {});            // project id -> 'owner/repo' it lives in
+  var cache = load('cache2', {});           // 'owner/repo' -> { path: { sha } } as of the last sync
+  var dataAccess = load('dataAccess', '');  // 'ok' (FTE) | 'none' (contractor) | '' (not synced yet)
+  var roster = Object.assign(M.emptyRoster(), load('roster', {}));   // users.json from the data repo
   Object.keys(dirty).forEach(function (k) { if (projects[k]) { dirty[projects[k].id] = dirty[k]; delete dirty[k]; } });
   var pulledTemplates = load('templates', []);
-  var lastSync = load('lastSync', null);    // { at, version }
+  var lastSync = load('lastSync', null);    // { at, version, errors }
+  var invitations = load('invitations', []);   // repository invitations waiting for this user
   var ui = Object.assign({ slug: '', view: 'overview', filter: 'all', query: '', showArchived: false }, load('ui', {}));
 
   var TEMPLATES, INDEX;
@@ -48,16 +59,19 @@
     save('projects', projects); save('settings', settings);
   }
 
-  function persist() { save('projects', projects); save('dirty', dirty); save('roster', roster); }
+  function persist() { save('projects', projects); save('dirty', dirty); save('roster', roster); save('homes', homes); }
 
   // ── People and access ────────────────────────────────────
-  // Who you are comes from your GitHub token (settings.login, set on sync). FTEs see every
-  // project; contractors see the projects they're assigned in People. Before a first sync
-  // (no login yet) everything local is shown.
-  function myRole() { return DEMO ? 'fte' : M.roleOf(settings.login, roster, settings.owner); }
+  // GitHub decides what each person can open. An FTE's token reaches the data repo; a
+  // contractor's reaches only the review-* repos of their projects, so their copy of
+  // Signoff never sees anything else. Before a first sync everything local is shown.
+  function myRole() { return DEMO || dataAccess !== 'none' ? 'fte' : 'contractor'; }
   function isFte() { return myRole() === 'fte'; }
-  function visible(p) { return DEMO || !settings.login || M.canSee(p.id, settings.login, roster, settings.owner); }
-  function visibleProjects() { return Object.keys(projects).map(function (k) { return projects[k]; }).filter(visible); }
+  function isOwner() { return !!settings.login && settings.login === String(settings.owner).toLowerCase(); }
+  function visible() { return true; }
+  function visibleProjects() { return Object.keys(projects).map(function (k) { return projects[k]; }); }
+  function workspace() { return new S.Workspace(settings, getToken()); }
+  function homeOf(p) { return M.sharedRepo(roster, p.id) || homes[p.id] || settings.owner + '/' + settings.dataRepo; }
   function touchRoster() { dirty.roster = M.now(); persist(); renderSyncState(); renderToolbar(); }
   function setPerson(login, fields) {
     login = String(login || '').trim().replace(/^@/, '').toLowerCase();
@@ -212,6 +226,10 @@
       html += '<div class="side-archived"><div class="side-head"><span class="side-label">Archived</span><button class="btn-plain btn" style="padding:2px 6px;font-size:12px" data-act="toggle-archived">' + (ui.showArchived ? 'Hide' : 'Show ' + archived.length) + '</button></div>' +
         (ui.showArchived ? archived.map(row).join('') : '') + '</div>';
     }
+    if (invitations.length && !DEMO) {
+      html = '<div class="invite-card"><b>' + plural(invitations.length, 'invitation') + ' from ' + esc(settings.owner) + '</b><span>' +
+        invitations.map(function (i) { return esc(String(i.repo).split('/')[1]); }).join(', ') + '</span><button class="btn btn-primary" data-act="accept-invites">Accept</button></div>' + html;
+    }
     $('#project-list').innerHTML = html;
     $('[data-act="new-project"]').hidden = !isFte();
     var people = $('#people-link');
@@ -223,15 +241,17 @@
     var dot = $('#sync-dot'), title = $('#sync-title'), sub = $('#sync-sub');
     var n = Object.keys(dirty).length;
     if (DEMO) { dot.dataset.tone = 'idle'; title.textContent = 'Demo mode'; sub.textContent = 'Changes stay in this browser'; return; }
-    if (state === 'busy') { dot.dataset.tone = 'busy'; title.textContent = 'Syncing…'; sub.textContent = settings.owner + '/' + settings.repo; return; }
+    if (state === 'busy') { dot.dataset.tone = 'busy'; title.textContent = 'Syncing\u2026'; sub.textContent = settings.owner; return; }
     if (state === 'error') { dot.dataset.tone = 'error'; title.textContent = 'Sync failed'; sub.textContent = 'Click for details'; return; }
     if (!getToken()) { dot.dataset.tone = n ? 'warn' : 'idle'; title.textContent = n ? plural(n, 'unsynced change') : 'Local only'; sub.textContent = 'Set up Git sync'; return; }
     if (n) { dot.dataset.tone = 'warn'; title.textContent = plural(n, 'unsynced change'); sub.textContent = 'Click to sync'; return; }
     var outdated = lastSync && lastSync.version && window.SIGNOFF_VERSION && lastSync.version.hash !== window.SIGNOFF_VERSION.hash;
     dot.dataset.tone = outdated ? 'warn' : 'ok';
     title.textContent = outdated ? 'Newer tool available' : 'Synced';
-    sub.textContent = outdated ? 'Get the latest from ' + settings.repo : (lastSync ? relTime(lastSync.at) : 'Ready') +
-      (settings.login ? ' \u00b7 ' + settings.login + (myRole() === 'contractor' ? ' (contractor)' : myRole() === 'none' ? ' (no access yet)' : '') : '');
+    var errs = lastSync && lastSync.errors && lastSync.errors.length;
+    if (errs) { dot.dataset.tone = 'warn'; title.textContent = 'Synced with problems'; sub.textContent = lastSync.errors[0].message; return; }
+    sub.textContent = outdated ? 'Get the latest from ' + settings.toolRepo : (lastSync ? relTime(lastSync.at) : 'Ready') +
+      (settings.login ? ' \u00b7 ' + settings.login + (myRole() === 'contractor' ? ' (contractor)' : '') : '');
   }
 
   // ── Toolbar ──────────────────────────────────────────────
@@ -280,8 +300,8 @@
   function emptyPage() {
     if (!isFte()) {
       return '<div class="page"><div class="empty"><div class="empty-art">' + ICON.clipboard + '</div>' +
-        '<h2>' + (myRole() === 'none' ? 'You\u2019re not on a project yet' : 'Pick a project') + '</h2>' +
-        '<p>' + (myRole() === 'none' ? 'Signed in as <b>' + esc(settings.login) + '</b>. Ask your Dovetail contact to add you to a project, then sync.' : 'Choose a project from the sidebar.') + '</p>' +
+        '<h2>' + (!visibleProjects().length ? 'No projects shared with you yet' : 'Pick a project') + '</h2>' +
+        '<p>' + (!visibleProjects().length ? 'Signed in as <b>' + esc(settings.login) + '</b>. ' + (invitations.length ? 'Accept your invitation in the sidebar.' : 'Ask your Dovetail contact to add you to a project, then sync.') : 'Choose a project from the sidebar.') + '</p>' +
         '<button class="btn btn-primary" data-act="sync">Sync now</button></div></div>';
     }
     var none = !visibleProjects().length;
@@ -316,7 +336,8 @@
       '<div class="page-head"><div class="page-head-text">' + headBlock(p, 'Design review') +
       (p.meta.description ? '<p style="color:var(--text-2);margin:14px 0 0;max-width:62ch">' + esc(p.meta.description) + '</p>' : '') +
       '<div class="chips" style="margin-top:14px">' + (profile || '<span class="chip">General board</span>') +
-      '<button class="btn btn-plain" style="padding:2px 8px;font-size:12px" data-act="edit-project">Edit profile</button></div></div>' +
+      (isFte() ? '<button class="btn btn-plain" style="padding:2px 8px;font-size:12px" data-act="edit-project">Edit profile</button>' : '') + '</div>' +
+      (!DEMO && isFte() ? '<p class="note" style="margin-top:10px">' + (M.sharedRepo(roster, p.id) ? 'Shared through ' + esc(M.sharedRepo(roster, p.id)) + (assignedContractors(p.id).length ? ' with ' + assignedContractors(p.id).map(function (u) { return esc(u.name || u.login); }).join(', ') : '') : 'Internal \u2014 FTEs only') + '</p>' : '') + '</div>' +
       ring(st.pct, 132, 11, st.pct + '%', 'reviewed') + '</div>' +
       '<div class="grid grid-4">' +
       stat(st.pass, 'Passed', 'pass') + stat(st.issue, plural(st.issue, 'Issue').replace(/^\d+ /, '') + (st.issuesOpen ? ' · ' + st.issuesOpen + ' open' : ''), 'issue') +
@@ -563,7 +584,7 @@
       '<div class="field"><span class="field-label">Board profile — select everything that applies</span><div class="pick-grid" id="f-profile">' + M.TAGS.map(function (t) {
         return '<button type="button" class="pick' + (m.profile.indexOf(t.id) >= 0 ? ' on' : '') + '" data-pick="' + t.id + '"><b>' + esc(t.label) + '</b><span>' + esc(t.desc) + '</span></button>';
       }).join('') + '</div><p class="note" id="f-count"></p></div>' +
-      (!DEMO && contractors.length ? '<div class="field"><span class="field-label">Contractors on this project \u2014 FTEs always see it</span><div class="pick-grid" id="f-people">' + contractors.map(function (u) {
+      (!DEMO && contractors.length ? '<div class="field"><span class="field-label">Contractors on this project \u2014 ' + (editing && M.sharedRepo(roster, p.id) ? 'shared as ' + esc(M.sharedRepo(roster, p.id)) : 'adding one moves it into its own private repository') + '</span><div class="pick-grid" id="f-people">' + contractors.map(function (u) {
         return '<button type="button" class="pick' + (editing && (u.projects || []).indexOf(p.id) >= 0 ? ' on' : '') + '" data-pick="' + esc(u.login) + '"><b>' + esc(u.name || u.login) + '</b><span>@' + esc(u.login) + '</span></button>';
       }).join('') + '</div></div>' : '') +
       '</div><div class="sheet-foot">' +
@@ -598,11 +619,22 @@
       var people = w.querySelector('#f-people') ? picked('f-people') : null;
       function assign(projectId) {
         if (!people) return;
+        var adds = [], drops = [];
         contractors.forEach(function (u) {
           var has = (u.projects || []).indexOf(projectId) >= 0, want = people.indexOf(u.login) >= 0;
           if (has === want) return;
           setPerson(u.login, { projects: want ? (u.projects || []).concat([projectId]) : u.projects.filter(function (x) { return x !== projectId; }) });
+          (want ? adds : drops).push(u.login);
         });
+        if (!adds.length && !drops.length) return;
+        var share = adds.length && !M.sharedRepo(roster, projectId);
+        if (!getToken()) { toast('Saved. GitHub access is applied once you sync.'); return; }
+        if (!confirm((share ? 'Move this project into its own private repository and invite ' : adds.length ? 'Invite ' : '') + adds.join(', ') +
+          (drops.length ? (adds.length ? '; remove ' : 'Remove ') + drops.join(', ') : '') + '?\n\nGitHub emails the invitations.')) return;
+        setTimeout(function () {
+          runAccessOps('Updating who can open this project', adds.map(function (l, i) { return { login: l, share: share && i === 0 ? [projectId] : [], invite: share ? [] : [projectId] }; })
+            .concat(drops.map(function (l) { return { login: l, revoke: [projectId] }; })));
+        }, 0);
       }
       if (editing) { assign(p.id); updateMeta(fields); closeSheet(); return; }
       var doc = M.newProject(fields, me(), TEMPLATES);
@@ -621,28 +653,30 @@
     var token = getToken();
     var remembered = false;
     try { remembered = !!localStorage.getItem(TOKEN_KEY); } catch (e) { /* ignore */ }
-    var w = sheet('<div class="sheet-head"><h2>Settings</h2><p>Your name goes on comments and changes. Git sync keeps reviews in a GitHub repository so the whole team sees the same thing.</p></div>' +
+    var w = sheet('<div class="sheet-head"><h2>Settings</h2><p>Your name goes on comments and changes. Reviews sync through private GitHub repositories, so everyone works on the same copy.</p></div>' +
       '<div class="sheet-body">' +
       '<div class="field"><label for="s-user">Your name</label><input class="input" id="s-user" value="' + esc(settings.user) + '" placeholder="First Last"></div>' +
       '<div class="field"><span class="field-label">Appearance</span><div class="seg full" id="s-theme">' + [['auto', 'Automatic'], ['light', 'Light'], ['dark', 'Dark']].map(function (t) {
         return '<button type="button" class="' + (settings.theme === t[0] ? 'on' : '') + '" data-theme="' + t[0] + '">' + t[1] + '</button>';
       }).join('') + '</div></div>' +
       (DEMO ? '<p class="note">Git sync is off in demo mode. <a href="' + esc(location.pathname) + '">Open the full tool</a>.</p>' :
-        '<div class="field-label" style="margin-top:20px;font-size:13px;color:var(--text);font-weight:600">GitHub sync</div>' +
-        '<div class="row2"><div class="field"><label for="s-owner">Owner</label><input class="input" id="s-owner" value="' + esc(settings.owner) + '"></div>' +
-        '<div class="field"><label for="s-repo">Repository</label><input class="input" id="s-repo" value="' + esc(settings.repo) + '"></div></div>' +
-        '<div class="row2"><div class="field"><label for="s-branch">Branch</label><input class="input" id="s-branch" value="' + esc(settings.branch) + '"></div>' +
-        '<div class="field"><label for="s-path">Data folder</label><input class="input" id="s-path" value="' + esc(settings.dataPath) + '"></div></div>' +
-        (settings.login ? '<p class="note" style="margin:0 0 12px">Signed in to GitHub as <b>' + esc(settings.login) + '</b> \u00b7 ' +
-          { fte: 'FTE: sees every project', contractor: 'Contractor: sees assigned projects', none: 'Not on a project yet' }[myRole()] + '</p>' : '') +
+        '<div class="field-label" style="margin-top:20px;font-size:13px;color:var(--text);font-weight:600">GitHub</div>' +
+        (settings.login ? '<p class="note" style="margin:0 0 12px">Signed in as <b>' + esc(settings.login) + '</b> · ' +
+          (dataAccess === 'none' ? 'Contractor: you see the projects shared with you' : dataAccess === 'ok' ? 'FTE: you see every project' : 'not synced yet') + '</p>' : '') +
         '<details class="guide"' + (getToken() ? '' : ' open') + '><summary>New to GitHub? Set up in four steps</summary><ol>' +
         '<li>Create a free account at <a href="https://github.com/signup" target="_blank" rel="noopener">github.com/signup</a>.</li>' +
-        '<li>Send your username to your Dovetail contact and accept the invitation email from GitHub.</li>' +
+        '<li>Send your username to your Dovetail contact.</li>' +
         '<li><a href="https://github.com/settings/tokens/new?scopes=repo&amp;description=Dovetail%20Signoff" target="_blank" rel="noopener">Create a token</a> (the link fills in the settings; pick an expiry and click <i>Generate token</i>).</li>' +
-        '<li>Paste the token below and click <b>Save &amp; sync</b>.</li></ol></details>' +
-        '<div class="field"><label for="s-token">Access token</label><input class="input" id="s-token" type="password" value="' + esc(token) + '" placeholder="github_pat_…" autocomplete="off">' +
-        '<p class="note">The repo owner can use a fine-grained token with <b>Contents: read and write</b> on this repository. Collaborators need a classic token with the <b>repo</b> scope (fine-grained tokens can’t target someone else’s personal repo). The token is sent only to api.github.com and kept in this browser.</p></div>' +
+        '<li>Paste the token below and click <b>Save &amp; sync</b>. Signoff shows any invitations waiting for you, with an Accept button.</li></ol></details>' +
+        '<div class="field"><label for="s-token">Access token</label><input class="input" id="s-token" type="password" value="' + esc(token) + '" placeholder="ghp_… or github_pat_…" autocomplete="off">' +
+        '<p class="note">Kept in this browser and sent only to api.github.com. Collaborators use a classic token with the <b>repo</b> scope. The account owner can use a fine-grained token with <b>All repositories</b> and <b>Contents</b> and <b>Administration</b> set to read and write; sharing creates new repositories, which a token limited to selected repositories can’t reach.</p></div>' +
         '<label class="check"><input type="checkbox" id="s-remember"' + (remembered ? ' checked' : '') + '> Remember the token after closing the browser (avoid on shared computers)</label>' +
+        '<details class="guide" style="margin-top:14px"><summary>Repositories</summary>' +
+        '<div class="row2" style="margin-top:10px"><div class="field"><label for="s-owner">Account or organization</label><input class="input" id="s-owner" value="' + esc(settings.owner) + '"></div>' +
+        '<div class="field"><label for="s-branch">Branch</label><input class="input" id="s-branch" value="' + esc(settings.branch) + '"></div></div>' +
+        '<div class="row2"><div class="field"><label for="s-data">Data repo (FTEs)</label><input class="input" id="s-data" value="' + esc(settings.dataRepo) + '"></div>' +
+        '<div class="field"><label for="s-tool">Tool repo (FTEs)</label><input class="input" id="s-tool" value="' + esc(settings.toolRepo) + '"></div></div>' +
+        '<div class="field"><label for="s-prefix">Shared project repos start with</label><input class="input" id="s-prefix" value="' + esc(settings.prefix) + '"></div></details>' +
         '<div class="log" id="s-log" hidden></div>') +
       '</div><div class="sheet-foot">' + (DEMO ? '' : '<button class="btn" data-sheet="test">Test connection</button>') + '<span class="spacer"></span>' +
       '<button class="btn" data-sheet="cancel">Cancel</button><button class="btn btn-primary" data-sheet="ok">' + (DEMO ? 'Done' : 'Save & sync') + '</button></div>');
@@ -651,8 +685,9 @@
     function read() {
       var s = Object.assign({}, settings, { user: w.querySelector('#s-user').value.trim(), theme: theme });
       if (!DEMO) {
-        s.owner = w.querySelector('#s-owner').value.trim(); s.repo = w.querySelector('#s-repo').value.trim();
-        s.branch = w.querySelector('#s-branch').value.trim() || 'main'; s.dataPath = w.querySelector('#s-path').value.trim().replace(/^\/+|\/+$/g, '');
+        s.owner = w.querySelector('#s-owner').value.trim(); s.branch = w.querySelector('#s-branch').value.trim() || 'main';
+        s.dataRepo = w.querySelector('#s-data').value.trim(); s.toolRepo = w.querySelector('#s-tool').value.trim();
+        s.prefix = w.querySelector('#s-prefix').value.trim() || 'review-';
       }
       return s;
     }
@@ -666,21 +701,24 @@
       var s = read();
       var tok = DEMO ? '' : w.querySelector('#s-token').value.trim();
       if (b.dataset.sheet === 'test') {
-        var store = new S.GitHubStore(Object.assign({}, s, { token: tok }));
-        log('Checking ' + s.owner + '/' + s.repo + '@' + s.branch + '…');
-        store.user().then(function (u) { log('Signed in as ' + u.login, 'ok'); if (!w.querySelector('#s-user').value.trim()) w.querySelector('#s-user').value = u.name || u.login; return store.snapshot(); })
-          .then(function (snap) {
-            var dir = store.projectsDir();
-            var n = snap.entries.filter(function (x) { return x.path.indexOf(dir) === 0 && /\.json$/.test(x.path); }).length;
-            log('Repository OK — ' + plural(n, 'project') + ' in ' + dir, 'ok');
-          })
-          .catch(function (err) { log(err.message, 'err'); });
+        var ws = new S.Workspace(s, tok);
+        log('Checking your token…');
+        ws.account.user().then(function (u) {
+          log('Signed in as ' + u.login, 'ok');
+          if (!w.querySelector('#s-user').value.trim()) w.querySelector('#s-user').value = u.name || u.login;
+          return ws.dataStore().snapshot().then(function () { log('Data repo ' + ws.dataFull() + ': OK (FTE access)', 'ok'); },
+            function () { log('Data repo ' + ws.dataFull() + ': no access (fine for contractors)'); });
+        }).then(function () {
+          return ws.account.listRepos(s.owner, s.prefix).then(function (names) { log(plural(names.length, 'shared project repo') + ' reachable', 'ok'); });
+        }).then(function () {
+          return ws.account.invitations().then(function (inv) { if (inv.length) log(plural(inv.length, 'invitation') + ' waiting — accept them after saving'); });
+        }).catch(function (err) { log(err.message, 'err'); });
         return;
       }
       if (!s.user) { w.querySelector('#s-user').focus(); toast('Add your name so others know who commented'); return; }
       if (!DEMO) {
-        // A different token may be a different person: learn the login again on the next sync.
-        if (tok !== getToken() || s.owner !== settings.owner || s.repo !== settings.repo) { s.login = ''; access.loaded = false; }
+        // A different token or account may be a different person: start the identity over.
+        if (tok !== getToken() || s.owner !== settings.owner || s.dataRepo !== settings.dataRepo) { s.login = ''; dataAccess = ''; save('dataAccess', dataAccess); accessMap = {}; }
         setToken(tok, w.querySelector('#s-remember').checked);
       }
       settings = s; save('settings', settings);
@@ -689,42 +727,87 @@
     });
   }
 
-  // ── People & access (FTEs only) ──────────────────────────
-  var access = { loaded: false, loading: false, collaborators: null, invited: null, error: '' };
-
-  function loadAccess(force) {
-    if (DEMO || !getToken() || access.loading || (access.loaded && !force)) return;
-    access.loading = true;
-    var store = new S.GitHubStore(Object.assign({}, settings, { token: getToken() }));
-    Promise.all([store.collaborators(), store.invitations().catch(function () { return null; })])
-      .then(function (r) { access.collaborators = r[0]; access.invited = r[1]; access.error = ''; })
-      .catch(function (err) { access.collaborators = null; access.error = err.status === 403 ? 'Your token can’t read the repo’s collaborators (it needs Administration access).' : err.message; })
-      .then(function () { access.loading = false; access.loaded = true; if (ui.page === 'people') renderPage(); });
+  // A sheet that shows the steps of a multi-step GitHub operation.
+  function progressSheet(title) {
+    var w = sheet('<div class="sheet-head"><h2>' + esc(title) + '</h2></div><div class="sheet-body"><div class="log" id="op-log"></div></div>' +
+      '<div class="sheet-foot"><span class="spacer"></span><button class="btn btn-primary" data-sheet="done" disabled>Done</button></div>', { sticky: true });
+    w.querySelector('[data-sheet="done"]').addEventListener('click', closeSheet);
+    return {
+      log: function (text, cls) { var l = w.querySelector('#op-log'); if (!l) return; l.innerHTML += '<div class="' + (cls || '') + '">' + esc(text) + '</div>'; l.scrollTop = 1e6; },
+      done: function () { var d = w.querySelector('[data-sheet="done"]'); if (d) d.disabled = false; }
+    };
   }
 
-  function accessBadge(login) {
-    if (!access.collaborators) return '';
-    if (settings.owner && login === settings.owner.toLowerCase()) return '<span class="res fixed">Owner</span>';
-    if (access.collaborators.indexOf(login) >= 0) return '<span class="res fixed">Has repo access</span>';
-    if (access.invited && access.invited.indexOf(login) >= 0) return '<span class="res waived">Invite pending</span>';
-    return '<span class="res open">No repo access</span> <button class="btn btn-plain" style="padding:2px 8px;font-size:12px" data-act="invite" data-login="' + esc(login) + '">Invite</button>';
+  // ── People & access (FTEs only) ──────────────────────────
+  // accessMap: 'owner/repo' -> { collaborators, invited } | { error }, loaded when People opens.
+  var accessMap = {}, accessLoading = false;
+
+  function stateNow() {
+    var byId = {};
+    Object.keys(projects).forEach(function (k) { byId[projects[k].id] = projects[k]; });
+    return { login: settings.login, projects: byId, roster: roster, homes: homes, cache: cache, dataAccess: dataAccess };
+  }
+
+  function loadAccess(force) {
+    if (DEMO || !getToken() || accessLoading) return;
+    var ws = workspace(), repos = ws.fteRepos(stateNow()).filter(function (r) { return force || !accessMap[r]; });
+    if (!repos.length) return;
+    accessLoading = true;
+    Promise.all(repos.map(function (r) {
+      return ws.access(r).then(function (a) { accessMap[r] = a; }, function (err) {
+        accessMap[r] = { error: err.status === 403 || err.status === 404 ? 'needs an admin token' : err.message };
+      });
+    })).then(function () { accessLoading = false; if (ui.page === 'people') renderPage(); });
+  }
+
+  function repoName(full) { return full.split('/')[1]; }
+  // For one person: the repos they should be on and aren't, and the ones with an invite pending.
+  function accessGaps(u) {
+    var ws = workspace(), want;
+    if (u.role === 'fte') want = ws.fteRepos(stateNow());
+    else want = (u.projects || []).map(function (id) { return M.sharedRepo(roster, id); }).filter(Boolean);
+    var missing = [], pending = [], unknown = false;
+    want.forEach(function (r) {
+      var a = accessMap[r];
+      if (!a || a.error) { unknown = true; return; }
+      if (a.collaborators.indexOf(u.login) >= 0) return;
+      (a.invited.indexOf(u.login) >= 0 ? pending : missing).push(r);
+    });
+    var unshared = u.role === 'contractor' ? (u.projects || []).filter(function (id) { return !M.sharedRepo(roster, id); }) : [];
+    return { want: want, missing: missing, pending: pending, unknown: unknown, unshared: unshared };
+  }
+
+  function accessCell(u) {
+    if (u.login === String(settings.owner).toLowerCase()) return '<span class="res fixed">Owner</span>';
+    if (!getToken()) return '<span class="muted">Sync to check</span>';
+    if (accessLoading) return '<span class="muted">Checking…</span>';
+    var g = accessGaps(u);
+    if (g.unknown && !g.missing.length) return '<span class="muted">Only the owner can see this</span>';
+    var parts = [];
+    if (g.missing.length || g.unshared.length) {
+      parts.push('<span class="res open">' + (g.missing.length ? 'Not on ' + g.missing.map(repoName).join(', ') : plural(g.unshared.length, 'project') + ' not shared yet') + '</span>');
+      parts.push('<button class="btn btn-plain" style="padding:2px 8px;font-size:12px" data-act="fix-access" data-login="' + esc(u.login) + '">Give access</button>');
+    }
+    if (g.pending.length) parts.push('<span class="res waived">Invite pending' + (g.pending.length > 1 ? ' ×' + g.pending.length : '') + '</span>');
+    if (!parts.length) parts.push('<span class="res fixed">' + (u.role === 'fte' ? 'All repos' : g.want.length ? 'Has access' : 'No projects') + '</span>');
+    return parts.join(' ');
   }
 
   function peoplePage() {
     loadAccess(false);
     var people = M.liveUsers(roster);
-    var byId = {};
-    Object.keys(projects).forEach(function (k) { byId[projects[k].id] = projects[k]; });
-    var html = '<div class="page"><div class="cl-head"><div><div class="eyebrow">' + esc(settings.owner + '/' + settings.repo) + '</div><h1 class="page-title">People &amp; access</h1>' +
-      '<div class="page-sub"><span>FTEs see every project. Contractors see only the projects they’re added to.</span></div></div>' +
-      '<button class="btn btn-primary" data-act="add-person">Add person</button></div>';
-    if (!people.length) {
-      html += '<div class="card" style="padding:18px 20px;margin-bottom:14px"><b>No one is listed yet.</b> Until someone is, everyone who can sync is treated as an FTE. ' +
-        'Add yourself and the other FTEs first, then contractors.' +
-        (settings.login ? ' <button class="btn btn-plain" data-act="add-self">Add me (' + esc(settings.login) + ') as FTE</button>' : '') + '</div>';
+    var byId = stateNow().projects;
+    var html = '<div class="page"><div class="cl-head"><div><div class="eyebrow">' + esc(settings.owner) + '</div><h1 class="page-title">People &amp; access</h1>' +
+      '<div class="page-sub"><span>FTEs can open every project. A contractor can open only the projects shared with them, each in its own private repository.</span></div></div>' +
+      '<div style="display:flex;gap:8px"><button class="btn" data-act="refresh-access">Refresh</button><button class="btn btn-primary" data-act="add-person">Add person</button></div></div>';
+    if (!isOwner()) {
+      html += '<div class="card" style="padding:14px 18px;margin-bottom:14px;font-size:13.5px">Only <b>' + esc(settings.owner) + '</b> can create project repositories and invite people while the repos are in a personal account. You can still edit this list; the owner applies the access.</div>';
     }
-    if (people.length) {
-      html += '<div class="card" style="overflow:hidden"><table class="table people"><thead><tr><th>Person</th><th>Role</th><th>Projects</th><th>GitHub</th><th></th></tr></thead><tbody>' +
+    if (!people.length) {
+      html += '<div class="card" style="padding:18px 20px;margin-bottom:14px"><b>No one is listed yet.</b> Add yourself and the other FTEs first, then contractors.' +
+        (settings.login ? ' <button class="btn btn-plain" data-act="add-self">Add me (' + esc(settings.login) + ') as FTE</button>' : '') + '</div>';
+    } else {
+      html += '<div class="card" style="overflow:hidden"><table class="table people"><thead><tr><th>Person</th><th>Role</th><th>Projects</th><th>GitHub access</th><th></th></tr></thead><tbody>' +
         people.map(function (u) {
           var projs = u.role === 'fte' ? '<span class="muted">All projects</span>' :
             ((u.projects || []).map(function (id) { return byId[id] ? '<span class="chip">' + esc(byId[id].meta.name) + '</span>' : ''; }).join(' ') || '<span class="muted">None yet</span>') +
@@ -733,14 +816,23 @@
             '<td><div class="seg">' + [['fte', 'FTE'], ['contractor', 'Contractor']].map(function (r) {
               return '<button class="' + (u.role === r[0] ? 'on' : '') + '" data-act="person-role" data-login="' + esc(u.login) + '" data-role="' + r[0] + '">' + r[1] + '</button>';
             }).join('') + '</div></td>' +
-            '<td style="max-width:320px">' + projs + '</td>' +
-            '<td>' + (access.loading ? '<span class="muted">Checking…</span>' : accessBadge(u.login)) + '</td>' +
+            '<td style="max-width:300px">' + projs + '</td>' +
+            '<td style="max-width:260px">' + accessCell(u) + '</td>' +
             '<td><button class="cmt-del" style="opacity:1" data-act="remove-person" data-login="' + esc(u.login) + '">Remove</button></td></tr>';
         }).join('') + '</tbody></table></div>';
     }
-    html += '<p class="note" style="margin-top:14px">' + (access.error ? esc(access.error) + ' ' : '') +
-      'This list decides what Signoff shows and downloads for each person. GitHub itself grants access to the whole repository, so a contractor who browses the repo on github.com can still open other projects there. ' +
-      'On a personal account only the owner can invite people; once the repo moves to the company organization, any FTE admin can.</p></div>';
+    var sharedIds = Object.keys(roster.shared || {}).filter(function (id) { return M.sharedRepo(roster, id); });
+    if (sharedIds.length) {
+      html += '<div class="section-title">Shared project repositories</div><div class="card" style="overflow:hidden"><table class="table people"><thead><tr><th>Project</th><th>Repository</th><th>Contractors</th></tr></thead><tbody>' +
+        sharedIds.map(function (id) {
+          var repo = M.sharedRepo(roster, id), p = byId[id];
+          var names = assignedContractors(id).map(function (u) { return esc(u.name || u.login); }).join(', ') || '<span class="muted">None</span>';
+          return '<tr><td>' + esc(p ? p.meta.name : roster.shared[id].name || id) + '</td><td><a href="https://github.com/' + esc(repo) + '" target="_blank" rel="noopener">' + esc(repo) + '</a></td><td>' + names + '</td></tr>';
+        }).join('') + '</tbody></table></div>';
+    }
+    html += '<p class="note" style="margin-top:14px">Internal projects live in <b>' + esc(settings.dataRepo) + '</b>, which only FTEs can open. ' +
+      'Adding a contractor to a project moves it into its own private <b>' + esc(settings.prefix) + '…</b> repository and invites them to that one repository only. ' +
+      'On a personal account every collaborator can push to the repositories they’re on; an organization allows narrower roles.</p></div>';
     return html;
   }
 
@@ -749,14 +841,15 @@
     var list = visibleProjects().filter(function (p) { return !p.meta.archived; }).sort(function (a, b) { return a.meta.name.localeCompare(b.meta.name); });
     var role = u ? u.role : 'contractor';
     var picked = u ? (u.projects || []).slice() : [];
-    var w = sheet('<div class="sheet-head"><h2>' + (u ? esc(u.name || u.login) : 'Add person') + '</h2><p>' + (u ? 'Choose the projects this contractor can see.' : 'They’ll need a free GitHub account. Use their GitHub username here.') + '</p></div>' +
+    var w = sheet('<div class="sheet-head"><h2>' + (u ? esc(u.name || u.login) : 'Add person') + '</h2><p>' + (u ? 'Choose the projects this contractor works on. Each one is shared through its own private repository.' : 'They’ll need a free GitHub account. Use their GitHub username here.') + '</p></div>' +
       '<div class="sheet-body">' +
       (u ? '' : '<div class="row2"><div class="field"><label for="p-name">Name</label><input class="input" id="p-name" placeholder="First Last"></div>' +
         '<div class="field"><label for="p-login">GitHub username</label><input class="input" id="p-login" placeholder="username" autocomplete="off"></div></div>' +
-        '<div class="field"><span class="field-label">Role</span><div class="seg full" id="p-role"><button type="button" data-role="fte">FTE — sees everything</button><button type="button" class="on" data-role="contractor">Contractor — chosen projects</button></div></div>') +
+        '<div class="field"><span class="field-label">Role</span><div class="seg full" id="p-role"><button type="button" data-role="fte">FTE — every project</button><button type="button" class="on" data-role="contractor">Contractor — chosen projects</button></div></div>') +
       '<div class="field" id="p-projects-field"' + (role === 'fte' ? ' hidden' : '') + '><span class="field-label">Projects</span><div class="pick-grid" id="p-projects">' +
       (list.length ? list.map(function (p) {
-        return '<button type="button" class="pick' + (picked.indexOf(p.id) >= 0 ? ' on' : '') + '" data-pick="' + esc(p.id) + '"><b>' + esc(p.meta.name) + '</b><span>' + esc([p.meta.client, p.meta.board].filter(Boolean).join(' · ') || p.meta.stage) + '</span></button>';
+        var shared = !!M.sharedRepo(roster, p.id);
+        return '<button type="button" class="pick' + (picked.indexOf(p.id) >= 0 ? ' on' : '') + '" data-pick="' + esc(p.id) + '"><b>' + esc(p.meta.name) + '</b><span>' + (shared ? 'Shared' : 'Internal') + (p.meta.client ? ' · ' + esc(p.meta.client) : '') + '</span></button>';
       }).join('') : '<p class="note">No projects yet.</p>') + '</div></div>' +
       '</div><div class="sheet-foot"><span class="spacer"></span><button class="btn" data-sheet="cancel">Cancel</button><button class="btn btn-primary" data-sheet="ok">' + (u ? 'Save' : 'Add') + '</button></div>');
     w.addEventListener('click', function (e) {
@@ -773,22 +866,102 @@
       if (!b) return;
       if (b.dataset.sheet === 'cancel') return closeSheet();
       var chosen = Array.prototype.map.call(w.querySelectorAll('#p-projects .pick.on'), function (x) { return x.dataset.pick; });
-      if (u) { setPerson(login, { projects: chosen }); closeSheet(); renderPage(); return; }
+      if (u) {
+        var before = (u.projects || []).slice();
+        setPerson(login, { projects: chosen }); closeSheet(); renderPage();
+        applyContractorChange(login, before, chosen);
+        return;
+      }
       var l = w.querySelector('#p-login').value.trim().replace(/^@/, '').toLowerCase();
       if (!/^[a-z0-9](?:[a-z0-9-]{0,38})$/.test(l)) { w.querySelector('#p-login').focus(); toast('Enter their GitHub username'); return; }
       setPerson(l, { name: w.querySelector('#p-name').value.trim() || l, role: role, projects: role === 'fte' ? [] : chosen, deleted: false });
       closeSheet(); renderPage();
-      toast('Added. Sync to share the change' + (access.collaborators && access.collaborators.indexOf(l) < 0 ? ', and invite them to the repo' : ''));
+      if (role === 'fte') fixAccess(l); else applyContractorChange(l, [], chosen);
     });
   }
 
-  function inviteAccess(login) {
-    if (!confirm('Send ' + login + ' a GitHub invitation to ' + settings.owner + '/' + settings.repo + '?\n\nOn a personal repository every collaborator can push to it.')) return;
-    var store = new S.GitHubStore(Object.assign({}, settings, { token: getToken() }));
-    store.invite(login).then(function () { toast('Invitation sent to ' + login); loadAccess(true); })
-      .catch(function (err) {
-        toast(err.status === 403 || err.status === 404 ? 'Only the repo owner (or an org admin) can invite — or the token needs Administration: write' : 'Invite failed: ' + err.message);
+  // Give GitHub access to match the People list, sharing internal projects as needed.
+  function applyContractorChange(login, before, after) {
+    var added = after.filter(function (id) { return before.indexOf(id) < 0; });
+    var removed = before.filter(function (id) { return after.indexOf(id) < 0; });
+    if (!added.length && !removed.length) return;
+    if (!getToken() || !isFte()) { toast('Saved. Access is applied when someone with GitHub admin rights syncs.'); return; }
+    var byId = stateNow().projects;
+    var toShare = added.filter(function (id) { return !M.sharedRepo(roster, id); });
+    var lines = [];
+    if (toShare.length) lines.push('Move ' + toShare.map(function (id) { return byId[id] ? byId[id].meta.name : id; }).join(', ') + ' into ' + (toShare.length === 1 ? 'its own private repository' : 'their own private repositories'));
+    if (added.length) lines.push('Invite ' + login + ' to ' + plural(added.length, 'project'));
+    if (removed.length) lines.push('Remove ' + login + ' from ' + plural(removed.length, 'project'));
+    if (!confirm(lines.join('\n') + '\n\nGitHub emails the invitations. Go ahead?')) { toast('Saved in People. Use “Give access” when you’re ready.'); return; }
+    runAccessOps('Updating access for ' + login, [{ login: login, share: toShare, invite: added.filter(function (id) { return toShare.indexOf(id) < 0; }), revoke: removed }]);
+  }
+
+  // ops: [{ login, share: [ids], invite: [ids], revoke: [ids], repos: [full] }]
+  function runAccessOps(title, ops) {
+    var ui2 = progressSheet(title), ws = workspace(), failures = [];
+    var chain = Promise.resolve();
+    ops.forEach(function (op) {
+      (op.share || []).forEach(function (id) {
+        chain = chain.then(function () {
+          var contractors = assignedContractors(id).map(function (u) { return u.login; });
+          return ws.share(stateNow(), id, contractors, ui2.log).then(function (res) {
+            roster = res.state.roster; homes = res.state.homes; cache = res.state.cache;
+            touchRoster();
+            failures = failures.concat(res.failedInvites);
+            ui2.log('Shared as ' + res.repo, 'ok');
+          });
+        });
       });
+      (op.invite || []).forEach(function (id) {
+        chain = chain.then(function () { var r = M.sharedRepo(roster, id); return r ? ws.inviteTo(r, [op.login], ui2.log).then(function (f) { failures = failures.concat(f); }) : null; });
+      });
+      (op.revoke || []).forEach(function (id) {
+        chain = chain.then(function () { var r = M.sharedRepo(roster, id); return r ? ws.revokeFrom(r, [op.login], ui2.log).then(function (f) { failures = failures.concat(f); }) : null; });
+      });
+      if (op.repos && op.repos.length) {
+        chain = chain.then(function () {
+          return op.repos.reduce(function (c, r) { return c.then(function () { return ws.inviteTo(r, [op.login], ui2.log).then(function (f) { failures = failures.concat(f); }); }); }, Promise.resolve());
+        });
+      }
+      if (op.revokeRepos && op.revokeRepos.length) {
+        chain = chain.then(function () {
+          return op.revokeRepos.reduce(function (c, r) { return c.then(function () { return ws.revokeFrom(r, [op.login], ui2.log).then(function (f) { failures = failures.concat(f); }); }); }, Promise.resolve());
+        });
+      }
+    });
+    chain.then(function () {
+      failures.forEach(function (f) {
+        ui2.log(f.login + ' on ' + f.repo + ': ' + (f.status === 403 || f.status === 404 ? 'only the owner (or an org admin) can change access, and the token needs Administration: write' : f.message), 'err');
+      });
+      ui2.log(failures.length ? 'Finished with problems.' : 'Done. Syncing…', failures.length ? 'err' : 'ok');
+    }, function (err) {
+      ui2.log('Stopped: ' + err.message + (err.status === 403 || err.status === 404 ? ' — creating repositories needs the owner’s token with Administration: write on All repositories.' : ''), 'err');
+    }).then(function () {
+      ui2.done(); accessMap = {}; persist(); sync(); if (ui.page === 'people') renderPage();
+    });
+  }
+
+  // Invite (or share) whatever this person is missing according to the People list.
+  function fixAccess(login) {
+    var u = roster.users[login];
+    if (!u || !getToken()) return;
+    var g = accessGaps(u);
+    var repos = u.role === 'fte' ? (Object.keys(accessMap).length ? g.missing : workspace().fteRepos(stateNow())) : [];
+    var invite = u.role === 'contractor' ? (u.projects || []).filter(function (id) { var r = M.sharedRepo(roster, id); return r && (g.missing.indexOf(r) >= 0 || !accessMap[r]); }) : [];
+    var share = g.unshared;
+    if (!repos.length && !invite.length && !share.length) { toast((u.name || login) + ' already has access'); return; }
+    var what = u.role === 'fte' ? 'Invite ' + login + ' to ' + repos.map(repoName).join(', ') :
+      (share.length ? 'Share ' + plural(share.length, 'project') + ' (each gets its own private repository) and invite ' + login : 'Invite ' + login + ' to ' + plural(invite.length, 'project repository', 'project repositories'));
+    if (!confirm(what + '?\n\nGitHub emails the invitations.')) return;
+    runAccessOps('Giving access to ' + login, [{ login: login, repos: repos, invite: invite, share: share }]);
+  }
+
+  // ── Invitations waiting for me ───────────────────────────
+  function acceptInvitations() {
+    var acc = new S.GitHubAccount(getToken());
+    Promise.all(invitations.map(function (i) { return acc.acceptInvitation(i.id).then(function () { return i.repo; }); }))
+      .then(function (repos) { toast('Joined ' + repos.join(', ')); invitations = []; save('invitations', invitations); sync(); })
+      .catch(function (err) { toast('Couldn’t accept: ' + err.message); });
   }
 
   // ── Sync ─────────────────────────────────────────────────
@@ -796,60 +969,58 @@
   function sync() {
     if (DEMO) { toast('Demo mode keeps everything in this browser'); return; }
     if (syncing) return;
-    if (!getToken() || !settings.owner || !settings.repo) { settingsSheet(); return; }
+    if (!getToken() || !settings.owner || !settings.dataRepo) { settingsSheet(); return; }
     if (!settings.user) { settingsSheet(); return; }
     syncing = true; renderSyncState('busy');
     var started = Object.assign({}, dirty);
-    var store = new S.GitHubStore(Object.assign({}, settings, { token: getToken() }));
-    var byId = {};
-    Object.keys(projects).forEach(function (k) { byId[projects[k].id] = projects[k]; });
-    var names = Object.keys(dirty).map(function (k) { return k === 'roster' ? 'people' : byId[k] ? byId[k].meta.name : k; });
+    var st0 = stateNow();
+    var names = Object.keys(dirty).map(function (k) { return k === 'roster' ? 'people' : st0.projects[k] ? st0.projects[k].meta.name : k; });
     var message = names.length ? 'Review update: ' + names.join(', ') + ' (' + me() + ')' : 'Review update (' + me() + ')';
     var currentId = projects[ui.slug] && projects[ui.slug].id;
-    // Who is syncing decides what is downloaded, so learn the GitHub login first.
-    (settings.login ? Promise.resolve() : store.user().then(function (u) {
-      settings.login = u.login.toLowerCase();
-      if (!settings.user) settings.user = u.name || u.login;
-      save('settings', settings);
-    })).then(function () {
-      return store.sync(byId, roster, cache, {
-        message: message,
-        canSee: function (id, r) { return M.canSee(id, settings.login, r, settings.owner); },
-        onRetry: function () { toast('Someone else just synced \u2014 merging their changes'); }
-      });
-    })
+    workspace().sync(st0, { message: message, onRetry: function () { toast('Someone else just synced — merging their changes'); } })
       .then(function (res) {
+        var st = res.state;
+        if (res.userName && !settings.user) settings.user = res.userName;
+        settings.login = st.login; save('settings', settings);
         // Edits made while the sync ran are merged on top, and stay unsynced.
-        var mergedById = {};
-        Object.keys(projects).forEach(function (k) { byId[projects[k].id] = projects[k]; });
-        Object.keys(res.projects).forEach(function (id) {
-          mergedById[id] = byId[id] ? M.mergeProjects(byId[id], res.projects[id]) : res.projects[id];
-        });
+        var nowById = stateNow().projects, merged = {};
+        Object.keys(st.projects).forEach(function (id) { merged[id] = nowById[id] ? M.mergeProjects(nowById[id], st.projects[id]) : st.projects[id]; });
+        // Projects that only exist locally and weren't touched by this sync (e.g. its repo
+        // failed) are kept.
+        Object.keys(nowById).forEach(function (id) { if (!merged[id] && res.dropped.indexOf(id) < 0) merged[id] = nowById[id]; });
         // Slugs are only local handles for the sidebar; two projects with one name get a suffix.
         var next = {};
-        Object.keys(mergedById).forEach(function (id) {
-          var doc = mergedById[id], slug = doc.slug || M.slugify(doc.meta.name), n = 2;
-          while (next[slug]) slug = (doc.slug || M.slugify(doc.meta.name)) + '-' + n++;
+        Object.keys(merged).forEach(function (id) {
+          var doc = merged[id], base = doc.slug || M.slugify(doc.meta.name), slug = base, n = 2;
+          while (next[slug]) slug = base + '-' + n++;
           next[slug] = doc;
         });
         projects = next;
-        roster = M.mergeRosters(roster, res.roster);
-        (res.removed || []).forEach(function (id) { delete dirty[id]; });
-        Object.keys(started).forEach(function (k) { if (dirty[k] === started[k]) delete dirty[k]; });
+        homes = st.homes; cache = st.cache; dataAccess = st.dataAccess;
+        roster = M.mergeRosters(roster, st.roster);
+        var failedRepos = res.errors.map(function (e) { return e.repo; });
+        Object.keys(started).forEach(function (k) {
+          if (dirty[k] !== started[k]) return;
+          var repo = k === 'roster' ? settings.owner + '/' + settings.dataRepo : st.homes[k] || (settings.owner + '/' + settings.dataRepo);
+          if (failedRepos.indexOf(repo) < 0) delete dirty[k];
+        });
+        res.dropped.forEach(function (id) { delete dirty[id]; });
         ui.slug = Object.keys(projects).filter(function (k) { return projects[k].id === currentId; })[0] || '';
-        cache = res.cache;
         if (res.templates && res.templates.length) { pulledTemplates = res.templates; save('templates', pulledTemplates); refreshTemplates(); }
-        lastSync = { at: M.now(), version: res.version };
-        save('cache', cache); save('lastSync', lastSync); persist();
-        lastError = '';
+        invitations = res.invitations || [];
+        lastSync = { at: M.now(), version: res.version || (lastSync && lastSync.version), errors: res.errors };
+        save('cache2', cache); save('lastSync', lastSync); save('dataAccess', dataAccess); save('invitations', invitations); persist();
+        lastError = res.errors.length ? res.errors[0].message : '';
         syncing = false;
         render();
-        toast(res.pushed ? 'Synced \u2014 ' + plural(res.pushed, 'file') + ' pushed' : 'Up to date');
+        if (res.dropped.length) toast(plural(res.dropped.length, 'project') + ' no longer shared with you ' + (res.dropped.length === 1 ? 'was' : 'were') + ' removed from this browser');
+        if (res.errors.length) toast(res.errors[0].message + (res.errors.length > 1 ? ' (+' + (res.errors.length - 1) + ' more)' : ''));
+        else toast(res.pushed ? 'Synced — ' + plural(res.pushed, 'change') + ' pushed' : 'Up to date');
       })
       .catch(function (err) {
         syncing = false; lastError = err.message;
         renderSyncState('error');
-        toast('Sync failed: ' + err.message + (err.status === 403 || err.status === 404 ? ' — check the token’s access to ' + settings.repo : ''));
+        toast('Sync failed: ' + err.message);
       });
   }
 
@@ -1029,14 +1200,28 @@
       case 'theme': toggleTheme(); break;
       case 'add-person': personSheet(null); break;
       case 'add-self': setPerson(settings.login, { name: settings.user || settings.login, role: 'fte', projects: [], deleted: false }); renderPage(); break;
+      case 'fix-access': fixAccess(el.dataset.login); break;
+      case 'refresh-access': accessMap = {}; loadAccess(true); renderPage(); break;
+      case 'accept-invites': acceptInvitations(); break;
       case 'person-projects': personSheet(el.dataset.login); break;
       case 'person-role':
         if (el.dataset.login === settings.login && el.dataset.role !== 'fte' && !confirm('Make yourself a contractor? You would stop seeing most projects.')) break;
-        setPerson(el.dataset.login, { role: el.dataset.role }); renderPage(); break;
-      case 'remove-person':
-        if (confirm('Remove ' + el.dataset.login + ' from People? This doesn\u2019t remove their GitHub access to the repo.')) { setPerson(el.dataset.login, { deleted: true }); renderPage(); }
+        if ((roster.users[el.dataset.login] || {}).role === el.dataset.role) break;
+        setPerson(el.dataset.login, { role: el.dataset.role }); renderPage();
+        if (el.dataset.role === 'fte') fixAccess(el.dataset.login);
+        else if (getToken() && confirm('Also remove ' + el.dataset.login + ' from ' + settings.dataRepo + ' and ' + settings.toolRepo + ' on GitHub?')) {
+          runAccessOps('Removing FTE access', [{ login: el.dataset.login, revokeRepos: [settings.owner + '/' + settings.dataRepo, settings.owner + '/' + settings.toolRepo] }]);
+        }
         break;
-      case 'invite': inviteAccess(el.dataset.login); break;
+      case 'remove-person':
+        if (!confirm('Remove ' + el.dataset.login + ' from People?')) break;
+        (function (login) {
+          var u = roster.users[login], repos = u.role === 'fte' ? workspace().fteRepos(stateNow()) : (u.projects || []).map(function (id) { return M.sharedRepo(roster, id); }).filter(Boolean);
+          setPerson(login, { deleted: true, projects: [] }); renderPage();
+          if (getToken() && repos.length && confirm('Also take away their GitHub access to ' + repos.map(repoName).join(', ') + '?')) runAccessOps('Removing ' + login, [{ login: login, revokeRepos: repos }]);
+        })(el.dataset.login);
+        break;
+
       case 'report': openReport(); break;
       case 'close-report': $('#report').hidden = true; break;
       case 'print': window.print(); break;

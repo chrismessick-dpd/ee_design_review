@@ -1,11 +1,13 @@
 /* GitHub storage for Signoff.
 
-   Sync = pull, merge, push one commit. Review data is committed straight to the
-   branch (no pull requests): every record merges key by key (see model.mergeProjects),
-   so two reviewers syncing the same project don't overwrite each other. The ref update
-   uses force:false, so if someone else pushed in between, GitHub refuses it (422) and
-   we pull, merge and try again.
+   Every repository Signoff writes to has the same layout: projects/<id>.json, plus
+   users.json in the FTE-only data repo. A sync of one repository = pull, merge, push one
+   commit. Review data is committed straight to the branch (no pull requests): every record
+   merges key by key (see model.mergeProjects), so two reviewers syncing the same project
+   don't overwrite each other. The ref update uses force:false, so if someone else pushed
+   in between, GitHub refuses it (422) and we pull, merge and try again.
 
+   assets/workspace.js decides which repositories to sync; this file talks to one.
    The fetch function is injected so tests/test.html can run this against a fake GitHub. */
 (function (S) {
   'use strict';
@@ -37,22 +39,12 @@
     });
   }
 
-  function GitHubStore(cfg, fetchImpl) {
-    this.cfg = cfg;               // { owner, repo, branch, dataPath, templatePath, token }
-    this.fetch = fetchImpl || window.fetch.bind(window);
-  }
-
-  GitHubStore.prototype.base = function () {
-    return API + '/repos/' + encodeURIComponent(this.cfg.owner) + '/' + encodeURIComponent(this.cfg.repo);
-  };
-
-  GitHubStore.prototype.api = function (path, opts) {
+  function apiCall(fetchImpl, token, url, opts) {
     opts = opts || {};
     var headers = { 'Accept': 'application/vnd.github+json', 'X-GitHub-Api-Version': '2022-11-28' };
-    if (this.cfg.token) headers.Authorization = 'Bearer ' + this.cfg.token;
+    if (token) headers.Authorization = 'Bearer ' + token;
     if (opts.body) headers['Content-Type'] = 'application/json';
-    var url = path.indexOf('http') === 0 ? path : this.base() + path;
-    return this.fetch(url, { method: opts.method || 'GET', headers: headers, body: opts.body ? JSON.stringify(opts.body) : undefined, cache: 'no-store' })
+    return fetchImpl(url, { method: opts.method || 'GET', headers: headers, body: opts.body ? JSON.stringify(opts.body) : undefined, cache: 'no-store' })
       .then(function (res) {
         return res.text().then(function (text) {
           var data = null;
@@ -65,6 +57,59 @@
           return data;
         });
       });
+  }
+
+  // ── Calls about the signed-in user rather than one repository ──
+  function GitHubAccount(token, fetchImpl) {
+    this.token = token;
+    this.fetch = fetchImpl || window.fetch.bind(window);
+  }
+  GitHubAccount.prototype.api = function (path, opts) { return apiCall(this.fetch, this.token, API + path, opts); };
+  GitHubAccount.prototype.user = function () { return this.api('/user'); };
+  // 'User' or 'Organization': decides where new project repositories are created.
+  GitHubAccount.prototype.ownerType = function (owner) {
+    return this.api('/users/' + encodeURIComponent(owner)).then(function (u) { return u.type; });
+  };
+  // Repositories of `owner` whose name starts with `prefix` that this token can open.
+  GitHubAccount.prototype.listRepos = function (owner, prefix) {
+    var self = this, out = [];
+    function page(n) {
+      return self.api('/user/repos?affiliation=owner,collaborator,organization_member&per_page=100&page=' + n).then(function (list) {
+        (list || []).forEach(function (r) {
+          if (r.owner && r.owner.login.toLowerCase() === owner.toLowerCase() && r.name.indexOf(prefix) === 0) out.push(r.name);
+        });
+        return list && list.length === 100 && n < 20 ? page(n + 1) : out;
+      });
+    }
+    return page(1);
+  };
+  GitHubAccount.prototype.createRepo = function (owner, name, isOrg, description) {
+    var body = { name: name, private: true, auto_init: true, description: description || '' };
+    return this.api(isOrg ? '/orgs/' + encodeURIComponent(owner) + '/repos' : '/user/repos', { method: 'POST', body: body });
+  };
+  // Invitations waiting for this user to accept (the email step people miss).
+  GitHubAccount.prototype.invitations = function () {
+    return this.api('/user/repository_invitations?per_page=100').then(function (list) {
+      return (list || []).map(function (i) { return { id: i.id, repo: i.repository && i.repository.full_name, owner: i.repository && i.repository.owner && i.repository.owner.login }; });
+    });
+  };
+  GitHubAccount.prototype.acceptInvitation = function (id) {
+    return this.api('/user/repository_invitations/' + id, { method: 'PATCH' });
+  };
+
+  // ── One repository ──
+  function GitHubStore(cfg, fetchImpl) {
+    this.cfg = cfg;               // { owner, repo, branch, dataPath, templatePath, token }
+    this.fetch = fetchImpl || window.fetch.bind(window);
+  }
+
+  GitHubStore.prototype.base = function () {
+    return API + '/repos/' + encodeURIComponent(this.cfg.owner) + '/' + encodeURIComponent(this.cfg.repo);
+  };
+  GitHubStore.prototype.full = function () { return this.cfg.owner + '/' + this.cfg.repo; };
+
+  GitHubStore.prototype.api = function (path, opts) {
+    return apiCall(this.fetch, this.cfg.token, path.indexOf('http') === 0 ? path : this.base() + path, opts);
   };
 
   GitHubStore.prototype.dataDir = function () {
@@ -74,10 +119,10 @@
 
   GitHubStore.prototype.user = function () { return this.api(API + '/user'); };
 
-  // Head commit, its tree, and the files we care about in it.
+  // Head commit, its tree, and the files in it.
   GitHubStore.prototype.snapshot = function () {
-    var self = this, head;
-    return this.api('/git/ref/heads/' + encodeURIComponent(this.cfg.branch)).then(function (ref) {
+    var self = this, head, branch = this.cfg.branch || 'main';
+    return this.api('/git/ref/heads/' + encodeURIComponent(branch)).then(function (ref) {
       head = ref.object.sha;
       return self.api('/git/commits/' + head);
     }).then(function (commit) {
@@ -85,8 +130,8 @@
         return { head: head, tree: commit.tree.sha, entries: tree.tree || [] };
       });
     }).catch(function (err) {
-      if (err.status === 409) err.message = 'The repository is empty. Add a first commit (the tool itself) before syncing.';
-      if (err.status === 404) err.message = 'Repository or branch not found, or the token can’t see it.';
+      if (err.status === 409) err.message = self.full() + ' is empty. It needs a first commit before Signoff can sync it.';
+      if (err.status === 404) err.message = self.full() + ' not found, or your token can’t open it.';
       throw err;
     });
   };
@@ -95,21 +140,23 @@
     return this.api('/git/blobs/' + sha).then(function (b) { return b64Decode(b.content); });
   };
 
-  /* Sync local projects and the users roster with the repo.
-     local:  { projectId: doc }    the working copies, including unsynced edits
-     roster: { users: {...} }      the local copy of data/users.json
-     cache:  { path: { sha } }     blob shas as of the last sync. A project whose sha hasn't
-                                   changed since is already merged into the local copy, so it
-                                   isn't downloaded again (and no second copy is stored).
-     opts.canSee(id, roster):      projects it rejects are neither downloaded nor pushed, and
-                                   local copies of them come back in `removed`.
-     Project files are named by id, so the file list doesn't show project names.
-     Resolves { projects, roster, removed, cache, templates, version, pushed, commitUrl };
-     templates is null when the repo's templates haven't changed since the last sync. */
+  /* Sync this repository.
+     local:  { projectId: doc }    working copies that live here, including unsynced edits
+     roster: { users, shared }     the local People list (data repo only; pass null otherwise)
+     cache:  { path: { sha } }     blob shas as of the last sync of this repo. A project whose
+                                   sha hasn't changed since is already merged into the local
+                                   copy, so it isn't downloaded again.
+     opts.belongsHere(id, roster): projects it rejects (moved to their own repository) are
+                                   not downloaded or pushed; local copies come back in `moved`,
+                                   and with opts.deleteStrays their files here are deleted.
+     opts.tool:                    also read checklists (templates/) and the tool version.
+     Resolves { projects, roster, moved, cache, templates, version, pushed, commitUrl };
+     templates is null when they haven't changed since the last sync. */
   GitHubStore.prototype.sync = function (local, roster, cache, opts) {
     var self = this;
     opts = opts || {};
-    var canSee = opts.canSee || function () { return true; };
+    local = local || {};
+    var belongsHere = opts.belongsHere || function () { return true; };
     var attempt = 0;
     cache = cache || {};
 
@@ -127,7 +174,7 @@
 
     function once() {
       attempt++;
-      var snap, blobs, projectEntries, rosterEntry, mergedRoster, templates = null, version = null;
+      var snap, blobs, projectEntries, strays = [], rosterEntry, mergedRoster = null, templates = null, version = null;
       var nextCache = Object.assign({}, cache);   // only returned once the sync succeeds
       var dir = self.projectsDir();
       var rosterPath = self.dataDir() + 'users.json';
@@ -137,28 +184,38 @@
       return self.snapshot().then(function (s) {
         snap = s;
         blobs = s.entries.filter(function (e) { return e.type === 'blob'; });
-        rosterEntry = blobs.filter(function (e) { return e.path === rosterPath; })[0];
-        // The roster comes first: it decides which projects this user downloads.
+        rosterEntry = roster ? blobs.filter(function (e) { return e.path === rosterPath; })[0] : null;
+        // The roster comes first: it says which projects have moved to their own repository.
         return cachedText(rosterEntry);
       }).then(function (rf) {
-        var remoteRoster = null;
-        if (rf) {
-          nextCache[rf.path] = { sha: rf.sha, text: rf.text };
-          try { remoteRoster = JSON.parse(rf.text); } catch (e) { remoteRoster = null; }
+        if (roster) {
+          var remoteRoster = null;
+          if (rf) {
+            nextCache[rf.path] = { sha: rf.sha, text: rf.text };
+            try { remoteRoster = JSON.parse(rf.text); } catch (e) { remoteRoster = null; }
+          }
+          mergedRoster = M.mergeRosters(roster, remoteRoster);
         }
-        mergedRoster = M.mergeRosters(roster, remoteRoster);
-        projectEntries = blobs.filter(function (e) { return direct(e, dir) && canSee(idOf(e.path, dir), mergedRoster); });
-        var tplEntries = blobs.filter(function (e) { return direct(e, tplDir); });
-        var versionEntry = blobs.filter(function (e) { return e.path === 'assets/version.js'; })[0];
+        projectEntries = [];
+        blobs.forEach(function (e) {
+          if (!direct(e, dir)) return;
+          (belongsHere(idOf(e.path, dir), mergedRoster) ? projectEntries : strays).push(e);
+        });
         // Projects: fetch only what changed, or what we have no local copy of.
         var projectReads = projectEntries.map(function (e) {
           return fresh(e) || !local[idOf(e.path, dir)] ? fetchText(e) : Promise.resolve({ path: e.path, sha: e.sha, unchanged: true });
         });
-        // Templates: all of them again if any changed, otherwise nothing.
-        var tplReads = tplEntries.some(fresh) || tplEntries.length !== Object.keys(cache).filter(function (k) { return k.indexOf(tplDir) === 0; }).length
-          ? Promise.all(tplEntries.map(fetchText)) : Promise.resolve(null);
-        tplEntries.forEach(function (e) { nextCache[e.path] = { sha: e.sha }; });
-        return Promise.all([Promise.all(projectReads), tplReads, cachedText(versionEntry)]);
+        var tplReads = Promise.resolve(null), versionRead = Promise.resolve(null);
+        if (opts.tool) {
+          var tplEntries = blobs.filter(function (e) { return direct(e, tplDir); });
+          var versionEntry = blobs.filter(function (e) { return e.path === 'assets/version.js'; })[0];
+          // Templates: all of them again if any changed, otherwise nothing.
+          tplReads = tplEntries.some(fresh) || tplEntries.length !== Object.keys(cache).filter(function (k) { return k.indexOf(tplDir) === 0; }).length
+            ? Promise.all(tplEntries.map(fetchText)) : Promise.resolve(null);
+          tplEntries.forEach(function (e) { nextCache[e.path] = { sha: e.sha }; });
+          versionRead = cachedText(versionEntry);
+        }
+        return Promise.all([Promise.all(projectReads), tplReads, versionRead]);
       }).then(function (got) {
         if (got[1]) {
           templates = [];
@@ -179,10 +236,10 @@
           try { remote[id] = { doc: JSON.parse(f.text), path: f.path, sha: f.sha }; } catch (e) { /* unreadable project file: leave it alone */ }
         });
 
-        // Local copies this user may no longer see are dropped, never pushed.
-        var removed = Object.keys(local).filter(function (id) { return !canSee(id, mergedRoster); });
+        // Local copies of projects that now live elsewhere are handed back, never pushed here.
+        var moved = Object.keys(local).filter(function (id) { return !belongsHere(id, mergedRoster); });
         var merged = {}, candidates = [];
-        var ids = Object.keys(remote).concat(Object.keys(local).filter(function (id) { return !remote[id] && removed.indexOf(id) < 0; }));
+        var ids = Object.keys(remote).concat(Object.keys(local).filter(function (id) { return !remote[id] && moved.indexOf(id) < 0; }));
         ids.forEach(function (id) {
           var r = remote[id];
           var doc = r && r.unchanged ? local[id] : M.mergeProjects(local[id], r && r.doc);
@@ -191,7 +248,7 @@
           candidates.push({ path: r ? r.path : dir + id + '.json', text: M.stableStringify(doc), label: doc.meta.name, sha: r && r.sha });
         });
         projectEntries.forEach(function (e) { nextCache[e.path] = { sha: e.sha }; });
-        if (Object.keys(mergedRoster.users).length) {
+        if (mergedRoster && (Object.keys(mergedRoster.users).length || Object.keys(mergedRoster.shared).length)) {
           candidates.push({ path: rosterPath, text: M.stableStringify(mergedRoster), label: 'people', sha: rosterEntry && rosterEntry.sha, roster: true });
         }
 
@@ -199,10 +256,16 @@
           return gitBlobSha(c.text).then(function (sha) { c.newSha = sha; return c; });
         })).then(function (all) {
           var changes = all.filter(function (c) { return c.newSha !== c.sha; });
-          var result = { projects: merged, roster: mergedRoster, removed: removed, cache: nextCache, templates: templates, version: version, pushed: 0 };
+          if (opts.deleteStrays) {
+            strays.forEach(function (e) { changes.push({ path: e.path, remove: true, label: 'move ' + idOf(e.path, dir) }); });
+          }
+          var result = { projects: merged, roster: mergedRoster, moved: moved, cache: nextCache, templates: templates, version: version, pushed: 0 };
           if (!changes.length || opts.pullOnly) return result;
           return self.commit(snap, changes, opts.message).then(function (commit) {
-            changes.forEach(function (c) { nextCache[c.path] = c.roster ? { sha: c.newSha, text: c.text } : { sha: c.newSha }; });
+            changes.forEach(function (c) {
+              if (c.remove) delete nextCache[c.path];
+              else nextCache[c.path] = c.roster ? { sha: c.newSha, text: c.text } : { sha: c.newSha };
+            });
             result.pushed = changes.length;
             result.commitUrl = commit.html_url;
             return result;
@@ -220,25 +283,13 @@
     return once();
   };
 
-  // ── Repository access. On a personal account only the owner can invite people; in an
-  // organization, its admins can. The token needs Administration access to the repo.
-  GitHubStore.prototype.collaborators = function () {
-    return this.api('/collaborators?per_page=100').then(function (list) { return (list || []).map(function (u) { return u.login.toLowerCase(); }); });
-  };
-  GitHubStore.prototype.invitations = function () {
-    return this.api('/invitations?per_page=100').then(function (list) {
-      return (list || []).map(function (i) { return ((i.invitee && i.invitee.login) || '').toLowerCase(); });
-    });
-  };
-  GitHubStore.prototype.invite = function (login) {
-    return this.api('/collaborators/' + encodeURIComponent(login), { method: 'PUT', body: { permission: 'push' } });
-  };
-
   GitHubStore.prototype.commit = function (snap, changes, message) {
     var self = this;
     return this.api('/git/trees', { method: 'POST', body: {
       base_tree: snap.tree,
-      tree: changes.map(function (c) { return { path: c.path, mode: '100644', type: 'blob', content: c.text }; })
+      tree: changes.map(function (c) {
+        return c.remove ? { path: c.path, mode: '100644', type: 'blob', sha: null } : { path: c.path, mode: '100644', type: 'blob', content: c.text };
+      })
     } }).then(function (tree) {
       return self.api('/git/commits', { method: 'POST', body: {
         message: message || ('Signoff: update ' + changes.map(function (c) { return c.label; }).join(', ')),
@@ -246,11 +297,38 @@
         parents: [snap.head]
       } });
     }).then(function (commit) {
-      return self.api('/git/refs/heads/' + encodeURIComponent(self.cfg.branch), { method: 'PATCH', body: { sha: commit.sha, force: false } })
+      return self.api('/git/refs/heads/' + encodeURIComponent(self.cfg.branch || 'main'), { method: 'PATCH', body: { sha: commit.sha, force: false } })
         .then(function () { return commit; });
     });
   };
 
+  // ── Who can open this repository. On a personal account only the owner can change it;
+  // in an organization, its admins can. Needs Administration access on the token.
+  GitHubStore.prototype.collaborators = function () {
+    return this.api('/collaborators?per_page=100').then(function (list) { return (list || []).map(function (u) { return u.login.toLowerCase(); }); });
+  };
+  GitHubStore.prototype.invitations = function () {
+    return this.api('/invitations?per_page=100').then(function (list) {
+      return (list || []).map(function (i) { return { id: i.id, login: ((i.invitee && i.invitee.login) || '').toLowerCase() }; });
+    });
+  };
+  GitHubStore.prototype.invite = function (login) {
+    return this.api('/collaborators/' + encodeURIComponent(login), { method: 'PUT', body: { permission: 'push' } });
+  };
+  // Takes away access, including an invitation not yet accepted.
+  GitHubStore.prototype.revoke = function (login) {
+    var self = this;
+    login = login.toLowerCase();
+    return this.invitations().then(function (inv) {
+      return Promise.all(inv.filter(function (i) { return i.login === login; }).map(function (i) {
+        return self.api('/invitations/' + i.id, { method: 'DELETE' });
+      }));
+    }).then(function () {
+      return self.api('/collaborators/' + encodeURIComponent(login), { method: 'DELETE' }).catch(function (err) { if (err.status !== 404) throw err; });
+    });
+  };
+
   S.GitHubStore = GitHubStore;
+  S.GitHubAccount = GitHubAccount;
   S.github = { b64Encode: b64Encode, b64Decode: b64Decode, gitBlobSha: gitBlobSha };
 })(window.Signoff = window.Signoff || {});

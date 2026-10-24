@@ -3,7 +3,7 @@
 Signoff is Dovetail's checklist tool for schematic, layout, assembly, fab and bring-up reviews.
 Each project is a review of one board. Reviewers mark checks Pass / Issue / N/A, discuss them
 in comment threads, track issues to Fixed or Waived, and print a review report.
-Everything syncs through this GitHub repo, so the team works on the same reviews.
+Reviews sync through private GitHub repositories, so everyone works on the same copy.
 
 - **931 checks in 6 checklists:** Schematic, Interfaces, PCB Layout, Assembly & BOM,
   Fabrication & Release, and Bring-up & Validation.
@@ -21,14 +21,15 @@ Open `index.html` in a browser. Open it straight from a clone, or serve the fold
 `python -m http.server`. The first time, enter your name. Then open **Settings** (the gear,
 bottom left), enter a GitHub token, and **Save & sync**.
 
-Which token you need depends on who owns the repository:
+Which token you need:
 
-- **The repository owner:** a fine-grained personal access token with **Contents: read and
-  write** on this repository.
-- **Collaborators:** a *classic* token with the **repo** scope. A fine-grained token can only
-  target repositories owned by its holder or by an organization they belong to, so it can't
-  reach another person's personal repository. If the team grows, move the repository (or
-  just its data folder) into an organization, and everyone can use fine-grained tokens.
+- **The account owner** (today `chrismessick-dpd`): a fine-grained token with Repository
+  access set to **All repositories**, and **Contents** and **Administration** both set to read
+  and write. Sharing a project creates a new repository, and a token limited to *selected*
+  repositories can't reach it.
+- **Everyone else** (the other FTEs and contractors): a *classic* token with the **repo** scope.
+  A fine-grained token can only target repositories owned by its holder or by an organization
+  they belong to.
 
 The token is kept in your browser (for the session only, unless you tick *Remember*) and is
 sent only to `api.github.com`.
@@ -50,39 +51,48 @@ pulls automatically when the page opens.
 | `Ctrl+S` | Sync |
 | `Esc` | Close panel / dialog |
 
-## People and access
+## Repositories, people and access
 
-There are two levels, set on the **People & access** page (FTEs only):
+GitHub grants access to whole repositories, so Signoff keeps each audience in its own:
 
-- **FTE:** sees every project and can create projects, edit People, and archive projects.
-- **Contractor:** sees only the projects they're added to. Add them to a project from People
-  or from the project's details.
+| Repository | Holds | Who's on it |
+| --- | --- | --- |
+| `ee_design_review` (tool) | The tool and the checklists | FTEs |
+| `ee_design_review_data` (data) | Internal reviews (`projects/<id>.json`) and People (`users.json`) | FTEs |
+| `review-<project>` (one per shared project) | That one review | FTEs and that project's contractors |
 
-Who you are comes from your GitHub token. The repo owner is always an FTE. While People is
-empty, everyone who syncs is treated as an FTE, so add yourself and the other FTEs first.
-The list is saved in `data/users.json` and syncs like everything else.
+All of these are set in Settings, under **Repositories**. An FTE is anyone whose token can open
+the data repo. A contractor's token reaches only their projects' `review-…` repos, so their
+copy of Signoff never sees anything else, and neither does GitHub.
 
-**What this does and doesn't protect.**
-- Signoff never shows or downloads a project that a contractor isn't on.
-- Project files are named by ID, so file names don't give project names away.
-- GitHub grants access to a whole repository. A contractor who browses the repo on
-  github.com, or uses their token directly, can still open any project there.
-- If that matters for a client, put that client's work in a separate repository. The data
-  location is a setting.
+**People & access** (FTEs only) lists everyone by GitHub username, with their role.
+- **Adding a contractor to a project** moves the project out of the data repo into a new
+  private `review-<project>` repo and invites the contractor and the FTEs to it. Later
+  contractors on the same project are just invited.
+  - The move is safe to repeat. If it's interrupted, running it again picks up where it
+    stopped.
+  - An FTE's unsynced edits follow the project to its new repo.
+- **Removing a contractor** takes away their GitHub access, including an invitation they
+  haven't accepted. Their copy of the project disappears at their next sync.
+- **Adding an FTE** invites them to the tool repo, the data repo and every shared repo.
+- The **GitHub access** column compares the list with the real collaborators on each repo,
+  and **Give access** fixes any gaps.
+- Project file names are IDs, so they don't give project names away.
+
+On a personal account only the owner can create repositories and change access, and every
+collaborator can push to the repositories they're on. Other FTEs can edit People, but the
+owner applies the access. Moving to the company organization lets FTE admins do it and allows
+narrower roles. Change the account in Settings; the app handles organizations already.
 
 **Giving a contractor access**
 1. They create a free GitHub account and send you their username.
-2. Add them in People. If your token has *Administration: read and write*, the page shows
-   whether they have repo access and can send the GitHub invitation. Otherwise invite them
-   under *Settings → Collaborators* on GitHub.
-   - On a personal account only the owner can invite, and every collaborator can push.
-   - After the move to the company organization, FTE admins can invite, and roles can be
-     narrower.
+2. Add them in People and pick their projects. Confirm, and Signoff shares the projects and
+   GitHub emails the invitations.
 3. Send them the tool: `python tools/package.py` makes `dist/Signoff-<build>.zip`. It holds
    the tool and checklists only, with no data and no token, plus a START HERE note.
-4. They open it, click the gear, and follow *New to GitHub? Set up in four steps*. They then
-   create a classic token with the `repo` scope (the link fills that in) and click
-   Save & sync.
+4. They open it, click the gear, follow *New to GitHub? Set up in four steps*, and click
+   Save & sync. Signoff lists their invitations with an **Accept** button. From then on they
+   just Sync.
 
 Never put your own token in a copy you send out. Anyone holding the file would get full
 access to every review.
@@ -108,20 +118,15 @@ Changes to the **tool or the checklists** should still go through pull requests.
 | --- | --- |
 | `index.html`, `assets/` | The tool (no build step, no dependencies) |
 | `assets/model.js` | Data model: templates, profile rules, progress, merge, legacy import |
-| `assets/github.js` | GitHub sync (injected `fetch`, so it can be tested offline) |
+| `assets/github.js` | Talks to one GitHub repository: sync, collaborators (injected `fetch`) |
+| `assets/workspace.js` | Which repos hold which projects: syncing them all, sharing, invites |
 | `assets/app.js` | UI |
 | `assets/demo.js` | Sample projects for demo mode |
 | `assets/templates.js`, `assets/version.js` | Generated by `tools/build.py` |
 | `templates/*.json` | The checklists — see [docs/templates.md](docs/templates.md) |
-| `data/projects/<id>.json` | One file per review (written by the tool) |
-| `data/users.json` | People: FTEs and contractors, and contractors' projects |
 | `tools/package.py` | Builds the zip you send to a contractor |
 | `tests/test.html` | Model and sync tests against a fake GitHub API (open it over http) |
 | `docs/roadmap.md` | DFM tool and customer-facing plans |
-
-The data folder can be moved to another repository in Settings: owner, repo, branch and data
-folder are all configurable. Keeping the tool's code and the review data in separate places
-means the tool can be published without exposing client reviews.
 
 ## Changing the tool or the checklists
 
@@ -132,7 +137,7 @@ means the tool can be published without exposing client reviews.
    `http://localhost:8000/tests/test.html`). It should say PASS.
 4. Open a pull request.
 
-After a sync, the app compares its own build hash with the repo's. If they differ, it shows
+After a sync, the app compares its own build hash with the tool repo's (FTEs only; contractors use the checklists bundled in their copy). If they differ, it shows
 **Newer tool available**.
 
 Checklists pulled from the repo replace the bundled copy unless the bundled one has a higher

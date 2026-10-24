@@ -243,15 +243,21 @@
   }
 
   // ── People ───────────────────────────────────────────────
-  // data/users.json: { schema, users: { login: { login, name, role, projects: [ids] } } }.
-  // FTEs see every project; contractors see only the projects listed on their record.
-  // This filters what the app shows and downloads. Anyone with read access to the repo
-  // can still browse it on GitHub, so it is not a security boundary.
+  // users.json in the FTE-only data repo:
+  //   users:  { login: { login, name, role: 'fte' | 'contractor', projects: [ids] } }
+  //   shared: { projectId: { id, repo: 'owner/name', name } }  projects that live in their
+  //           own private repository, so contractors can be given access to just that one.
+  // GitHub collaborator lists decide who can actually open what; `projects` on a contractor
+  // records who should be on which project, so the People page can flag differences.
 
-  function emptyRoster() { return { schema: 1, users: {} }; }
+  function emptyRoster() { return { schema: 1, users: {}, shared: {} }; }
 
   function mergeRosters(a, b) {
-    return { schema: 1, users: mergeMaps((a && a.users) || {}, (b && b.users) || {}) };
+    return {
+      schema: 1,
+      users: mergeMaps((a && a.users) || {}, (b && b.users) || {}),
+      shared: mergeMaps((a && a.shared) || {}, (b && b.shared) || {})
+    };
   }
 
   function liveUsers(roster) {
@@ -260,8 +266,14 @@
       .sort(function (x, y) { return (x.role === y.role ? 0 : x.role === 'fte' ? -1 : 1) || (x.name || x.login).localeCompare(y.name || y.login); });
   }
 
-  // 'fte', 'contractor' or 'none'. The repo owner is always an FTE, and while the roster is
-  // empty everyone is (so the first person to set it up isn't locked out).
+  // The repository a shared project lives in ('owner/name'), or '' if it's internal.
+  function sharedRepo(roster, projectId) {
+    var s = roster && roster.shared && roster.shared[projectId];
+    return s && !s.deleted ? s.repo : '';
+  }
+
+  // Role from the People list, for display. The repo owner is always an FTE, and so is
+  // everyone while the list is empty (so the first person setting it up isn't locked out).
   function roleOf(login, roster, owner) {
     if (!login) return 'fte';
     login = login.toLowerCase();
@@ -270,14 +282,6 @@
     if (!people.length) return 'fte';
     var u = people.filter(function (x) { return x.login === login; })[0];
     return u ? u.role : 'none';
-  }
-
-  function canSee(projectId, login, roster, owner) {
-    var role = roleOf(login, roster, owner);
-    if (role === 'fte') return true;
-    if (role === 'none') return false;
-    var u = liveUsers(roster).filter(function (x) { return x.login === login.toLowerCase(); })[0];
-    return !!u && (u.projects || []).indexOf(projectId) >= 0;
   }
 
   // JSON with sorted keys, so the same document always serializes the same way
@@ -350,6 +354,6 @@
     projectStats: projectStats, liveComments: liveComments, retiredItems: retiredItems,
     newer: newer, mergeMaps: mergeMaps, mergeProjects: mergeProjects,
     stableStringify: stableStringify, importLegacy: importLegacy, isLegacy: isLegacy,
-    emptyRoster: emptyRoster, mergeRosters: mergeRosters, liveUsers: liveUsers, roleOf: roleOf, canSee: canSee
+    emptyRoster: emptyRoster, mergeRosters: mergeRosters, liveUsers: liveUsers, roleOf: roleOf, sharedRepo: sharedRepo
   };
 })(window.Signoff = window.Signoff || {});

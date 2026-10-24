@@ -6,7 +6,7 @@
 <meta name="color-scheme" content="light dark">
 <title>Signoff · Design Review</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23004952'/%3E%3Cpath d='M10 9h5v6.2l-5 .8zM10 17l5 .8V23h-5z' fill='%23fff'/%3E%3Cpath d='M16 9l7 2.5v9L16 23v-5.2l4-.8v-2l-4-.8z' fill='%23fff'/%3E%3C/svg%3E">
-<link rel="stylesheet" href="assets/styles.css?v=b43f5b0ce2db">
+<link rel="stylesheet" href="assets/styles.css?v=8ff2b9a60c51">
 </head>
 <body>
 <div id="demo-banner" class="demo-banner" hidden></div>
@@ -32,6 +32,13 @@
       </button>
     </div>
     <nav class="side-list" id="project-list"></nav>
+    <div class="side-tools">
+      <div class="side-head"><span class="side-label">Dovetail tools</span></div>
+      <a class="side-link" href="../pcb_dfm/index.html" title="Open Fabcheck, the fab package DFM checker">
+        <span class="tool-mark"><svg viewBox="0 0 18 18" fill="none" stroke="#fff" stroke-width="1.8"><rect x="1.5" y="1.5" width="15" height="15" rx="2.5"/><circle cx="6" cy="6" r="1.4" fill="#fff" stroke="none"/><circle cx="12" cy="12" r="1.4" fill="#fff" stroke="none"/></svg></span>
+        <span>Fabcheck<small>Fab package DFM</small></span>
+      </a>
+    </div>
     <button class="side-link" id="people-link" data-act="people" hidden>
       <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><circle cx="7.5" cy="7" r="2.8"/><path d="M2.5 16.5c.6-2.8 2.6-4.3 5-4.3s4.4 1.5 5 4.3"/><circle cx="14" cy="7.8" r="2.2"/><path d="M13.6 12.3c2 .1 3.4 1.4 3.9 3.7"/></svg>
       People &amp; access
@@ -66,11 +73,12 @@
 <div id="report" class="report" hidden></div>
 <input type="file" id="import-file" accept=".json,application/json" hidden>
 
-<script src="assets/version.js?v=b43f5b0ce2db"></script>
-<script src="assets/templates.js?v=b43f5b0ce2db"></script>
-<script src="assets/model.js?v=b43f5b0ce2db"></script>
-<script src="assets/github.js?v=b43f5b0ce2db"></script>
-<script src="assets/demo.js?v=b43f5b0ce2db"></script>
-<script src="assets/app.js?v=b43f5b0ce2db"></script>
+<script src="assets/version.js?v=8ff2b9a60c51"></script>
+<script src="assets/templates.js?v=8ff2b9a60c51"></script>
+<script src="assets/model.js?v=8ff2b9a60c51"></script>
+<script src="assets/github.js?v=8ff2b9a60c51"></script>
+<script src="assets/workspace.js?v=8ff2b9a60c51"></script>
+<script src="assets/demo.js?v=8ff2b9a60c51"></script>
+<script src="assets/app.js?v=8ff2b9a60c51"></script>
 </body>
 </html>

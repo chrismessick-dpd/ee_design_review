@@ -16,6 +16,7 @@
 <script src="../assets/templates.js"></script>
 <script src="../assets/model.js"></script>
 <script src="../assets/github.js"></script>
+<script src="../assets/workspace.js"></script>
 <script src="../assets/demo.js"></script>
 <script>
 /* Unit tests for the model and the GitHub sync, run against a fake GitHub API.
@@ -85,132 +86,210 @@
   // ── Git blob sha ──
   eq(await Signoff.github.gitBlobSha('hello\n'), 'ce013625030ba8dba906f756967f9e9ca394464a', 'git blob sha matches git hash-object');
 
-  // ── GitHub sync against a fake API ──
-  function FakeGitHub() {
-    var self = this;
-    this.blobs = {}; this.trees = {}; this.commits = {}; this.head = null; this.n = 0; this.calls = []; this.raceOnce = null;
-    function id() { return (++self.n).toString(16).padStart(40, '0'); }
-    this.commitFiles = function (files) {
-      var tsha = id(); self.trees[tsha] = files; var c = id(); self.commits[c] = { tree: tsha, parent: self.head }; self.head = c; return c;
+  // ── A fake GitHub with several repositories, users and permissions ──
+  // Tokens: 'tok-<login>'. 'ann' owns every repository (personal account).
+  function FakeHub() {
+    var hub = this;
+    hub.repos = {}; hub.n = 0; hub.calls = []; hub.inviteSeq = 1; hub.raceOnce = null;
+    function id() { return (++hub.n).toString(16).padStart(40, '0'); }
+    function commitFiles(repo, files) {
+      var t = id(); repo.trees[t] = files; var c = id(); repo.commits[c] = { tree: t, parent: repo.head }; repo.head = c; return c;
+    }
+    hub.makeRepo = function (full, files, members) {
+      hub.repos[full] = { trees: {}, commits: {}, head: null, blobs: {}, collaborators: (members || []).slice(), invitations: [] };
+      commitFiles(hub.repos[full], files);
     };
-    this.files = function () { return Object.assign({}, self.trees[self.commits[self.head].tree]); };
-    this.fetch = async function (url, opts) {
-      var path = url.replace(/^https:\/\/api\.github\.com\/repos\/o\/r/, ''), method = opts.method || 'GET';
-      var body = opts.body ? JSON.parse(opts.body) : null;
-      self.calls.push(method + ' ' + path);
-      function res(status, data) { return { ok: status < 300, status: status, text: async function () { return JSON.stringify(data); } }; }
-      if (method === 'GET' && /^\/git\/ref\/heads\//.test(path)) return res(200, { object: { sha: self.head } });
-      if (method === 'GET' && /^\/git\/commits\//.test(path)) { var c = self.commits[path.split('/').pop()]; return res(200, { tree: { sha: c.tree } }); }
-      if (method === 'GET' && /^\/git\/trees\//.test(path)) {
-        var files = self.trees[path.split('/').pop().split('?')[0]];
-        var entries = await Promise.all(Object.keys(files).map(async function (p) {
-          var s = await Signoff.github.gitBlobSha(files[p]); self.blobs[s] = files[p]; return { path: p, type: 'blob', sha: s };
-        }));
-        return res(200, { tree: entries });
-      }
-      if (method === 'GET' && /^\/git\/blobs\//.test(path)) return res(200, { content: Signoff.github.b64Encode(self.blobs[path.split('/').pop()]) });
-      if (method === 'POST' && path === '/git/trees') {
-        var f = Object.assign({}, self.trees[body.base_tree]); body.tree.forEach(function (e) { f[e.path] = e.content; });
-        var t = id(); self.trees[t] = f; return res(201, { sha: t });
-      }
-      if (method === 'POST' && path === '/git/commits') { var cs = id(); self.commits[cs] = { tree: body.tree, parent: body.parents[0] }; return res(201, { sha: cs, html_url: 'https://github.com/o/r/commit/' + cs }); }
-      if (method === 'PATCH' && /^\/git\/refs\/heads\//.test(path)) {
-        if (self.raceOnce) { var r = self.raceOnce; self.raceOnce = null; r(); }
-        if (self.commits[body.sha].parent !== self.head) return res(422, { message: 'Update is not a fast forward' });
-        self.head = body.sha; return res(200, {});
-      }
-      return res(404, { message: 'Not Found: ' + method + ' ' + path });
+    hub.files = function (full) { var r = hub.repos[full]; return Object.assign({}, r.trees[r.commits[r.head].tree]); };
+    hub.push = function (full, files) { commitFiles(hub.repos[full], files); };
+    hub.fetchFor = function (token) {
+      var login = token.replace(/^tok-/, '');
+      return async function (url, opts) {
+        var u = url.replace('https://api.github.com', ''), method = opts.method || 'GET';
+        var body = opts.body ? JSON.parse(opts.body) : null;
+        hub.calls.push(login + ' ' + method + ' ' + u);
+        function res(status, data) { return { ok: status < 300, status: status, text: async function () { return data === undefined ? '' : JSON.stringify(data); } }; }
+        if (u === '/user') return res(200, { login: login, name: login.toUpperCase() });
+        if (/^\/users\//.test(u)) return res(200, { login: u.split('/')[2], type: 'User' });
+        if (/^\/user\/repos\?/.test(u) && method === 'GET') {
+          return res(200, Object.keys(hub.repos).filter(function (f) { return hub.repos[f].collaborators.indexOf(login) >= 0; })
+            .map(function (f) { return { name: f.split('/')[1], owner: { login: f.split('/')[0] } }; }));
+        }
+        if (u === '/user/repos' && method === 'POST') {
+          var full = login + '/' + body.name;
+          if (hub.repos[full]) return res(422, { message: 'name already exists on this account' });
+          hub.makeRepo(full, { 'README.md': '# ' + body.name }, [login]);
+          return res(201, { full_name: full });
+        }
+        if (/^\/user\/repository_invitations\?/.test(u)) {
+          var mine = [];
+          Object.keys(hub.repos).forEach(function (f) {
+            hub.repos[f].invitations.forEach(function (i) { if (i.login === login) mine.push({ id: i.id, repository: { full_name: f, owner: { login: f.split('/')[0] } } }); });
+          });
+          return res(200, mine);
+        }
+        var acc = /^\/user\/repository_invitations\/(\d+)$/.exec(u);
+        if (acc && method === 'PATCH') {
+          Object.keys(hub.repos).forEach(function (f) {
+            var r = hub.repos[f];
+            r.invitations.filter(function (i) { return String(i.id) === acc[1] && i.login === login; }).forEach(function () { r.collaborators.push(login); });
+            r.invitations = r.invitations.filter(function (i) { return String(i.id) !== acc[1]; });
+          });
+          return res(204);
+        }
+        var m = /^\/repos\/([^/]+)\/([^/]+)(\/.*)$/.exec(u.split('?')[0]);
+        if (!m) return res(404, { message: 'Not Found: ' + u });
+        var full2 = m[1] + '/' + m[2], repo = hub.repos[full2], path = m[3];
+        if (!repo || repo.collaborators.indexOf(login) < 0) return res(404, { message: 'Not Found' });
+        var admin = full2.split('/')[0] === login;
+        if (method === 'GET' && /^\/git\/ref\/heads\//.test(path)) return res(200, { object: { sha: repo.head } });
+        if (method === 'GET' && /^\/git\/commits\//.test(path)) return res(200, { tree: { sha: repo.commits[path.split('/').pop()].tree } });
+        if (method === 'GET' && /^\/git\/trees\//.test(path)) {
+          var files = repo.trees[path.split('/').pop()];
+          var entries = await Promise.all(Object.keys(files).map(async function (p) {
+            var s = await Signoff.github.gitBlobSha(files[p]); repo.blobs[s] = files[p]; return { path: p, type: 'blob', sha: s };
+          }));
+          return res(200, { tree: entries });
+        }
+        if (method === 'GET' && /^\/git\/blobs\//.test(path)) return res(200, { content: Signoff.github.b64Encode(repo.blobs[path.split('/').pop()]) });
+        if (method === 'POST' && path === '/git/trees') {
+          var f = Object.assign({}, repo.trees[body.base_tree]);
+          body.tree.forEach(function (e) { if (e.sha === null) delete f[e.path]; else f[e.path] = e.content; });
+          var t = id(); repo.trees[t] = f; return res(201, { sha: t });
+        }
+        if (method === 'POST' && path === '/git/commits') { var cs = id(); repo.commits[cs] = { tree: body.tree, parent: body.parents[0] }; return res(201, { sha: cs, html_url: 'https://github.com/' + full2 + '/commit/' + cs }); }
+        if (method === 'PATCH' && /^\/git\/refs\/heads\//.test(path)) {
+          if (hub.raceOnce) { var race = hub.raceOnce; hub.raceOnce = null; race(); }
+          if (repo.commits[body.sha].parent !== repo.head) return res(422, { message: 'Update is not a fast forward' });
+          repo.head = body.sha; return res(200, {});
+        }
+        if (!admin && /^\/(collaborators|invitations)/.test(path)) return res(403, { message: 'Must have admin rights' });
+        if (method === 'GET' && path === '/collaborators') return res(200, repo.collaborators.map(function (l) { return { login: l }; }));
+        if (method === 'GET' && path === '/invitations') return res(200, repo.invitations.map(function (i) { return { id: i.id, invitee: { login: i.login } }; }));
+        var col = /^\/collaborators\/(.+)$/.exec(path);
+        if (col && method === 'PUT') {
+          if (repo.collaborators.indexOf(col[1]) < 0 && !repo.invitations.some(function (i) { return i.login === col[1]; })) repo.invitations.push({ id: hub.inviteSeq++, login: col[1] });
+          return res(201, {});
+        }
+        if (col && method === 'DELETE') { repo.collaborators = repo.collaborators.filter(function (l) { return l !== col[1]; }); return res(204); }
+        var inv = /^\/invitations\/(\d+)$/.exec(path);
+        if (inv && method === 'DELETE') { repo.invitations = repo.invitations.filter(function (i) { return String(i.id) !== inv[1]; }); return res(204); }
+        return res(404, { message: 'Not Found: ' + method + ' ' + path });
+      };
     };
   }
-  var gh = new FakeGitHub();
-  gh.commitFiles({ 'index.html': '<html>', 'assets/version.js': "window.SIGNOFF_VERSION = { hash: 'abc123', date: '2026-10-23' };" });
-  var cfg = { owner: 'o', repo: 'r', branch: 'main', dataPath: 'data', token: 't' };
-  var ann = new Signoff.GitHubStore(cfg, gh.fetch), bob = new Signoff.GitHubStore(cfg, gh.fetch);
 
-  var R0 = M.emptyRoster();
-  function one(id, doc) { var o = {}; o[id] = doc; return o; }
-  function file(id) { return gh.files()['data/projects/' + id + '.json']; }
+  var hub = new FakeHub();
+  hub.makeRepo('ann/tool', { 'index.html': '<html>', 'assets/version.js': "window.SIGNOFF_VERSION = { hash: 'abc123', date: '2026-10-23' };" }, ['ann']);
+  hub.makeRepo('ann/data', { 'README.md': '# data' }, ['ann']);
+  var SET = { owner: 'ann', toolRepo: 'tool', dataRepo: 'data', dataPath: '', prefix: 'review-', branch: 'main' };
+  function wsFor(login, extra) { return new Signoff.Workspace(Object.assign({}, SET, extra || {}), 'tok-' + login, hub.fetchFor('tok-' + login)); }
+  function blank() { return { login: '', projects: {}, roster: M.emptyRoster(), homes: {}, cache: {}, dataAccess: '' }; }
+  function dataFile(id) { return hub.files('ann/data')['projects/' + id + '.json']; }
 
-  var proj = M.newProject({ name: 'Sync Board', checklists: ['schematic'] }, 'Ann', T);
-  var PID = proj.id;
-  var r1 = await ann.sync(one(PID, proj), R0, {}, { message: 'first' });
-  eq(r1.pushed, 1, 'first sync pushes the new project');
-  ok(file(PID), 'project file is named by id in data/projects/');
-  ok(!Object.keys(gh.files()).some(function (p) { return /sync-board/.test(p); }), 'project names don’t appear in file paths');
-  eq(r1.version && r1.version.hash, 'abc123', 'repo tool version read');
+  // Ann (owner) creates an internal project.
+  var annWs = wsFor('ann'), annSt = blank();
+  var P = M.newProject({ name: 'Sensor Hub Main Board', checklists: ['schematic'] }, 'ann', T);
+  annSt.projects[P.id] = P;
+  var r = await annWs.sync(annSt, {});
+  annSt = r.state;
+  ok(r.errors.length === 0 && annSt.dataAccess === 'ok' && annSt.login === 'ann', 'owner syncs as FTE', JSON.stringify(r.errors));
+  ok(dataFile(P.id), 'internal project is written to the data repo');
+  eq(r.version && r.version.hash, 'abc123', 'tool version read from the tool repo');
+  ok(!Object.keys(hub.files('ann/data')).some(function (p) { return /sensor/i.test(p); }), 'file names don’t reveal project names');
 
-  var bobRes = await bob.sync({}, R0, {}, {});
-  ok(bobRes.projects[PID] && bobRes.pushed === 0, 'second user pulls it without pushing');
+  // People: Bob is an FTE, Cat a contractor on P.
+  var now = '2026-10-23T14:00:00Z';
+  annSt.roster.users.bob = { login: 'bob', name: 'Bob', role: 'fte', projects: [], updatedAt: now, updatedBy: 'ann' };
+  annSt.roster.users.cat = { login: 'cat', name: 'Cat', role: 'contractor', projects: [P.id], updatedAt: now, updatedBy: 'ann' };
+  r = await annWs.sync(annSt, {}); annSt = r.state;
+  ok(JSON.parse(hub.files('ann/data')['users.json']).users.cat, 'People list is saved in the data repo');
 
-  // Both edit, Bob syncs first, then Ann: Ann's sync must merge Bob's work in.
-  var annDoc = JSON.parse(JSON.stringify(r1.projects[PID])), bobDoc = JSON.parse(JSON.stringify(bobRes.projects[PID]));
-  annDoc.items.sg1 = { status: 'pass', updatedAt: '2026-10-23T10:00:00Z', updatedBy: 'Ann' };
-  bobDoc.items.sg2 = { status: 'issue', updatedAt: '2026-10-23T10:01:00Z', updatedBy: 'Bob' };
-  bobDoc.comments.c9 = { id: 'c9', item: 'sg2', author: 'Bob', text: 'needs a fix', at: 'x', updatedAt: '2026-10-23T10:01:00Z', updatedBy: 'Bob' };
-  await bob.sync(one(PID, bobDoc), R0, bobRes.cache, {});
-  var annRes = await ann.sync(one(PID, annDoc), R0, r1.cache, {});
-  var onRepo = JSON.parse(file(PID));
-  ok(onRepo.items.sg1 && onRepo.items.sg2 && onRepo.comments.c9, 'concurrent edits from both users end up on the repo');
-  eq(M.stableStringify(annRes.projects[PID]), file(PID), 'local copy equals repo after sync');
+  // Before accepting, Bob can't open the data repo: no local data, so he looks like a contractor.
+  hub.repos['ann/data'].invitations.push({ id: 900, login: 'bob' });
+  hub.repos['ann/tool'].invitations.push({ id: 901, login: 'bob' });
+  var bobWs = wsFor('bob'), bobSt = blank();
+  r = await bobWs.sync(bobSt, {});
+  ok(r.state.dataAccess === 'none' && r.invitations.length === 2, 'invitations are listed before they’re accepted');
+  await Promise.all(r.invitations.map(function (i) { return bobWs.account.acceptInvitation(i.id); }));
+  r = await bobWs.sync(r.state, {}); bobSt = r.state;
+  ok(bobSt.dataAccess === 'ok' && bobSt.projects[P.id], 'after accepting, the FTE sees internal projects');
 
-  // Race: someone pushes between Ann's commit and her ref update -> 422 -> retry.
-  var raced = JSON.parse(JSON.stringify(annRes.projects[PID]));
-  raced.items.sg3 = { status: 'na', updatedAt: '2026-10-23T11:00:00Z', updatedBy: 'Ann' };
+  // Bob edits P but doesn't sync. Meanwhile Ann shares P with Cat.
+  bobSt.projects[P.id] = JSON.parse(JSON.stringify(bobSt.projects[P.id]));
+  bobSt.projects[P.id].items.sg1 = { status: 'issue', updatedAt: '2026-10-23T15:00:00Z', updatedBy: 'bob' };
+  var sh = await annWs.share(annSt, P.id, ['cat']);
+  annSt = sh.state;
+  eq(sh.repo, 'ann/review-sensor-hub-main-board', 'sharing creates a private review- repository');
+  ok(hub.files(sh.repo)['projects/' + P.id + '.json'], 'the project is copied into it');
+  ok(hub.repos[sh.repo].invitations.some(function (i) { return i.login === 'cat'; }) && hub.repos[sh.repo].invitations.some(function (i) { return i.login === 'bob'; }),
+    'the contractor and the other FTEs are invited');
+  r = await annWs.sync(annSt, {}); annSt = r.state;
+  ok(!dataFile(P.id) && JSON.parse(hub.files('ann/data')['users.json']).shared[P.id].repo === sh.repo, 'the data repo records the move and drops its copy');
+
+  // Bob syncs his stale edit: it must not resurrect P in the data repo.
+  r = await bobWs.sync(bobSt, {}); bobSt = r.state;
+  ok(!dataFile(P.id), 'an unsynced edit doesn’t bring a shared project back into the data repo');
+  ok(bobSt.projects[P.id] && bobSt.projects[P.id].items.sg1 && r.errors.some(function (e) { return e.repo === sh.repo; }), 'until Bob accepts, his edit is kept locally and the repo is reported');
+  var bInv = (await bobWs.account.invitations()).filter(function (i) { return i.repo === sh.repo; })[0];
+  await bobWs.account.acceptInvitation(bInv.id);
+  r = await bobWs.sync(bobSt, {}); bobSt = r.state;
+  ok(JSON.parse(hub.files(sh.repo)['projects/' + P.id + '.json']).items.sg1 && !dataFile(P.id), 'after accepting, his edit lands in the shared repo');
+
+  // Cat: a contractor sees only her project and never touches the data repo.
+  var catWs = wsFor('cat'), catSt = blank();
+  r = await catWs.sync(catSt, {});
+  ok(r.state.dataAccess === 'none' && !Object.keys(r.state.projects).length && r.invitations.length === 1, 'contractor starts with an invitation and nothing else');
+  await catWs.account.acceptInvitation(r.invitations[0].id);
+  var Q = M.newProject({ name: 'Secret Internal', checklists: ['schematic'] }, 'ann', T);
+  annSt.projects[Q.id] = Q;
+  r = await annWs.sync(annSt, {}); annSt = r.state;
+  var dataCalls = hub.calls.length;
+  r = await catWs.sync(blank(), {}); catSt = r.state;
+  eq(Object.keys(catSt.projects), [P.id], 'contractor gets only the shared project');
+  ok(!hub.calls.slice(dataCalls).some(function (c) { return /^cat .*\/repos\/ann\/data\/git\/blobs/.test(c); }), 'contractor downloads nothing from the data repo');
+  catSt.projects[P.id] = JSON.parse(JSON.stringify(catSt.projects[P.id]));
+  catSt.projects[P.id].comments.k1 = { id: 'k1', item: 'sg1', author: 'Cat', text: 'Fixed in rev B', at: 'x', updatedAt: '2026-10-23T16:00:00Z', updatedBy: 'cat' };
+  r = await catWs.sync(catSt, {}); catSt = r.state;
+  ok(JSON.parse(hub.files(sh.repo)['projects/' + P.id + '.json']).comments.k1, 'contractor changes reach the single source of truth');
+
+  // Revoked: Cat's copy is dropped and nothing is pushed.
+  await annWs.revokeFrom(sh.repo, ['cat']);
+  catSt.projects[P.id].comments.k2 = { id: 'k2', item: 'sg1', author: 'Cat', text: 'late', at: 'x', updatedAt: '2026-10-23T17:00:00Z', updatedBy: 'cat' };
+  r = await catWs.sync(catSt, {});
+  ok(!r.state.projects[P.id] && r.dropped.indexOf(P.id) >= 0 && !JSON.parse(hub.files(sh.repo)['projects/' + P.id + '.json']).comments.k2, 'revoked contractor loses the project and can’t push');
+
+  // A share interrupted after the repo was created is finished, not duplicated.
+  var half = await annWs.share(annSt, Q.id, []);   // pretend the app crashed before saving this state
+  var again = await annWs.share(annSt, Q.id, []);
+  ok(half.repo === again.repo && !hub.repos['ann/review-secret-internal-2'], 'repeating an interrupted share adopts the repo it made');
+
+  // An FTE whose data repo can't be reached keeps everything.
+  var lost = await wsFor('ann', { dataRepo: 'typo' }).sync(annSt, {});
+  ok(lost.state.dataAccess === 'ok' && lost.state.projects[Q.id] && lost.errors.some(function (e) { return /typo/.test(e.message); }), 'a missing data repo is an error, not contractor mode');
+
+  // ── Store-level behaviour ──
+  hub.makeRepo('ann/review-race', { 'README.md': '#' }, ['ann', 'bob']);
+  var R1 = M.newProject({ name: 'Race', checklists: ['schematic'] }, 'ann', T);
+  var annStore = annWs.store('ann/review-race'), bobStore = bobWs.store('ann/review-race');
+  var one = {}; one[R1.id] = R1;
+  var rr = await annStore.sync(one, null, {}, {});
+  var raced = JSON.parse(JSON.stringify(rr.projects[R1.id]));
+  raced.items.sg3 = { status: 'na', updatedAt: '2026-10-23T11:00:00Z', updatedBy: 'ann' };
   var retries = 0;
-  gh.raceOnce = function () {
-    var f = gh.files(), d = JSON.parse(f['data/projects/' + PID + '.json']);
-    d.items.sg4 = { status: 'pass', updatedAt: '2026-10-23T11:00:01Z', updatedBy: 'Bob' };
-    f['data/projects/' + PID + '.json'] = M.stableStringify(d);
-    gh.commitFiles(f);
+  hub.raceOnce = function () {
+    var f = hub.files('ann/review-race'), d = JSON.parse(f['projects/' + R1.id + '.json']);
+    d.items.sg4 = { status: 'pass', updatedAt: '2026-10-23T11:00:01Z', updatedBy: 'bob' };
+    f['projects/' + R1.id + '.json'] = M.stableStringify(d); hub.push('ann/review-race', f);
   };
-  await ann.sync(one(PID, raced), R0, annRes.cache, { onRetry: function () { retries++; } });
-  var after = JSON.parse(file(PID));
+  var one2 = {}; one2[R1.id] = raced;
+  await annStore.sync(one2, null, rr.cache, { onRetry: function () { retries++; } });
+  var after = JSON.parse(hub.files('ann/review-race')['projects/' + R1.id + '.json']);
   ok(retries === 1 && after.items.sg3 && after.items.sg4, 'non-fast-forward is retried and both edits survive');
-
-  var warm = await ann.sync({}, R0, {}, {});
-  var callsBefore = gh.calls.length;
-  var noop = await ann.sync(warm.projects, warm.roster, warm.cache, {});
-  var noopCalls = gh.calls.slice(callsBefore);
-  ok(noop.pushed === 0 && !noopCalls.some(function (c) { return /^(POST|PATCH)/.test(c); }), 'nothing to push makes no commit');
-  ok(!noopCalls.some(function (c) { return /blobs/.test(c); }), 'unchanged files come from the cache', noopCalls.join(', '));
-
-  // Two projects with the same name are separate files (ids differ).
-  var mine = M.newProject({ name: 'Sync Board', checklists: ['schematic'] }, 'Cat', T);
-  var cat = new Signoff.GitHubStore(cfg, gh.fetch);
-  var catRes = await cat.sync(one(mine.id, mine), R0, {}, {});
-  ok(catRes.projects[mine.id] && catRes.projects[PID] && file(mine.id) && file(PID), 'same-name projects are kept apart');
-
-  // A remote change to a project we already have is fetched and merged, not skipped.
-  var f2 = gh.files(), d2 = JSON.parse(f2['data/projects/' + PID + '.json']);
-  d2.items.sg6 = { status: 'pass', updatedAt: '2026-10-23T13:00:00Z', updatedBy: 'Bob' };
-  f2['data/projects/' + PID + '.json'] = M.stableStringify(d2); gh.commitFiles(f2);
-  var pulled = await ann.sync(warm.projects, warm.roster, warm.cache, {});
-  ok(pulled.projects[PID].items.sg6, 'changed remote project is pulled in');
-
-  // ── People and access ──
-  var roster = M.emptyRoster();
-  eq(M.roleOf('anyone', roster, 'o'), 'fte', 'empty roster: everyone is an FTE');
-  roster.users.ann = { login: 'ann', name: 'Ann', role: 'fte', projects: [], updatedAt: '2026-10-23T14:00:00Z', updatedBy: 'Ann' };
-  roster.users.cat = { login: 'cat', name: 'Cat', role: 'contractor', projects: [mine.id], updatedAt: '2026-10-23T14:00:00Z', updatedBy: 'Ann' };
-  eq([M.roleOf('Ann', roster, 'o'), M.roleOf('cat', roster, 'o'), M.roleOf('zed', roster, 'o'), M.roleOf('o', roster, 'o')], ['fte', 'contractor', 'none', 'fte'], 'roles from roster; owner is always FTE');
-  ok(M.canSee(PID, 'ann', roster, 'o') && M.canSee(mine.id, 'cat', roster, 'o') && !M.canSee(PID, 'cat', roster, 'o') && !M.canSee(PID, 'zed', roster, 'o'), 'contractors see only assigned projects');
-  var r2 = M.mergeRosters(roster, { users: { cat: Object.assign({}, roster.users.cat, { projects: [], updatedAt: '2026-10-23T15:00:00Z' }) } });
-  eq(r2.users.cat.projects, [], 'newer roster record wins');
-
-  var annR = await ann.sync(pulled.projects, roster, pulled.cache, {});
-  ok(annR.pushed >= 1 && JSON.parse(gh.files()['data/users.json']).users.cat, 'roster is pushed to data/users.json');
-
-  var catStore = new Signoff.GitHubStore(cfg, gh.fetch);
-  var catSees = function (id, r) { return M.canSee(id, 'cat', r, 'o'); };
-  var before = gh.calls.length;
-  var stale = JSON.parse(JSON.stringify(pulled.projects[PID]));   // a copy Cat shouldn't keep
-  var catSync = await catStore.sync(one(PID, stale), M.emptyRoster(), {}, { canSee: catSees });
-  var catBlobs = gh.calls.slice(before).filter(function (c) { return /blobs/.test(c); }).length;
-  ok(Object.keys(catSync.projects).join() === mine.id, 'contractor gets only their project', Object.keys(catSync.projects).join());
-  eq(catSync.removed, [PID], 'contractor’s copy of a hidden project is reported for removal');
-  ok(catBlobs === 3, 'hidden projects aren’t downloaded (roster, version, one project)', 'blob reads: ' + catBlobs);
-  var untouched = M.stableStringify(JSON.parse(file(PID)));
-  ok(untouched === file(PID) && !JSON.parse(file(PID)).items.zz, 'contractor sync never writes hidden projects');
+  var warm = await bobStore.sync({}, null, {}, {});
+  var before = hub.calls.length;
+  var noop = await bobStore.sync(warm.projects, null, warm.cache, {});
+  var noopCalls = hub.calls.slice(before);
+  ok(noop.pushed === 0 && !noopCalls.some(function (c) { return /(POST|PATCH)/.test(c) || /blobs/.test(c); }), 'an unchanged repo is neither downloaded nor committed', noopCalls.join(', '));
 
   // ── Demo ──
   var demo = Signoff.demo.projects(T);
