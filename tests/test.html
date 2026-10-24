@@ -54,7 +54,9 @@
   var r3 = []; M.checklistRows(p, T[0]).forEach(function (g) { r3 = r3.concat(g.rows); });
   eq(r3.filter(function (r) { return r.id === hidden[0].id; })[0].status, 'pass', 'explicit status overrides profile');
   var st = M.projectStats(p, T);
-  ok(st.total === rows.length && st.reviewed === hidden.length, 'stats count hidden items as reviewed (N/A)');
+  ok(st.total === rows.length - hidden.length + 1 && st.outside === hidden.length - 1 && st.reviewed === 1, 'profile-hidden items are left out of progress (a passed one counts)');
+  var fresh = M.newProject({ name: 'Fresh', checklists: ['schematic', 'pcb'], profile: ['battery'] }, 'Ann', T);
+  eq(M.projectStats(fresh, T).pct, 0, 'a new review starts at 0%');
 
   // ── Merge ──
   var base = M.newProject({ name: 'Merge', checklists: ['schematic'] }, 'Ann', T);
@@ -84,7 +86,6 @@
   eq(await Signoff.github.gitBlobSha('hello\n'), 'ce013625030ba8dba906f756967f9e9ca394464a', 'git blob sha matches git hash-object');
 
   // ── GitHub sync against a fake API ──
-  function hash(s) { var h = 5381; for (var i = 0; i < s.length; i++) h = ((h * 33) ^ s.charCodeAt(i)) >>> 0; return h.toString(16); }
   function FakeGitHub() {
     var self = this;
     this.blobs = {}; this.trees = {}; this.commits = {}; this.head = null; this.n = 0; this.calls = []; this.raceOnce = null;
@@ -102,7 +103,10 @@
       if (method === 'GET' && /^\/git\/commits\//.test(path)) { var c = self.commits[path.split('/').pop()]; return res(200, { tree: { sha: c.tree } }); }
       if (method === 'GET' && /^\/git\/trees\//.test(path)) {
         var files = self.trees[path.split('/').pop().split('?')[0]];
-        return res(200, { tree: Object.keys(files).map(function (p) { var s = 'b' + hash(p + '\0' + files[p]); self.blobs[s] = files[p]; return { path: p, type: 'blob', sha: s }; }) });
+        var entries = await Promise.all(Object.keys(files).map(async function (p) {
+          var s = await Signoff.github.gitBlobSha(files[p]); self.blobs[s] = files[p]; return { path: p, type: 'blob', sha: s };
+        }));
+        return res(200, { tree: entries });
       }
       if (method === 'GET' && /^\/git\/blobs\//.test(path)) return res(200, { content: Signoff.github.b64Encode(self.blobs[path.split('/').pop()]) });
       if (method === 'POST' && path === '/git/trees') {
@@ -160,10 +164,26 @@
 
   var warm = await ann.sync({}, {}, {});
   var callsBefore = gh.calls.length;
-  var noop = await ann.sync({}, warm.cache, {});
+  var noop = await ann.sync(warm.projects, warm.cache, {});
   var noopCalls = gh.calls.slice(callsBefore);
   ok(noop.pushed === 0 && !noopCalls.some(function (c) { return /^(POST|PATCH)/.test(c); }), 'nothing to push makes no commit');
   ok(!noopCalls.some(function (c) { return /blobs/.test(c); }), 'unchanged files come from the cache', noopCalls.join(', '));
+
+  // Two people create a project with the same name offline: both survive.
+  var mine = M.newProject({ name: 'Sync Board', checklists: ['schematic'] }, 'Cat', T);
+  mine.items.sg5 = { status: 'pass', updatedAt: '2026-10-23T12:00:00Z', updatedBy: 'Cat' };
+  var cat = new Signoff.GitHubStore(cfg, gh.fetch);
+  var catRes = await cat.sync({ 'sync-board': mine }, {}, {});
+  var files = gh.files();
+  ok(catRes.projects['sync-board'].id !== mine.id && catRes.projects['sync-board-2'] && catRes.projects['sync-board-2'].id === mine.id &&
+    files['data/projects/sync-board-2.json'] && JSON.parse(files['data/projects/sync-board.json']).id !== mine.id, 'same-name projects are kept apart');
+
+  // A remote change to a project we already have is fetched and merged, not skipped.
+  var f2 = gh.files(), d2 = JSON.parse(f2['data/projects/sync-board.json']);
+  d2.items.sg6 = { status: 'pass', updatedAt: '2026-10-23T13:00:00Z', updatedBy: 'Bob' };
+  f2['data/projects/sync-board.json'] = M.stableStringify(d2); gh.commitFiles(f2);
+  var pulled = await ann.sync({ 'sync-board': annRes.projects['sync-board'] }, warm.cache, {});
+  ok(pulled.projects['sync-board'].items.sg6, 'changed remote project is pulled in');
 
   // ── Demo ──
   var demo = Signoff.demo.projects(T);

@@ -157,9 +157,12 @@
     };
   }
 
+  // Checks set aside by the board profile aren't counted at all (a new review starts at
+  // 0%). Section N/A is a reviewer's decision, so those count as reviewed.
   function countStatuses(rows) {
-    var c = { total: 0, pass: 0, issue: 0, na: 0, open: 0, reviewed: 0, issuesOpen: 0 };
+    var c = { total: 0, pass: 0, issue: 0, na: 0, open: 0, reviewed: 0, issuesOpen: 0, outside: 0 };
     rows.forEach(function (r) {
+      if (r.auto === 'profile') { c.outside++; return; }
       c.total++;
       c[r.status]++;
       if (r.status !== 'open') c.reviewed++;

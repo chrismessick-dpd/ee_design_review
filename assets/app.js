@@ -279,6 +279,7 @@
       '<div class="grid grid-4">' +
       stat(st.pass, 'Passed', 'pass') + stat(st.issue, plural(st.issue, 'Issue').replace(/^\d+ /, '') + (st.issuesOpen ? ' · ' + st.issuesOpen + ' open' : ''), 'issue') +
       stat(st.open, 'To review', '') + stat(st.na, 'Not applicable', '') + '</div>' +
+      (st.outside ? '<p class="note" style="margin-top:10px">' + plural(st.outside, 'check') + ' outside this board’s profile ' + (st.outside === 1 ? 'is' : 'are') + ' set aside and not counted.</p>' : '') +
       '<div class="section-title">Checklists</div><div class="grid grid-3">' +
       tpls.map(function (t) {
         var c = st.per[t.id];
@@ -577,7 +578,7 @@
         '<div class="row2"><div class="field"><label for="s-branch">Branch</label><input class="input" id="s-branch" value="' + esc(settings.branch) + '"></div>' +
         '<div class="field"><label for="s-path">Data folder</label><input class="input" id="s-path" value="' + esc(settings.dataPath) + '"></div></div>' +
         '<div class="field"><label for="s-token">Access token</label><input class="input" id="s-token" type="password" value="' + esc(token) + '" placeholder="github_pat_…" autocomplete="off">' +
-        '<p class="note">A fine-grained token with <b>Contents: read and write</b> on this repository. It is sent only to api.github.com and kept in this browser.</p></div>' +
+        '<p class="note">The repo owner can use a fine-grained token with <b>Contents: read and write</b> on this repository. Collaborators need a classic token with the <b>repo</b> scope (fine-grained tokens can’t target someone else’s personal repo). The token is sent only to api.github.com and kept in this browser.</p></div>' +
         '<label class="check"><input type="checkbox" id="s-remember"' + (remembered ? ' checked' : '') + '> Remember the token after closing the browser (avoid on shared computers)</label>' +
         '<div class="log" id="s-log" hidden></div>') +
       '</div><div class="sheet-foot">' + (DEMO ? '' : '<button class="btn" data-sheet="test">Test connection</button>') + '<span class="spacer"></span>' +
@@ -635,11 +636,19 @@
     var message = names.length ? 'Review update: ' + names.join(', ') + ' (' + me() + ')' : 'Review update (' + me() + ')';
     store.sync(projects, cache, { message: message, onRetry: function () { toast('Someone else just synced — merging their changes'); } })
       .then(function (res) {
-        // Edits made while the sync ran are merged on top, and stay unsynced.
-        Object.keys(res.projects).forEach(function (slug) { projects[slug] = M.mergeProjects(projects[slug], res.projects[slug]); });
-        Object.keys(started).forEach(function (slug) { if (dirty[slug] === started[slug]) delete dirty[slug]; });
+        // Edits made while the sync ran are merged on top, and stay unsynced. A local project
+        // that clashed with a different one of the same name comes back under a new slug.
+        var next = {};
+        Object.keys(res.projects).forEach(function (slug) {
+          var mine = projects[slug], theirs = res.projects[slug];
+          next[slug] = mine && mine.id === theirs.id ? M.mergeProjects(mine, theirs) : theirs;
+          if (mine && mine.id !== theirs.id) toast('“' + mine.meta.name + '” already existed on GitHub — yours was kept as a separate project');
+        });
+        projects = next;
+        Object.keys(started).forEach(function (slug) { if (dirty[slug] === started[slug] || !projects[slug]) delete dirty[slug]; });
+        if (!projects[ui.slug]) ui.slug = '';
         cache = res.cache;
-        if (res.templates.length) { pulledTemplates = res.templates; save('templates', pulledTemplates); refreshTemplates(); }
+        if (res.templates && res.templates.length) { pulledTemplates = res.templates; save('templates', pulledTemplates); refreshTemplates(); }
         lastSync = { at: M.now(), version: res.version };
         save('cache', cache); save('lastSync', lastSync); persist();
         lastError = '';
@@ -676,6 +685,7 @@
         return '<tr><td>' + esc(t.title) + '</td><td class="num">' + c.total + '</td><td class="num">' + c.pass + '</td><td class="num">' + c.issue + '</td><td class="num">' + c.na + '</td><td class="num">' + c.open + '</td><td class="num">' + c.pct + '%</td></tr>';
       }).join('') +
       '<tr><td><b>Total</b></td><td class="num"><b>' + st.total + '</b></td><td class="num"><b>' + st.pass + '</b></td><td class="num"><b>' + st.issue + '</b></td><td class="num"><b>' + st.na + '</b></td><td class="num"><b>' + st.open + '</b></td><td class="num"><b>' + st.pct + '%</b></td></tr></tbody></table>' +
+      (st.outside ? '<p class="r-cmt">' + plural(st.outside, 'further check') + ' did not apply to this board’s profile (' + esc((m.profile || []).join(', ') || 'general board') + ') and ' + (st.outside === 1 ? 'is' : 'are') + ' not counted.</p>' : '') +
       '<h2>Findings</h2>' + (f.length ? '<table><thead><tr><th>#</th><th>Severity</th><th>Finding</th><th>Owner</th><th>Status</th></tr></thead><tbody>' +
         f.map(function (x, i) {
           var r = x.row, res = r.state.resolution;

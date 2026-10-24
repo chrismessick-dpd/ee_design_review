@@ -95,77 +95,104 @@
   };
 
   /* Sync local projects with the repo.
-     local:  { slug: projectDoc }   (the working copies, including unsynced edits)
-     cache:  { path: { sha, text } } remote files as of the last sync (saves downloads)
-     Resolves { projects, cache, templates, version, pushed, commitUrl }. */
+     local:  { slug: projectDoc }   the working copies, including unsynced edits
+     cache:  { path: { sha } }      blob shas as of the last sync. A project whose sha hasn't
+                                    changed since is already merged into the local copy, so it
+                                    isn't downloaded again (and no second copy is stored).
+     Resolves { projects, cache, templates, version, pushed, commitUrl }; templates is null
+     when the repo's templates haven't changed since the last sync. */
   GitHubStore.prototype.sync = function (local, cache, opts) {
     var self = this;
     opts = opts || {};
     var attempt = 0;
-    cache = Object.assign({}, cache || {});
+    cache = cache || {};
 
-    function readFiles(snap, wanted) {
-      return Promise.all(wanted.map(function (e) {
-        if (cache[e.path] && cache[e.path].sha === e.sha) return Promise.resolve({ path: e.path, sha: e.sha, text: cache[e.path].text });
-        return self.blob(e.sha).then(function (text) {
-          cache[e.path] = { sha: e.sha, text: text };
-          return { path: e.path, sha: e.sha, text: text };
-        });
-      }));
+    function fetchText(e) {
+      return self.blob(e.sha).then(function (text) { return { path: e.path, sha: e.sha, text: text }; });
     }
+    function slugOf(path, dir) { return path.slice(dir.length).replace(/\.json$/, ''); }
 
     function once() {
       attempt++;
-      var snap, remoteFiles, templates = [], version = null;
+      var snap, templates = null, version = null;
+      var nextCache = Object.assign({}, cache);   // only returned once the sync succeeds
       var dir = self.projectsDir();
       var tplDir = (self.cfg.templatePath || 'templates').replace(/\/+$/, '') + '/';
+      var direct = function (e, base) { return e.path.indexOf(base) === 0 && /\.json$/.test(e.path) && e.path.slice(base.length).indexOf('/') < 0; };
       return self.snapshot().then(function (s) {
         snap = s;
         var blobs = s.entries.filter(function (e) { return e.type === 'blob'; });
-        var projectEntries = blobs.filter(function (e) {
-          return e.path.indexOf(dir) === 0 && /\.json$/.test(e.path) && e.path.slice(dir.length).indexOf('/') < 0;
+        var projectEntries = blobs.filter(function (e) { return direct(e, dir); });
+        var tplEntries = blobs.filter(function (e) { return direct(e, tplDir); });
+        var versionEntry = blobs.filter(function (e) { return e.path === 'assets/version.js'; })[0];
+        var fresh = function (e) { return !(cache[e.path] && cache[e.path].sha === e.sha); };
+        // Projects: fetch only what changed, or what we have no local copy of.
+        var projectReads = projectEntries.map(function (e) {
+          return fresh(e) || !local[slugOf(e.path, dir)] ? fetchText(e) : Promise.resolve({ path: e.path, sha: e.sha, unchanged: true });
         });
-        var tplEntries = blobs.filter(function (e) {
-          return e.path.indexOf(tplDir) === 0 && /\.json$/.test(e.path) && e.path.slice(tplDir.length).indexOf('/') < 0;
-        });
-        var versionEntry = blobs.filter(function (e) { return e.path === 'assets/version.js'; });
-        return Promise.all([readFiles(s, projectEntries), readFiles(s, tplEntries), readFiles(s, versionEntry)]);
+        // Templates: all of them again if any changed, otherwise nothing.
+        var tplReads = tplEntries.some(fresh) || tplEntries.length !== Object.keys(cache).filter(function (k) { return k.indexOf(tplDir) === 0; }).length
+          ? Promise.all(tplEntries.map(fetchText)) : Promise.resolve(null);
+        var versionRead = !versionEntry ? Promise.resolve(null) :
+          !fresh(versionEntry) && cache[versionEntry.path].text ? Promise.resolve({ path: versionEntry.path, sha: versionEntry.sha, text: cache[versionEntry.path].text }) :
+          fetchText(versionEntry);
+        return Promise.all([Promise.all(projectReads), tplReads, versionRead, projectEntries, tplEntries]);
       }).then(function (got) {
-        remoteFiles = got[0];
-        got[1].forEach(function (f) {
-          try { templates.push(JSON.parse(f.text)); } catch (e) { /* a broken template file is skipped */ }
-        });
-        if (got[2][0]) {
-          var m = /hash:\s*'([0-9a-f]+)'[\s\S]*?date:\s*'([^']*)'/.exec(got[2][0].text);
+        if (got[1]) {
+          templates = [];
+          got[1].forEach(function (f) {
+            try { templates.push(JSON.parse(f.text)); } catch (e) { /* a broken template file is skipped */ }
+          });
+        }
+        if (got[2]) {
+          nextCache[got[2].path] = { sha: got[2].sha, text: got[2].text };
+          var m = /hash:\s*'([0-9a-f]+)'[\s\S]*?date:\s*'([^']*)'/.exec(got[2].text);
           if (m) version = { hash: m[1], date: m[2] };
         }
 
         var remote = {};
-        remoteFiles.forEach(function (f) {
-          try {
-            var doc = JSON.parse(f.text);
-            remote[doc.slug || f.path.slice(dir.length).replace(/\.json$/, '')] = { doc: doc, path: f.path, text: f.text };
-          } catch (e) { /* unreadable project file: leave it alone */ }
+        got[0].forEach(function (f) {
+          var slug = slugOf(f.path, dir);
+          if (f.unchanged) { remote[slug] = { path: f.path, sha: f.sha, unchanged: true }; return; }
+          try { remote[slug] = { doc: JSON.parse(f.text), path: f.path, sha: f.sha }; } catch (e) { /* unreadable project file: leave it alone */ }
         });
 
-        var merged = {}, changes = [];
-        var slugs = Object.keys(remote).concat(Object.keys(local).filter(function (k) { return !remote[k]; }));
+        // Two different projects created offline under the same name: keep both.
+        var locals = Object.assign({}, local);
+        Object.keys(locals).forEach(function (slug) {
+          var r = remote[slug];
+          if (r && r.doc && locals[slug].id && r.doc.id && locals[slug].id !== r.doc.id) {
+            var n = 2;
+            while (remote[slug + '-' + n] || locals[slug + '-' + n]) n++;
+            var moved = JSON.parse(JSON.stringify(locals[slug]));
+            moved.slug = slug + '-' + n;
+            locals[moved.slug] = moved;
+            delete locals[slug];
+          }
+        });
+
+        var merged = {}, candidates = [];
+        var slugs = Object.keys(remote).concat(Object.keys(locals).filter(function (k) { return !remote[k]; }));
         slugs.forEach(function (slug) {
           var r = remote[slug];
-          var doc = M.mergeProjects(local[slug], r && r.doc);
+          var doc = r && r.unchanged ? locals[slug] : M.mergeProjects(locals[slug], r && r.doc);
+          if (!doc) return;
+          if (doc.slug !== slug) { doc = Object.assign({}, doc, { slug: slug }); }
           merged[slug] = doc;
-          var text = M.stableStringify(doc);
-          if (!r || text !== r.text) changes.push({ path: r ? r.path : dir + slug + '.json', text: text, slug: slug });
+          candidates.push({ path: r ? r.path : dir + slug + '.json', text: M.stableStringify(doc), slug: slug, sha: r && r.sha });
         });
+        got[3].concat(got[4]).forEach(function (e) { nextCache[e.path] = { sha: e.sha }; });
 
-        if (!changes.length || opts.pullOnly) {
-          return { projects: merged, cache: cache, templates: templates, version: version, pushed: 0 };
-        }
-        return self.commit(snap, changes, opts.message).then(function (commit) {
-          return Promise.all(changes.map(function (c) {
-            return gitBlobSha(c.text).then(function (sha) { cache[c.path] = { sha: sha, text: c.text }; });
-          })).then(function () {
-            return { projects: merged, cache: cache, templates: templates, version: version, pushed: changes.length,
+        return Promise.all(candidates.map(function (c) {
+          return gitBlobSha(c.text).then(function (sha) { c.newSha = sha; return c; });
+        })).then(function (all) {
+          var changes = all.filter(function (c) { return c.newSha !== c.sha; });
+          if (!changes.length || opts.pullOnly) {
+            return { projects: merged, cache: nextCache, templates: templates, version: version, pushed: 0 };
+          }
+          return self.commit(snap, changes, opts.message).then(function (commit) {
+            changes.forEach(function (c) { nextCache[c.path] = { sha: c.newSha }; });
+            return { projects: merged, cache: nextCache, templates: templates, version: version, pushed: changes.length,
               commitUrl: commit.html_url, changed: changes.map(function (c) { return c.slug; }) };
           });
         }).catch(function (err) {

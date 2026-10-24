@@ -21,9 +21,17 @@ Open `index.html` in a browser. Open it straight from a clone, or serve the fold
 `python -m http.server`. The first time, enter your name. Then open **Settings** (the gear,
 bottom left), enter a GitHub token, and **Save & sync**.
 
-The token must be a fine-grained personal access token with **Contents: read and write** on
-this repository. It is kept in your browser (for the session only, unless you tick
-*Remember*) and is sent only to `api.github.com`.
+Which token you need depends on who owns the repository:
+
+- **The repository owner:** a fine-grained personal access token with **Contents: read and
+  write** on this repository.
+- **Collaborators:** a *classic* token with the **repo** scope. A fine-grained token can only
+  target repositories owned by its holder or by an organization they belong to, so it can't
+  reach another person's personal repository. If the team grows, move the repository (or
+  just its data folder) into an organization, and everyone can use fine-grained tokens.
+
+The token is kept in your browser (for the session only, unless you tick *Remember*) and is
+sent only to `api.github.com`.
 
 Edits are saved in your browser straight away. Projects with unsynced changes show an orange
 dot. **Sync** (or Ctrl+S) does three things: it pulls, merges, and pushes one commit. It also
