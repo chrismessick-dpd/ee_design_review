@@ -234,6 +234,8 @@
     $('[data-act="new-project"]').hidden = !isFte();
     var people = $('#people-link');
     people.hidden = DEMO || !isFte();
+    var tools = $('#side-tools');
+    if (tools) tools.hidden = DEMO || !isFte();
     people.classList.toggle('active', ui.page === 'people');
   }
 

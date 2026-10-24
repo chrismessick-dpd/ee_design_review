@@ -37,7 +37,9 @@ def main():
     out = ROOT / "dist" / f"Signoff-{build}.zip"
     out.parent.mkdir(exist_ok=True)
     with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED) as z:
-        z.write(ROOT / "index.html", "Signoff/index.html")
+        # Contractors don't get the other internal tools, so the sidebar link to them goes.
+        html = re.sub(r"\s*<!-- tools-link:.*?<!-- /tools-link -->", "", (ROOT / "index.html").read_text(encoding="utf-8"), flags=re.S)
+        z.writestr("Signoff/index.html", html)
         for p in sorted((ROOT / "assets").rglob("*")):
             if p.is_file():
                 z.write(p, "Signoff/" + p.relative_to(ROOT).as_posix())
