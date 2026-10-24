@@ -1,12 +1,18 @@
+/* Shared Signoff engine (EE and ME). Edit it in ee_design_review only; me_design_review
+   vendors it unchanged with tools/sync_engine.py. Tool specifics go in assets/config.js. */
 /* Signoff app: state, storage, rendering and interaction. */
 (function (S) {
   'use strict';
   var M = S.model;
+  var C = S.config, W = C.words || {};
 
   // ── Storage ──────────────────────────────────────────────
+  // Each tool keeps its data under its own namespace (assets/config.js). The token and the
+  // light/dark theme are shared by the whole suite, so they live under fixed keys.
   var DEMO = /[?&]demo\b/.test(location.search) || location.hash === '#demo';
-  var NS = DEMO ? 'signoff.demo.' : 'signoff.v1.';
+  var NS = DEMO ? C.storage.demoNs : C.storage.ns;
   var TOKEN_KEY = 'signoff.token';
+  var THEME_KEY = 'signoff.v1.settings';   // .theme; Fabcheck and the hub read it too
 
   function load(key, fallback) {
     try { var v = localStorage.getItem(NS + key); return v ? JSON.parse(v) : fallback; } catch (e) { return fallback; }
@@ -24,11 +30,20 @@
     } catch (e) { /* storage blocked */ }
   }
 
+  function sharedTheme() {
+    try { return (JSON.parse(localStorage.getItem(THEME_KEY) || '{}') || {}).theme || ''; } catch (e) { return ''; }
+  }
+  function saveSharedTheme(theme) {
+    try { var o = JSON.parse(localStorage.getItem(THEME_KEY) || '{}') || {}; o.theme = theme; localStorage.setItem(THEME_KEY, JSON.stringify(o)); } catch (e) { /* storage blocked */ }
+  }
+
   // owner: the GitHub account or organization that holds every repository.
   // toolRepo: the tool and checklists. dataRepo: internal reviews and People (FTEs only).
   // prefix: name prefix for the private repos of projects shared with contractors.
-  var DEFAULT_SETTINGS = { user: '', owner: 'chrismessick-dpd', toolRepo: 'ee_design_review', dataRepo: 'ee_design_review_data', dataPath: '', prefix: 'review-', branch: 'main', templatePath: 'templates', theme: 'auto' };
-  var settings = Object.assign({}, DEFAULT_SETTINGS, load('settings', {}));
+  // suiteRepos: the rest of the suite FTEs are invited to; always taken from the config.
+  var DEFAULT_SETTINGS = { user: '', owner: C.repos.owner, toolRepo: C.repos.toolRepo, dataRepo: C.repos.dataRepo, dataPath: '', prefix: C.repos.prefix, branch: 'main', templatePath: 'templates', theme: 'auto' };
+  var settings = Object.assign({}, DEFAULT_SETTINGS, load('settings', {}), { suiteRepos: (C.repos.suite || []).slice() });
+  settings.theme = sharedTheme() || settings.theme || 'auto';
   if (settings.repo) {
     // Before the data repo existed, reviews lived in the tool repo's data/ folder.
     settings.toolRepo = settings.repo; settings.dataRepo = DEFAULT_SETTINGS.dataRepo; settings.dataPath = '';
@@ -40,6 +55,11 @@
   var cache = load('cache2', {});           // 'owner/repo' -> { path: { sha } } as of the last sync
   var dataAccess = load('dataAccess', '');  // 'ok' (FTE) | 'none' (contractor) | '' (not synced yet)
   var roster = Object.assign(M.emptyRoster(), load('roster', {}));   // users.json from the data repo
+  if (settings.prefix === 'review-' && settings.prefix !== C.repos.prefix && !Object.keys(roster.shared || {}).length) {
+    // Shared repos used to be review-<project> for EE. Each tool now has its own prefix, so a
+    // contractor's sync never picks up the other discipline's repos.
+    settings.prefix = C.repos.prefix; save('settings', settings);
+  }
   Object.keys(dirty).forEach(function (k) { if (projects[k]) { dirty[projects[k].id] = dirty[k]; delete dirty[k]; } });
   var pulledTemplates = load('templates', []);
   var lastSync = load('lastSync', null);    // { at, version, errors }
@@ -183,7 +203,7 @@
   }
   function addComment(itemId, text) {
     var p = current(); if (!p || !text.trim()) return;
-    var id = M.uid('c');
+    var id = M.uid(C.ids.comment || 'c');
     p.comments[id] = M.stamp({ id: id, item: itemId || null, author: me(), at: M.now(), text: text.trim() }, me());
     touch(p); renderPage(); renderInspector();
   }
@@ -194,7 +214,7 @@
   }
   function addCustom(checklist, section, text) {
     var p = current(); if (!p || !text.trim()) return;
-    var id = M.uid('x');
+    var id = M.uid(C.ids.custom || 'x');
     p.custom[id] = M.stamp({ id: id, checklist: checklist, section: section, text: text.trim(), hint: '', severity: 'major', createdAt: M.now() }, me());
     touch(p); renderPage();
     return id;
@@ -309,7 +329,7 @@
     var none = !visibleProjects().length;
     return '<div class="page"><div class="empty"><div class="empty-art">' + ICON.clipboard + '</div>' +
       '<h2>' + (none ? 'Start a design review' : 'Pick a project') + '</h2>' +
-      '<p>' + (none ? 'Create a project, choose the checklists and what kind of board it is, and Signoff builds a review tailored to it.' : 'Choose a project from the sidebar, or start a new one.') + '</p>' +
+      '<p>' + (none ? 'Create a project, choose the checklists and what kind of ' + W.thing + ' it is, and Signoff builds a review tailored to it.' : 'Choose a project from the sidebar, or start a new one.') + '</p>' +
       '<button class="btn btn-primary" data-act="new-project">New project</button>' +
       (none && !DEMO ? ' <button class="btn" data-act="sync">Pull from GitHub</button>' : '') +
       (none ? '<p class="note" style="margin-top:18px">' + TEMPLATES.length + ' checklists · ' + Object.keys(INDEX.items).length + ' checks available</p>' : '') +
@@ -337,14 +357,14 @@
     var html = '<div class="page">' +
       '<div class="page-head"><div class="page-head-text">' + headBlock(p, 'Design review') +
       (p.meta.description ? '<p style="color:var(--text-2);margin:14px 0 0;max-width:62ch">' + esc(p.meta.description) + '</p>' : '') +
-      '<div class="chips" style="margin-top:14px">' + (profile || '<span class="chip">General board</span>') +
+      '<div class="chips" style="margin-top:14px">' + (profile || '<span class="chip">' + esc(W.general) + '</span>') +
       (isFte() ? '<button class="btn btn-plain" style="padding:2px 8px;font-size:12px" data-act="edit-project">Edit profile</button>' : '') + '</div>' +
       (!DEMO && isFte() ? '<p class="note" style="margin-top:10px">' + (M.sharedRepo(roster, p.id) ? 'Shared through ' + esc(M.sharedRepo(roster, p.id)) + (assignedContractors(p.id).length ? ' with ' + assignedContractors(p.id).map(function (u) { return esc(u.name || u.login); }).join(', ') : '') : 'Internal \u2014 FTEs only') + '</p>' : '') + '</div>' +
       ring(st.pct, 132, 11, st.pct + '%', 'reviewed') + '</div>' +
       '<div class="grid grid-4">' +
       stat(st.pass, 'Passed', 'pass') + stat(st.issue, plural(st.issue, 'Issue').replace(/^\d+ /, '') + (st.issuesOpen ? ' · ' + st.issuesOpen + ' open' : ''), 'issue') +
       stat(st.open, 'To review', '') + stat(st.na, 'Not applicable', '') + '</div>' +
-      (st.outside ? '<p class="note" style="margin-top:10px">' + plural(st.outside, 'check') + ' outside this board’s profile ' + (st.outside === 1 ? 'is' : 'are') + ' set aside and not counted.</p>' : '') +
+      (st.outside ? '<p class="note" style="margin-top:10px">' + plural(st.outside, 'check') + ' outside this ' + W.thing + '’s profile ' + (st.outside === 1 ? 'is' : 'are') + ' set aside and not counted.</p>' : '') +
       '<div class="section-title">Checklists</div><div class="grid grid-3">' +
       tpls.map(function (t) {
         var c = st.per[t.id];
@@ -421,7 +441,7 @@
         '<div class="sec-meta">' + (gc.issue ? '<span style="color:var(--issue)">' + gc.issue + ' !</span>' : '') + '<span>' + gc.reviewed + '/' + gc.total + '</span>' + bar(gc) +
         '<button class="sec-na' + (g.state.na ? ' on' : '') + '" data-act="sec-na" data-sec="' + esc(g.section.id) + '" title="Mark the whole section not applicable">N/A</button></div></div>' +
         '<div class="sec-body">' + visible.map(function (r) { return itemRow(r, counts); }).join('') +
-        (hiddenCount ? '<div class="hidden-rows"><span>' + plural(hiddenCount, 'check') + ' not applicable to this board’s profile</span><button data-act="show-hidden" data-sec="' + esc(g.section.id) + '">Show</button></div>' :
+        (hiddenCount ? '<div class="hidden-rows"><span>' + plural(hiddenCount, 'check') + ' not applicable to this ' + W.thing + '’s profile</span><button data-act="show-hidden" data-sec="' + esc(g.section.id) + '">Show</button></div>' :
           (showHidden[g.section.id] && g.rows.some(function (r) { return r.hidden; }) ? '<div class="hidden-rows"><span>Showing checks outside the profile</span><button data-act="show-hidden" data-sec="' + esc(g.section.id) + '">Hide</button></div>' : '')) +
         (ui.filter === 'all' && !ui.query ? '<div class="add-row"><input data-add="' + esc(t.id) + '|' + esc(g.section.id) + '" placeholder="+ Add a check for this project" maxlength="400"></div>' : '') +
         '</div></section>';
@@ -528,7 +548,7 @@
       '<div class="insp-body">' +
       '<div class="insp-title"' + (d.custom ? ' contenteditable="true" data-edit-custom="' + esc(selected) + '"' : '') + '>' + esc(d.def.text) + '</div>' +
       (d.def.hint ? '<div class="hint"><b>Guidance</b>' + esc(d.def.hint) + '</div>' : '') +
-      (row && row.auto ? '<div class="note" style="margin:-4px 0 12px">' + (row.auto === 'section' ? 'Counted as N/A because the section is marked N/A.' : 'Counted as N/A: outside this board’s profile (' + esc((d.def.tags || d.section.tags || []).join(', ')) + '). Set a status to review it anyway.') + '</div>' : '') +
+      (row && row.auto ? '<div class="note" style="margin:-4px 0 12px">' + (row.auto === 'section' ? 'Counted as N/A because the section is marked N/A.' : 'Counted as N/A: outside this ' + W.thing + '’s profile (' + esc((d.def.tags || d.section.tags || []).join(', ')) + '). Set a status to review it anyway.') + '</div>' : '') +
       '<div class="field"><span class="field-label">Status</span><div class="seg full">' + statusBtn('open', 'To review') + statusBtn('pass', 'Pass') + statusBtn('issue', 'Issue') + statusBtn('na', 'N/A') + '</div></div>' +
       (status === 'issue' ? '<div class="issue-box">' +
         '<div class="field"><span class="field-label">Severity</span><div class="seg full">' + M.SEVERITIES.map(function (s) {
@@ -570,12 +590,13 @@
   function projectSheet(p) {
     var editing = !!p;
     var contractors = M.liveUsers(roster).filter(function (u) { return u.role === 'contractor'; });
-    var m = p ? p.meta : { name: '', client: '', board: '', revision: '', stage: 'Schematic', description: '', profile: [], checklists: TEMPLATES.map(function (t) { return t.id; }).filter(function (id) { return id !== 'bringup'; }) };
-    var w = sheet('<div class="sheet-head"><h2>' + (editing ? 'Project details' : 'New design review') + '</h2><p>' + (editing ? 'Changes sync to everyone on this project.' : 'Pick the checklists and describe the board. Checks that don’t fit its profile are set aside as N/A, and you can still bring any of them back.') + '</p></div>' +
+    var defaults = C.defaultChecklists || TEMPLATES.map(function (t) { return t.id; });
+    var m = p ? p.meta : { name: '', client: '', board: '', revision: '', stage: C.defaultStage, description: '', profile: [], checklists: TEMPLATES.map(function (t) { return t.id; }).filter(function (id) { return defaults.indexOf(id) >= 0; }) };
+    var w = sheet('<div class="sheet-head"><h2>' + (editing ? 'Project details' : 'New design review') + '</h2><p>' + (editing ? 'Changes sync to everyone on this project.' : 'Pick the checklists and describe the ' + W.thing + '. Checks that don’t fit its profile are set aside as N/A, and you can still bring any of them back.') + '</p></div>' +
       '<div class="sheet-body">' +
-      '<div class="field"><label for="f-name">Project name</label><input class="input" id="f-name" value="' + esc(m.name) + '" placeholder="e.g. Sensor hub main board" maxlength="120"></div>' +
+      '<div class="field"><label for="f-name">Project name</label><input class="input" id="f-name" value="' + esc(m.name) + '" placeholder="' + esc(W.namePlaceholder) + '" maxlength="120"></div>' +
       '<div class="row2"><div class="field"><label for="f-client">Client</label><input class="input" id="f-client" value="' + esc(m.client) + '" placeholder="Optional"></div>' +
-      '<div class="field"><label for="f-board">Board / PCBA number</label><input class="input" id="f-board" value="' + esc(m.board) + '" placeholder="e.g. PCB-1042"></div></div>' +
+      '<div class="field"><label for="f-board">' + esc(W.number) + '</label><input class="input" id="f-board" value="' + esc(m.board) + '" placeholder="' + esc(W.numberPlaceholder) + '"></div></div>' +
       '<div class="row2"><div class="field"><label for="f-rev">Revision</label><input class="input" id="f-rev" value="' + esc(m.revision) + '" placeholder="e.g. 03"></div>' +
       '<div class="field"><label for="f-stage">Stage</label><select class="input" id="f-stage">' + M.STAGES.map(function (s) { return '<option' + (s === m.stage ? ' selected' : '') + '>' + s + '</option>'; }).join('') + '</select></div></div>' +
       '<div class="field"><label for="f-desc">Scope / notes</label><textarea class="input" id="f-desc" placeholder="What is being reviewed, which documents, anything reviewers should know">' + esc(m.description) + '</textarea></div>' +
@@ -583,7 +604,7 @@
         var n = 0; t.sections.forEach(function (s) { n += s.items.length; });
         return '<button type="button" class="pick' + (m.checklists.indexOf(t.id) >= 0 ? ' on' : '') + '" data-pick="' + t.id + '"><b>' + esc(t.short) + '</b><span>' + n + ' checks</span></button>';
       }).join('') + '</div></div>' +
-      '<div class="field"><span class="field-label">Board profile — select everything that applies</span><div class="pick-grid" id="f-profile">' + M.TAGS.map(function (t) {
+      '<div class="field"><span class="field-label">' + esc(W.profile) + ' — select everything that applies</span><div class="pick-grid" id="f-profile">' + M.TAGS.map(function (t) {
         return '<button type="button" class="pick' + (m.profile.indexOf(t.id) >= 0 ? ' on' : '') + '" data-pick="' + t.id + '"><b>' + esc(t.label) + '</b><span>' + esc(t.desc) + '</span></button>';
       }).join('') + '</div><p class="note" id="f-count"></p></div>' +
       (!DEMO && contractors.length ? '<div class="field"><span class="field-label">Contractors on this project \u2014 ' + (editing && M.sharedRepo(roster, p.id) ? 'shared as ' + esc(M.sharedRepo(roster, p.id)) : 'adding one moves it into its own private repository') + '</span><div class="pick-grid" id="f-people">' + contractors.map(function (u) {
@@ -678,7 +699,8 @@
         '<div class="field"><label for="s-branch">Branch</label><input class="input" id="s-branch" value="' + esc(settings.branch) + '"></div></div>' +
         '<div class="row2"><div class="field"><label for="s-data">Data repo (FTEs)</label><input class="input" id="s-data" value="' + esc(settings.dataRepo) + '"></div>' +
         '<div class="field"><label for="s-tool">Tool repo (FTEs)</label><input class="input" id="s-tool" value="' + esc(settings.toolRepo) + '"></div></div>' +
-        '<div class="field"><label for="s-prefix">Shared project repos start with</label><input class="input" id="s-prefix" value="' + esc(settings.prefix) + '"></div></details>' +
+        '<div class="field"><label for="s-prefix">Shared project repos start with</label><input class="input" id="s-prefix" value="' + esc(settings.prefix) + '"></div>' +
+        (settings.suiteRepos.length ? '<p class="note">FTEs are also invited to the rest of the suite: ' + settings.suiteRepos.map(esc).join(', ') + ' (set in assets/config.js).</p>' : '') + '</details>' +
         '<div class="log" id="s-log" hidden></div>') +
       '</div><div class="sheet-foot">' + (DEMO ? '' : '<button class="btn" data-sheet="test">Test connection</button>') + '<span class="spacer"></span>' +
       '<button class="btn" data-sheet="cancel">Cancel</button><button class="btn btn-primary" data-sheet="ok">' + (DEMO ? 'Done' : 'Save & sync') + '</button></div>');
@@ -689,7 +711,7 @@
       if (!DEMO) {
         s.owner = w.querySelector('#s-owner').value.trim(); s.branch = w.querySelector('#s-branch').value.trim() || 'main';
         s.dataRepo = w.querySelector('#s-data').value.trim(); s.toolRepo = w.querySelector('#s-tool').value.trim();
-        s.prefix = w.querySelector('#s-prefix').value.trim() || 'review-';
+        s.prefix = w.querySelector('#s-prefix').value.trim() || C.repos.prefix;
       }
       return s;
     }
@@ -723,7 +745,7 @@
         if (tok !== getToken() || s.owner !== settings.owner || s.dataRepo !== settings.dataRepo) { s.login = ''; dataAccess = ''; save('dataAccess', dataAccess); accessMap = {}; }
         setToken(tok, w.querySelector('#s-remember').checked);
       }
-      settings = s; save('settings', settings);
+      settings = s; save('settings', settings); saveSharedTheme(settings.theme);
       closeSheet(); render();
       if (!DEMO && tok) sync();
     });
@@ -834,6 +856,7 @@
     }
     html += '<p class="note" style="margin-top:14px">Internal projects live in <b>' + esc(settings.dataRepo) + '</b>, which only FTEs can open. ' +
       'Adding a contractor to a project moves it into its own private <b>' + esc(settings.prefix) + '…</b> repository and invites them to that one repository only. ' +
+      (settings.suiteRepos.length ? 'FTEs are also invited to ' + settings.suiteRepos.map(function (r) { return '<b>' + esc(r) + '</b>'; }).join(', ') + '; the other tool’s shared projects are granted from its own People page. ' : '') +
       'On a personal account every collaborator can push to the repositories they’re on; an organization allows narrower roles.</p></div>';
     return html;
   }
@@ -1037,7 +1060,7 @@
     var m = p.meta;
     var html = '<div class="report-bar"><b>Review report</b><div style="display:flex;gap:8px"><button class="btn" data-act="close-report">Close</button><button class="btn btn-primary" data-act="print">Print / Save PDF</button></div></div>' +
       '<div class="paper">' +
-      '<div class="r-head"><div><div class="r-brand"><svg width="14" height="16" viewBox="0 0 16 18"><path d="M0 0h6v7.6L0 8.4zM0 9.6l6 .8V18H0z" fill="#004952"/><path d="M7 0l9 3v12l-9 3v-7.4l5-.9V8.3l-5-.9z" fill="#004952"/></svg>DOVETAIL · DESIGN REVIEW</div>' +
+      '<div class="r-head"><div><div class="r-brand"><svg width="14" height="16" viewBox="0 0 16 18"><path d="M0 0h6v7.6L0 8.4zM0 9.6l6 .8V18H0z" fill="#004952"/><path d="M7 0l9 3v12l-9 3v-7.4l5-.9V8.3l-5-.9z" fill="#004952"/></svg>DOVETAIL · ' + esc(C.tagline.toUpperCase()) + '</div>' +
       '<h1 style="margin-top:14px">' + esc(m.name) + '</h1><div style="color:#515154">' + esc([m.client, m.board, m.revision && 'Rev ' + m.revision].filter(Boolean).join(' · ')) + '</div></div>' +
       '<div style="text-align:right"><div style="font:600 30px var(--display);color:#004952">' + st.pct + '%</div><div style="color:#86868b;font-size:11px">reviewed</div></div></div>' +
       '<div class="r-meta"><div><span>Stage</span>' + esc(m.stage) + '</div><div><span>Date</span>' + fmtDate(M.now()) + '</div><div><span>Open issues</span>' + st.issuesOpen + '</div><div><span>Reviewers</span>' + (Object.keys(reviewers).map(esc).join(', ') || '—') + '</div></div>' +
@@ -1048,7 +1071,7 @@
         return '<tr><td>' + esc(t.title) + '</td><td class="num">' + c.total + '</td><td class="num">' + c.pass + '</td><td class="num">' + c.issue + '</td><td class="num">' + c.na + '</td><td class="num">' + c.open + '</td><td class="num">' + c.pct + '%</td></tr>';
       }).join('') +
       '<tr><td><b>Total</b></td><td class="num"><b>' + st.total + '</b></td><td class="num"><b>' + st.pass + '</b></td><td class="num"><b>' + st.issue + '</b></td><td class="num"><b>' + st.na + '</b></td><td class="num"><b>' + st.open + '</b></td><td class="num"><b>' + st.pct + '%</b></td></tr></tbody></table>' +
-      (st.outside ? '<p class="r-cmt">' + plural(st.outside, 'further check') + ' did not apply to this board’s profile (' + esc((m.profile || []).join(', ') || 'general board') + ') and ' + (st.outside === 1 ? 'is' : 'are') + ' not counted.</p>' : '') +
+      (st.outside ? '<p class="r-cmt">' + plural(st.outside, 'further check') + ' did not apply to this ' + W.thing + '’s profile (' + esc((m.profile || []).join(', ') || W.general.toLowerCase()) + ') and ' + (st.outside === 1 ? 'is' : 'are') + ' not counted.</p>' : '') +
       '<h2>Findings</h2>' + (f.length ? '<table><thead><tr><th>#</th><th>Severity</th><th>Finding</th><th>Owner</th><th>Status</th></tr></thead><tbody>' +
         f.map(function (x, i) {
           var r = x.row, res = r.state.resolution;
@@ -1058,7 +1081,7 @@
             '<td>' + esc(r.state.assignee || '—') + '</td><td>' + (res === 'fixed' ? 'Fixed' : res === 'waived' ? 'Waived' : 'Open') + '</td></tr>';
         }).join('') + '</tbody></table>' : '<p>No issues were raised.</p>') +
       '<div class="sign"><div>Reviewed by</div><div>Approved by</div></div>' +
-      '<div class="r-foot"><span>Generated by Signoff ' + esc((window.SIGNOFF_VERSION || {}).hash || '') + '</span><span>' + esc(m.name) + '</span></div></div>';
+      '<div class="r-foot"><span>Generated by ' + esc(C.product) + ' ' + esc((window.SIGNOFF_VERSION || {}).hash || '') + '</span><span>' + esc(m.name) + '</span></div></div>';
     var r = $('#report'); r.innerHTML = html; r.hidden = false;
   }
 
@@ -1087,7 +1110,7 @@
       var doc;
       if (M.isLegacy(data)) doc = M.importLegacy(data, me(), TEMPLATES);
       else if (data && data.meta && data.items) doc = data;
-      else { toast('Not a Signoff project or old checklist export'); return; }
+      else { toast('Not a ' + C.product + ' project' + ((C.legacyTabs || []).length ? ' or old checklist export' : '')); return; }
       var slug = doc.slug || M.slugify(doc.meta.name);
       if (projects[slug] && projects[slug].id !== doc.id) { var n = 2; while (projects[slug + '-' + n]) n++; slug = slug + '-' + n; }
       doc.slug = slug;
@@ -1137,10 +1160,15 @@
   // The sidebar button flips whatever is showing now; Settings can set it back to Automatic.
   function toggleTheme() {
     settings.theme = isDark(settings.theme) ? 'light' : 'dark';
-    save('settings', settings);
+    save('settings', settings); saveSharedTheme(settings.theme);
     applyTheme(settings.theme);
   }
   if (darkQuery && darkQuery.addEventListener) darkQuery.addEventListener('change', function () { applyTheme(settings.theme); });
+  // Another Signoff tool (or Fabcheck) in another tab changed the theme.
+  window.addEventListener('storage', function (e) {
+    var t = e.key === THEME_KEY && sharedTheme();
+    if (t && t !== settings.theme) { settings.theme = t; applyTheme(t); }
+  });
 
   // ── Events ───────────────────────────────────────────────
   function visibleItemIds() {
@@ -1211,8 +1239,9 @@
         if ((roster.users[el.dataset.login] || {}).role === el.dataset.role) break;
         setPerson(el.dataset.login, { role: el.dataset.role }); renderPage();
         if (el.dataset.role === 'fte') fixAccess(el.dataset.login);
-        else if (getToken() && confirm('Also remove ' + el.dataset.login + ' from ' + settings.dataRepo + ' and ' + settings.toolRepo + ' on GitHub?')) {
-          runAccessOps('Removing FTE access', [{ login: el.dataset.login, revokeRepos: [settings.owner + '/' + settings.dataRepo, settings.owner + '/' + settings.toolRepo] }]);
+        else if (getToken()) {
+          var internal = workspace().internalRepos();
+          if (confirm('Also remove ' + el.dataset.login + ' from ' + internal.map(repoName).join(', ') + ' on GitHub?')) runAccessOps('Removing FTE access', [{ login: el.dataset.login, revokeRepos: internal }]);
         }
         break;
       case 'remove-person':
@@ -1231,7 +1260,7 @@
       case 'nav': $('#app').classList.toggle('nav-open'); break;
       case 'project-menu':
         menu(el, (isFte() ? [['edit', 'Project details\u2026']] : []).concat([['report', 'Review report'], ['csv', 'Export findings (CSV)'], ['json', 'Export project (JSON)']],
-          isFte() ? ['-', ['import', 'Import project or old checklist\u2026'], '-', ['archive', current().meta.archived ? 'Unarchive project' : 'Archive project', true]] : []))
+          isFte() ? ['-', ['import', (C.legacyTabs || []).length ? 'Import project or old checklist\u2026' : 'Import project\u2026'], '-', ['archive', current().meta.archived ? 'Unarchive project' : 'Archive project', true]] : []))
           .then(function (choice) {
             if (choice === 'edit') projectSheet(current());
             else if (choice === 'report') openReport();
@@ -1312,9 +1341,9 @@
     var banner = $('#demo-banner');
     banner.hidden = false;
     document.body.classList.add('has-banner');
-    banner.innerHTML = 'You’re exploring a demo of Signoff, Dovetail’s design review tool. Changes stay in this browser.<button data-act="reset-demo" id="reset-demo">Reset demo</button>';
+    banner.innerHTML = 'You’re exploring a demo of ' + esc(C.product) + ', Dovetail’s ' + esc(C.tagline.toLowerCase()) + ' tool. Changes stay in this browser.<button data-act="reset-demo" id="reset-demo">Reset demo</button>';
     banner.querySelector('#reset-demo').addEventListener('click', function () {
-      Object.keys(localStorage).forEach(function (k) { if (k.indexOf('signoff.demo.') === 0) localStorage.removeItem(k); });
+      Object.keys(localStorage).forEach(function (k) { if (k.indexOf(C.storage.demoNs) === 0) localStorage.removeItem(k); });
       location.reload();
     });
   }

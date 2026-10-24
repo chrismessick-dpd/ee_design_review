@@ -2,12 +2,12 @@
   "id": "interfaces",
   "title": "Interface Review",
   "short": "Interfaces",
-  "version": 1,
+  "version": 2,
   "description": "Per-interface checks for the board's buses and I/O; the reviewer marks whole sections N/A for interfaces the board does not use.",
   "sections": [
     {
       "id": "if-adc",
-      "title": "ADC (Analogue-to-Digital Converter)",
+      "title": "ADC (Analog-to-Digital Converter)",
       "tags": [],
       "items": [
         {
@@ -102,7 +102,7 @@
     },
     {
       "id": "if-dac",
-      "title": "DAC (Digital-to-Analogue Converter)",
+      "title": "DAC (Digital-to-Analog Converter)",
       "tags": [],
       "items": [
         {
@@ -494,7 +494,7 @@
         },
         {
           "id": "ifc-usb-3",
-          "text": "USB PD: the controller's policy (voltages, currents, dead-battery behaviour) is defined and its strapping / firmware matches",
+          "text": "USB PD: the controller's policy (voltages, currents, dead-battery behavior) is defined and its strapping / firmware matches",
           "hint": "Dead-battery operation needs the sink to present Rd with no firmware running. Check that the controller supports it.",
           "tags": [],
           "severity": "major"
@@ -557,7 +557,7 @@
         {
           "id": "disp5",
           "text": "Display power sequencing (e.g. VDDIO → VDD → backlight) matches the panel datasheet",
-          "hint": "Wrong sequencing can latch up the panel driver IC or show visible artefacts at power-on.",
+          "hint": "Wrong sequencing can latch up the panel driver IC or show visible artifacts at power-on.",
           "tags": [],
           "severity": "critical"
         },
@@ -675,8 +675,8 @@
         },
         {
           "id": "can4",
-          "text": "Split termination (two half-value resistors with a centre-tap capacitor) is used where noise is a concern",
-          "hint": "The centre-tap capacitor to ground filters common-mode noise.",
+          "text": "Split termination (two half-value resistors with a center-tap capacitor) is used where noise is a concern",
+          "hint": "The center-tap capacitor to ground filters common-mode noise.",
           "tags": [],
           "severity": "minor"
         },
@@ -731,8 +731,8 @@
         },
         {
           "id": "eth2",
-          "text": "Magnetics centre-tap connection matches the PHY type (voltage-mode or current-mode) per datasheet",
-          "hint": "Current-mode PHYs need the centre tap biased to a supply; voltage-mode PHYs typically want it AC-coupled only. Getting this wrong kills the link.",
+          "text": "Magnetics center-tap connection matches the PHY type (voltage-mode or current-mode) per datasheet",
+          "hint": "Current-mode PHYs need the center tap biased to a supply; voltage-mode PHYs typically want it AC-coupled only. Getting this wrong kills the link.",
           "tags": [],
           "severity": "critical"
         },
@@ -1070,7 +1070,7 @@
         },
         {
           "id": "ifc-sd-4",
-          "text": "UHS-I card voltage switching (3.3 V to 1.8 V signalling) is supported by the I/O supply if UHS modes are used",
+          "text": "UHS-I card voltage switching (3.3 V to 1.8 V signaling) is supported by the I/O supply if UHS modes are used",
           "hint": "Without a switchable I/O supply, the card falls back to slower modes.",
           "tags": [],
           "severity": "major"
@@ -1156,7 +1156,7 @@
         },
         {
           "id": "ifc-ddr-8",
-          "text": "Memory power sequencing and RESET_n / CKE behaviour follow the JEDEC device datasheet",
+          "text": "Memory power sequencing and RESET_n / CKE behavior follow the JEDEC device datasheet",
           "hint": "Incorrect sequencing can make initialization unreliable.",
           "tags": [],
           "severity": "major"
@@ -1574,7 +1574,7 @@
         },
         {
           "id": "ifc-aud-5",
-          "text": "Headphone output has coupling capacitors or is ground-centred (cap-less) per datasheet",
+          "text": "Headphone output has coupling capacitors or is ground-centered (cap-less) per datasheet",
           "hint": "Coupling-capacitor value sets the low-frequency cutoff with the headphone impedance.",
           "tags": [],
           "severity": "major"

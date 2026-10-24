@@ -13,6 +13,7 @@
 <body>
 <div id="summary">Running…</div>
 <div id="out"></div>
+<script src="../assets/config.js"></script>
 <script src="../assets/templates.js"></script>
 <script src="../assets/model.js"></script>
 <script src="../assets/github.js"></script>
@@ -39,6 +40,12 @@
   eq(M.resolveTemplates(T, [newer])[0].title, 'Pulled', 'pulled template with higher version wins');
   var older = JSON.parse(JSON.stringify(T[0])); older.version = 0; older.title = 'Old';
   eq(M.resolveTemplates(T, [older])[0].title, T[0].title, 'bundled template wins over an older pulled one');
+
+  // ── Config ──
+  var CFG = Signoff.config;
+  eq(M.TAGS.map(function (t) { return t.id; }), CFG.tags.map(function (t) { return t.id; }), 'profile tags come from config.js');
+  ok(M.newProject({ name: 'x', checklists: [] }, 'Ann', T).id.indexOf(CFG.ids.project) === 0, 'project ids use the configured prefix');
+  ok(CFG.storage.ns !== 'signoff.' && CFG.repos.prefix !== 'review-', 'own storage namespace and shared-repo prefix');
 
   // ── Applicability ──
   ok(M.applies([], []), 'untagged applies');
@@ -78,7 +85,7 @@
   // ── Legacy import ──
   var legacy = { version: '3.0', projectName: 'Old Board', categories: [[{ id: 's-gen', items: [{ id: 'sg1', text: 'x' }, { id: 'zz9', text: 'My own check', note: 'n' }] }], [], [], [], []],
     checks: [{ sg1: true, sg2: 'na', sg3: false }, {}, {}, {}, {}], sectionNA: [{}, { 'if-adc': true }, {}, {}, {}] };
-  ok(M.isLegacy(legacy), 'legacy export detected');
+  ok(M.isLegacy(legacy) === !!(CFG.legacyTabs || []).length, 'legacy export detected (EE only)');
   var lp = M.importLegacy(legacy, 'Ann', T);
   eq([lp.meta.name, lp.items.sg1.status, lp.items.sg2.status, !!lp.items.sg3, lp.sections['if-adc'].na, lp.custom.zz9.text, lp.custom.zz9.section],
     ['Old Board', 'pass', 'na', false, true, 'My own check', 's-gen'], 'legacy import maps checks, N/A, sections and custom items');
@@ -181,7 +188,7 @@
   var hub = new FakeHub();
   hub.makeRepo('ann/tool', { 'index.html': '<html>', 'assets/version.js': "window.SIGNOFF_VERSION = { hash: 'abc123', date: '2026-10-23' };" }, ['ann']);
   hub.makeRepo('ann/data', { 'README.md': '# data' }, ['ann']);
-  var SET = { owner: 'ann', toolRepo: 'tool', dataRepo: 'data', dataPath: '', prefix: 'review-', branch: 'main' };
+  var SET = { owner: 'ann', toolRepo: 'tool', dataRepo: 'data', dataPath: '', prefix: 'review-', branch: 'main', suiteRepos: ['other_tool', 'other_data', 'signoff'] };
   function wsFor(login, extra) { return new Signoff.Workspace(Object.assign({}, SET, extra || {}), 'tok-' + login, hub.fetchFor('tok-' + login)); }
   function blank() { return { login: '', projects: {}, roster: M.emptyRoster(), homes: {}, cache: {}, dataAccess: '' }; }
   function dataFile(id) { return hub.files('ann/data')['projects/' + id + '.json']; }
@@ -266,6 +273,14 @@
   // An FTE whose data repo can't be reached keeps everything.
   var lost = await wsFor('ann', { dataRepo: 'typo' }).sync(annSt, {});
   ok(lost.state.dataAccess === 'ok' && lost.state.projects[Q.id] && lost.errors.some(function (e) { return /typo/.test(e.message); }), 'a missing data repo is an error, not contractor mode');
+
+  // FTEs get the whole suite; a contractor only sees repos with this tool's prefix.
+  var fr = annWs.fteRepos(annSt);
+  ok(['ann/tool', 'ann/data', 'ann/other_tool', 'ann/other_data', 'ann/signoff', sh.repo].every(function (x) { return fr.indexOf(x) >= 0; }), 'FTE repos cover this tool, the rest of the suite and shared projects');
+  eq(annWs.internalRepos(), ['ann/tool', 'ann/data', 'ann/other_tool', 'ann/other_data', 'ann/signoff'], 'internal repos are the tool, data and suite repos');
+  hub.makeRepo('ann/review-ee-board', { 'README.md': '#' }, ['ann', 'dan']);
+  hub.makeRepo('ann/review-me-housing', { 'README.md': '#' }, ['ann', 'dan']);
+  eq(await wsFor('dan', { prefix: 'review-ee-' }).account.listRepos('ann', 'review-ee-'), ['review-ee-board'], 'a discipline prefix keeps the other tool’s shared repos out');
 
   // ── Store-level behaviour ──
   hub.makeRepo('ann/review-race', { 'README.md': '#' }, ['ann', 'bob']);

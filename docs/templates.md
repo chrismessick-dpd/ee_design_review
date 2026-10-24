@@ -46,7 +46,8 @@ templates pulled from the repo are used instead of the bundled copy.
 
 ## Tags
 
-Use only these. `tools/validate_templates.py` rejects anything else.
+Use only these. `tools/validate_templates.py` rejects anything else (the list lives in
+`assets/config.js`, which the app reads too).
 
 | Tag | Applies when the board… |
 | --- | --- |
@@ -77,5 +78,6 @@ Use only these. `tools/validate_templates.py` rejects anything else.
 - Don't invent standard clause numbers or precise thresholds. Name a standard only when
   you're sure it is the right one (IPC-2221, IPC-7351, IPC-A-610, IPC-6012 are fine),
   and phrase numeric limits as "per datasheet", "per fab capability", or as a clearly
-  labelled rule of thumb.
+  labeled rule of thumb.
 - One check per item. Avoid "and also…" items that can half pass.
+- American English spelling (color, analog, center, behavior, labeled, -ize / -ization).

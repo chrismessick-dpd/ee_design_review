@@ -1,4 +1,7 @@
+# Shared Signoff engine (EE and ME). Edit it in ee_design_review only; me_design_review
+# vendors it unchanged with tools/sync_engine.py. Tool specifics go in assets/config.js.
 """Check every checklist template in templates/ against docs/templates.md.
+Tags and ID prefixes come from assets/config.js.
 
     python tools/validate_templates.py            # all templates
     python tools/validate_templates.py pcb.json   # just these (IDs still checked against all)
@@ -13,11 +16,15 @@ import sys
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 TEMPLATES = ROOT / "templates"
 
-TAGS = {
-    "battery", "low-power", "mains", "high-current", "motor", "rf", "high-speed", "ddr",
-    "fpga", "bga", "hdi", "flex", "precision-analog", "audio", "display", "harsh-env",
-    "automotive", "medical", "regulatory", "production",
-}
+def load_config():
+    """assets/config.js: window.SIGNOFF_CONFIG = {strict JSON};"""
+    text = (ROOT / "assets" / "config.js").read_text(encoding="utf-8")
+    return json.loads(re.search(r"window\.SIGNOFF_CONFIG\s*=\s*(\{.*\})\s*;", text, re.S).group(1))
+
+
+CONFIG = load_config()
+TAGS = {t["id"] for t in CONFIG["tags"]}
+PREFIXES = CONFIG.get("templatePrefixes", {})   # checklist id -> prefix of its section / item IDs
 SEVERITIES = {"critical", "major", "minor"}
 ID = re.compile(r"^[a-z0-9][a-z0-9-]*$")
 
@@ -52,6 +59,7 @@ def check(path, seen, errors):
             err(f"{what}: repeated tag")
 
     check_id(t.get("id"), "template")
+    prefix = PREFIXES.get(t.get("id"))
     for key in ("title", "short", "description"):
         if not isinstance(t.get(key), str) or not t[key].strip():
             err(f"missing {key}")
@@ -61,6 +69,8 @@ def check(path, seen, errors):
     for s in t.get("sections") or []:
         sid = s.get("id")
         check_id(sid, "section")
+        if prefix and not str(sid).startswith(prefix + "-"):
+            err(f"section {sid}: id must start with {prefix}-")
         if not str(s.get("title", "")).strip():
             err(f"section {sid}: missing title")
         check_tags(s.get("tags", []), f"section {sid}")
@@ -69,6 +79,8 @@ def check(path, seen, errors):
         for it in s.get("items") or []:
             iid = it.get("id")
             check_id(iid, f"item in {sid}")
+            if prefix and not str(iid).startswith(f"{sid}-"):
+                err(f"item {iid}: id must start with {sid}-")
             if not str(it.get("text", "")).strip():
                 err(f"item {iid}: empty text")
             if "hint" in it and not isinstance(it["hint"], str):

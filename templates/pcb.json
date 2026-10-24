@@ -2,8 +2,8 @@
   "id": "pcb",
   "title": "PCB Layout Review",
   "short": "Layout",
-  "version": 1,
-  "description": "Layout review covering stackup, rules, mechanical fit, placement, power integrity, routing, specialised interfaces, safety spacing, EMC, test access and manufacturability.",
+  "version": 2,
+  "description": "Layout review covering stackup, rules, mechanical fit, placement, power integrity, routing, specialized interfaces, safety spacing, EMC, test access and manufacturability.",
   "sections": [
     {
       "id": "p-gen",
@@ -47,7 +47,7 @@
         },
         {
           "id": "pcb-stk-1",
-          "text": "Stackup is symmetric about the board centre",
+          "text": "Stackup is symmetric about the board center",
           "hint": "Asymmetric copper or dielectric causes bow and twist after reflow. Mirror copper weights and dielectric thicknesses top to bottom wherever possible.",
           "tags": [],
           "severity": "major"
@@ -202,7 +202,7 @@
         {
           "id": "pcb-mech-7",
           "text": "LEDs, buttons, light pipes and displays line up with their enclosure features",
-          "hint": "Check positions in the 3D assembly. Light pipes need the LED centred under them, and buttons need the right actuator height.",
+          "hint": "Check positions in the 3D assembly. Light pipes need the LED centered under them, and buttons need the right actuator height.",
           "tags": [],
           "severity": "major"
         },
@@ -237,7 +237,7 @@
         {
           "id": "pp1",
           "text": "All components are inside the board outline with adequate clearance to the edge",
-          "hint": "Use the assembler's edge clearance, especially if the board travels on conveyor rails. Parts too close to a breakout tab can crack when depanelled.",
+          "hint": "Use the assembler's edge clearance, especially if the board travels on conveyor rails. Parts too close to a breakout tab can crack when depaneled.",
           "tags": [],
           "severity": "major"
         },
@@ -278,7 +278,7 @@
         },
         {
           "id": "pp7",
-          "text": "Polarised parts and ICs are in a consistent, verified orientation",
+          "text": "Polarized parts and ICs are in a consistent, verified orientation",
           "hint": "Keep the same orientation for like parts where possible to make inspection easier. Check every diode, electrolytic and IC pin 1 against the footprint.",
           "tags": [],
           "severity": "major"
@@ -537,7 +537,7 @@
         {
           "id": "pr6",
           "text": "Crosstalk-sensitive traces have enough spacing from aggressors",
-          "hint": "Rule of thumb: 3W spacing (three times the trace width, centre to centre) for sensitive or fast signals. Use simulation for tight designs.",
+          "hint": "Rule of thumb: 3W spacing (three times the trace width, center to center) for sensitive or fast signals. Use simulation for tight designs.",
           "tags": [],
           "severity": "major"
         },
@@ -578,8 +578,8 @@
         },
         {
           "id": "pcb-rt-4",
-          "text": "Traces entering pads leave from the pad end or centre, not at an angle across the pad",
-          "hint": "Off-centre or wide traces into small pads cause tombstoning and uneven solder. Keep entry width at or below the pad width.",
+          "text": "Traces entering pads leave from the pad end or center, not at an angle across the pad",
+          "hint": "Off-center or wide traces into small pads cause tombstoning and uneven solder. Keep entry width at or below the pad width.",
           "tags": [],
           "severity": "major"
         },
@@ -737,7 +737,7 @@
         {
           "id": "pcb-ddr-5",
           "text": "Address and command routing uses the specified topology (fly-by or T-branch)",
-          "hint": "DDR3 and later normally use fly-by for multiple devices. Check the device order matches the write-levelling setup.",
+          "hint": "DDR3 and later normally use fly-by for multiple devices. Check the device order matches the write-leveling setup.",
           "tags": [],
           "severity": "major"
         },
@@ -816,7 +816,7 @@
         {
           "id": "pcb-rf-5",
           "text": "RF traces have no sharp bends",
-          "hint": "Use curved or mitred bends. Keep RF traces short and avoid vias in the RF path unless designed for it.",
+          "hint": "Use curved or mitered bends. Keep RF traces short and avoid vias in the RF path unless designed for it.",
           "tags": [],
           "severity": "major"
         },
@@ -916,7 +916,7 @@
         },
         {
           "id": "pcb-ana-7",
-          "text": "Thermal gradients across precision parts are minimised",
+          "text": "Thermal gradients across precision parts are minimized",
           "hint": "Heat sources near references, thermocouples or matched resistors cause drift. Keep matched parts together and away from hot parts.",
           "tags": [],
           "severity": "major"
@@ -1385,7 +1385,7 @@
         },
         {
           "id": "pcb-silk-8",
-          "text": "Test points, jumpers and debug headers are labelled",
+          "text": "Test points, jumpers and debug headers are labeled",
           "hint": "Labels speed bring-up and test. Use net names or short descriptions.",
           "tags": [],
           "severity": "minor"
@@ -1420,7 +1420,7 @@
         },
         {
           "id": "pt4",
-          "text": "Polarity markers are visible on the silkscreen for all polarised components",
+          "text": "Polarity markers are visible on the silkscreen for all polarized components",
           "hint": "Check every diode, LED, electrolytic and tantalum capacitor. The marking must be visible after assembly.",
           "tags": [],
           "severity": "major"
@@ -1522,7 +1522,7 @@
         },
         {
           "id": "pm7",
-          "text": "Tooling holes are present and correctly sized for panelisation",
+          "text": "Tooling holes are present and correctly sized for panelization",
           "hint": "Use the assembler's tooling hole size and position, usually on the panel rails.",
           "tags": [],
           "severity": "major"
@@ -1571,7 +1571,7 @@
         },
         {
           "id": "pcb-dfm-7",
-          "text": "Panelisation is agreed with the assembler, including rails, breakaway method and panel size",
+          "text": "Panelization is agreed with the assembler, including rails, breakaway method and panel size",
           "hint": "Check the panel drawing with the assembler. Parts near tabs or V-scores need extra clearance.",
           "tags": [
             "production"

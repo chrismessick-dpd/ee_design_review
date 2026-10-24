@@ -2,7 +2,7 @@
   "id": "fab",
   "title": "Fabrication & Release Review",
   "short": "Fab & Release",
-  "version": 1,
+  "version": 2,
   "description": "Checks that the fabrication package, drawing, stackup, panel and release records are complete and match the fabricator's capability before the board is ordered.",
   "sections": [
     {
@@ -138,7 +138,7 @@
         },
         {
           "id": "gn4",
-          "text": "Solder mask and silkscreen colours are specified",
+          "text": "Solder mask and silkscreen colors are specified",
           "tags": [],
           "severity": "minor"
         },
@@ -187,7 +187,7 @@
         {
           "id": "fab-not-5",
           "text": "Flammability rating is specified where the product needs it (e.g. UL 94 V-0)",
-          "hint": "Check the safety standard for the product; the fab must use a recognised material and process.",
+          "hint": "Check the safety standard for the product; the fab must use a recognized material and process.",
           "tags": [
             "mains",
             "regulatory"
@@ -224,13 +224,13 @@
         {
           "id": "fab-stk-2",
           "text": "The stackup is confirmed by the fabricator with their actual materials before release",
-          "hint": "A stackup built from catalogue values can't always be made. Get the fab's stackup back in writing.",
+          "hint": "A stackup built from catalog values can't always be made. Get the fab's stackup back in writing.",
           "tags": [],
           "severity": "major"
         },
         {
           "id": "fab-stk-3",
-          "text": "The stackup is symmetric about its centre",
+          "text": "The stackup is symmetric about its center",
           "hint": "Asymmetric copper or dielectric causes bow and twist after lamination and reflow.",
           "tags": [],
           "severity": "major"
@@ -471,7 +471,7 @@
     },
     {
       "id": "g-pan",
-      "title": "Panelisation",
+      "title": "Panelization",
       "tags": [],
       "items": [
         {
@@ -497,7 +497,7 @@
         },
         {
           "id": "gp4",
-          "text": "Copper balance across the panel is checked to minimise warpage",
+          "text": "Copper balance across the panel is checked to minimize warpage",
           "hint": "Add copper thieving on rails and empty areas if layers are unbalanced.",
           "tags": [],
           "severity": "minor"
@@ -537,7 +537,7 @@
         },
         {
           "id": "fab-pnl-6",
-          "text": "The depanelisation method won't overstress nearby components",
+          "text": "The depanelization method won't overstress nearby components",
           "hint": "Hand breaking and pizza-cutter separation flex the board; routing is gentler for sensitive parts.",
           "tags": [],
           "severity": "major"

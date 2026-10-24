@@ -1,6 +1,8 @@
-# Signoff — EE design review
+# Signoff EE — electrical design review
 
-Signoff is Dovetail's checklist tool for schematic, layout, assembly, fab and bring-up reviews.
+Signoff EE is Dovetail's checklist tool for schematic, layout, assembly, fab and bring-up reviews.
+Its sibling [Signoff ME](https://github.com/chrismessick-dpd/me_design_review) does the same for
+mechanical design, on the same engine; both sit under the Dovetail Signoff hub.
 Each project is a review of one board. Reviewers mark checks Pass / Issue / N/A, discuss them
 in comment threads, track issues to Fixed or Waived, and print a review report.
 Reviews sync through private GitHub repositories, so everyone works on the same copy.
@@ -26,13 +28,18 @@ Which token you need:
 - **The account owner** (today `chrismessick-dpd`): a fine-grained token with Repository
   access set to **All repositories**, and **Contents** and **Administration** both set to read
   and write. Sharing a project creates a new repository, and a token limited to *selected*
-  repositories can't reach it.
+  repositories can't reach it. The same token works in Signoff ME, and Add FTE invites people
+  across the suite, so it must reach every repository in the table below.
 - **Everyone else** (the other FTEs and contractors): a *classic* token with the **repo** scope.
   A fine-grained token can only target repositories owned by its holder or by an organization
   they belong to.
 
 The token is kept in your browser (for the session only, unless you tick *Remember*) and is
-sent only to `api.github.com`.
+sent only to `api.github.com`. It is stored under `signoff.token`, which every Signoff tool
+shares, so signing in once covers Signoff EE and Signoff ME on the same origin. Light/dark
+mode is shared the same way (`theme` in `signoff.v1.settings`, which Fabcheck and the hub read
+too). Everything else lives under this tool's own namespace, `signoff.v1.` (Signoff ME uses
+`signoff-me.v1.`).
 
 Edits are saved in your browser straight away. Projects with unsynced changes show an orange
 dot. **Sync** (or Ctrl+S) does three things: it pulls, merges, and pushes one commit. It also
@@ -59,7 +66,8 @@ GitHub grants access to whole repositories, so Signoff keeps each audience in it
 | --- | --- | --- |
 | `ee_design_review` (tool) | The tool and the checklists | FTEs |
 | `ee_design_review_data` (data) | Internal reviews (`projects/<id>.json`) and People (`users.json`) | FTEs |
-| `review-<project>` (one per shared project) | That one review | FTEs and that project's contractors |
+| `review-ee-<project>` (one per shared project) | That one review | FTEs and that project's contractors |
+| `me_design_review`, `me_design_review_data`, `signoff` | Signoff ME and the hub | FTEs |
 
 All of these are set in Settings, under **Repositories**. An FTE is anyone whose token can open
 the data repo. A contractor's token reaches only their projects' `review-…` repos, so their
@@ -67,14 +75,20 @@ copy of Signoff never sees anything else, and neither does GitHub.
 
 **People & access** (FTEs only) lists everyone by GitHub username, with their role.
 - **Adding a contractor to a project** moves the project out of the data repo into a new
-  private `review-<project>` repo and invites the contractor and the FTEs to it. Later
+  private `review-ee-<project>` repo and invites the contractor and the FTEs to it. Later
   contractors on the same project are just invited.
   - The move is safe to repeat. If it's interrupted, running it again picks up where it
     stopped.
   - An FTE's unsynced edits follow the project to its new repo.
 - **Removing a contractor** takes away their GitHub access, including an invitation they
   haven't accepted. Their copy of the project disappears at their next sync.
-- **Adding an FTE** invites them to the tool repo, the data repo and every shared repo.
+- **Adding an FTE** invites them to this tool's repo, its data repo, every EE shared repo, and
+  the rest of the suite: Signoff ME's tool and data repos and the hub repo. That list is
+  `repos.suite` in `assets/config.js`. Signoff ME's shared `review-me-…` repos are granted from
+  Signoff ME's own People page, so add FTEs there too (each tool keeps its own People list).
+- **A contractor** gets only their projects' `review-ee-…` repos. One working on an ME project
+  is added in Signoff ME and gets only that `review-me-…` repo. The prefixes keep the two apart:
+  a contractor's copy of each tool lists only repos with its own prefix.
 - The **GitHub access** column compares the list with the real collaborators on each repo,
   and **Give access** fixes any gaps.
 - Project file names are IDs, so they don't give project names away.
@@ -88,8 +102,9 @@ narrower roles. Change the account in Settings; the app handles organizations al
 1. They create a free GitHub account and send you their username.
 2. Add them in People and pick their projects. Confirm, and Signoff shares the projects and
    GitHub emails the invitations.
-3. Send them the tool: `python tools/package.py` makes `dist/Signoff-<build>.zip`. It holds
-   the tool and checklists only, with no data and no token, plus a START HERE note.
+3. Send them the tool: `python tools/package.py` makes `dist/Signoff-EE-<build>.zip`. It holds
+   the tool and checklists only, with no data, no token and no links to the other internal
+   tools, plus a START HERE note.
 4. They open it, click the gear, follow *New to GitHub? Set up in four steps*, and click
    Save & sync. Signoff lists their invitations with an **Accept** button. From then on they
    just Sync.
@@ -117,16 +132,27 @@ Changes to the **tool or the checklists** should still go through pull requests.
 | Path | Contents |
 | --- | --- |
 | `index.html`, `assets/` | The tool (no build step, no dependencies) |
+| `assets/config.js` | Everything EE-specific: name, repos, storage namespace, profile tags, stages, default checklists, ID prefixes, demo data |
 | `assets/model.js` | Data model: templates, profile rules, progress, merge, legacy import |
 | `assets/github.js` | Talks to one GitHub repository: sync, collaborators (injected `fetch`) |
 | `assets/workspace.js` | Which repos hold which projects: syncing them all, sharing, invites |
 | `assets/app.js` | UI |
-| `assets/demo.js` | Sample projects for demo mode |
+| `assets/demo.js` | Builds the demo-mode sample projects from `config.js` |
 | `assets/templates.js`, `assets/version.js` | Generated by `tools/build.py` |
 | `templates/*.json` | The checklists — see [docs/templates.md](docs/templates.md) |
 | `tools/package.py` | Builds the zip you send to a contractor |
 | `tests/test.html` | Model and sync tests against a fake GitHub API (open it over http) |
 | `docs/roadmap.md` | DFM tool and customer-facing plans |
+
+## The shared engine (Signoff EE and Signoff ME)
+
+Both tools run the same engine. This repository is its source: `assets/model.js`, `github.js`,
+`workspace.js`, `app.js`, `demo.js`, `styles.css` and `tools/build.py`, `package.py`,
+`validate_templates.py`. Signoff ME vendors them byte for byte with
+`python tools/sync_engine.py` (in `me_design_review`), and its `build.py` fails if its copy is
+stale, so fixes flow one way and nothing diverges silently. Fix the engine here, then sync
+ME. What differs between the tools lives in each one's `assets/config.js`, `index.html`,
+`templates/`, `tests/` and docs.
 
 ## Changing the tool or the checklists
 

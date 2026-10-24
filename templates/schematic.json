@@ -2,7 +2,7 @@
   "id": "schematic",
   "title": "Schematic Review",
   "short": "Schematic",
-  "version": 1,
+  "version": 2,
   "description": "Checks a schematic before layout or release: documentation, power, grounding, component ratings, connectivity, processors, interfaces, protection, safety, test and sourcing.",
   "sections": [
     {
@@ -89,7 +89,7 @@
         },
         {
           "id": "sp2",
-          "text": "Every IC and polarised part is connected to a rail of the correct voltage and polarity",
+          "text": "Every IC and polarized part is connected to a rail of the correct voltage and polarity",
           "hint": "Walk each IC's supply pins against its datasheet recommended operating range, including I/O-bank and analog supplies.",
           "tags": [],
           "severity": "critical"
@@ -131,7 +131,7 @@
         },
         {
           "id": "sch-pwr-5",
-          "text": "Behaviour on power-up, brown-out and power loss is defined for every rail",
+          "text": "Behavior on power-up, brown-out and power loss is defined for every rail",
           "hint": "Consider what happens when the input sags slowly: regulators dropping out of regulation, MCUs running out of spec, flash writes corrupting.",
           "tags": [],
           "severity": "major"
@@ -219,7 +219,7 @@
         {
           "id": "sch-reg-9",
           "text": "Switching frequency is chosen to avoid sensitive bands (radio channels, audio, ADC sampling)",
-          "hint": "Consider harmonics as well as the fundamental; spread-spectrum or synchronisation may help.",
+          "hint": "Consider harmonics as well as the fundamental; spread-spectrum or synchronization may help.",
           "tags": [],
           "severity": "minor"
         }
@@ -303,7 +303,7 @@
         {
           "id": "sch-dec-2",
           "text": "Total capacitance on each rail is within the regulator's stable range and the source's hot-plug limits",
-          "hint": "Excess capacitance can destabilise LDOs, upset soft-start, or exceed USB and hot-swap limits.",
+          "hint": "Excess capacitance can destabilize LDOs, upset soft-start, or exceed USB and hot-swap limits.",
           "tags": [],
           "severity": "major"
         },
@@ -446,7 +446,7 @@
         {
           "id": "sn2",
           "text": "No pin is left unconnected unless the datasheet allows it and it is intentionally marked no-connect",
-          "hint": "Check unused inputs on logic, op-amps and comparators; floating CMOS inputs cause extra current and erratic behaviour.",
+          "hint": "Check unused inputs on logic, op-amps and comparators; floating CMOS inputs cause extra current and erratic behavior.",
           "tags": [],
           "severity": "critical"
         },
@@ -466,8 +466,8 @@
         },
         {
           "id": "sn5",
-          "text": "Differential pair nets are correctly paired and labelled (e.g. USB_D+/USB_D-)",
-          "hint": "Use consistent _P/_N or +/- suffixes so layout tools recognise the pairs.",
+          "text": "Differential pair nets are correctly paired and labeled (e.g. USB_D+/USB_D-)",
+          "hint": "Use consistent _P/_N or +/- suffixes so layout tools recognize the pairs.",
           "tags": [],
           "severity": "major"
         },
@@ -800,7 +800,7 @@
         {
           "id": "sch-ana-8",
           "text": "Audio outputs have DC blocking and pop/click suppression at power-up and power-down",
-          "hint": "Check coupling-capacitor charging behaviour and the codec or amplifier mute sequence.",
+          "hint": "Check coupling-capacitor charging behavior and the codec or amplifier mute sequence.",
           "tags": [
             "audio"
           ],
@@ -890,7 +890,7 @@
         {
           "id": "sch-dig-3",
           "text": "Ethernet PHY strapping, magnetics and termination follow the PHY reference design",
-          "hint": "Check centre-tap connection (voltage-mode vs current-mode PHY) and the Bob Smith termination network.",
+          "hint": "Check center-tap connection (voltage-mode vs current-mode PHY) and the Bob Smith termination network.",
           "tags": [],
           "severity": "major"
         },
@@ -1086,7 +1086,7 @@
         },
         {
           "id": "sch-bat-6",
-          "text": "Deep-discharge and shelf-life behaviour (ship mode, leakage) is defined",
+          "text": "Deep-discharge and shelf-life behavior (ship mode, leakage) is defined",
           "hint": "Leakage through dividers and always-on parts can flatten a battery in storage; consider ship mode.",
           "tags": [],
           "severity": "major"
@@ -1243,7 +1243,7 @@
         {
           "id": "sch-iso-6",
           "text": "Mains inrush current is limited to suit the fuse, switch and upstream supply",
-          "hint": "Use an NTC, active inrush limiter or the converter's soft-start; check behaviour on a hot restart when an NTC is still warm.",
+          "hint": "Use an NTC, active inrush limiter or the converter's soft-start; check behavior on a hot restart when an NTC is still warm.",
           "tags": [
             "mains"
           ],
@@ -1422,7 +1422,7 @@
         },
         {
           "id": "sch-fab-5",
-          "text": "Unique serialisation, calibration storage and MAC/ID provisioning are planned",
+          "text": "Unique serialization, calibration storage and MAC/ID provisioning are planned",
           "hint": "Decide where calibration constants and unique IDs live and how production writes them.",
           "tags": [
             "production"

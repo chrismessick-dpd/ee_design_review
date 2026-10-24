@@ -1,9 +1,13 @@
+/* Shared Signoff engine (EE and ME). Edit it in ee_design_review only; me_design_review
+   vendors it unchanged with tools/sync_engine.py. Tool specifics go in assets/config.js. */
 /* Signoff workspace: which repositories hold which projects, and who can open them.
 
    - Tool repo (settings.toolRepo): the tool and the checklists. FTEs only.
    - Data repo (settings.dataRepo): internal projects and users.json. FTEs only.
-   - One private repo per shared project (settings.prefix + name, e.g. review-sensor-hub):
+   - One private repo per shared project (settings.prefix + name, e.g. review-ee-sensor-hub):
      the FTEs plus the contractors on that project.
+   - settings.suiteRepos: the rest of the Signoff suite (the other discipline's tool and data
+     repos, the hub). FTEs are invited to these too.
 
    GitHub enforces access, so a contractor's token only reaches their projects' repos.
    An FTE is anyone whose token can open the data repo. No DOM here; app.js renders.
@@ -225,9 +229,18 @@
     }, Promise.resolve()).then(function () { return failed; });
   };
 
-  // Every repository an FTE needs: tool, data and each shared project.
+  // The repositories only FTEs are on: this tool's tool and data repos, plus the rest of the
+  // suite (settings.suiteRepos: the other discipline's tool and data repos, the hub).
+  Workspace.prototype.internalRepos = function () {
+    var ws = this, repos = [this.toolFull(), this.dataFull()];
+    (this.s.suiteRepos || []).forEach(function (r) { var f = ws.full(r); if (repos.indexOf(f) < 0) repos.push(f); });
+    return repos;
+  };
+
+  // Every repository an FTE needs: the internal ones and each shared project of this tool.
+  // (The other discipline's shared projects are granted from that tool's People page.)
   Workspace.prototype.fteRepos = function (state) {
-    var repos = [this.toolFull(), this.dataFull()];
+    var repos = this.internalRepos();
     Object.keys((state.roster && state.roster.shared) || {}).forEach(function (id) {
       var r = M.sharedRepo(state.roster, id);
       if (r && repos.indexOf(r) < 0) repos.push(r);

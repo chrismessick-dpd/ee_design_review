@@ -1,3 +1,5 @@
+/* Shared Signoff engine (EE and ME). Edit it in ee_design_review only; me_design_review
+   vendors it unchanged with tools/sync_engine.py. Tool specifics go in assets/config.js. */
 /* Signoff — design review tool. Light/dark tokens, then layout, then components. */
 
 :root {
@@ -546,6 +548,7 @@ kbd { font: 500 11px var(--mono); padding: 1px 5px; border-radius: 4px; backgrou
 a.side-link { text-decoration: none; }
 .side-link .tool-mark { width: 20px; height: 20px; border-radius: 6px; background: #004952; display: grid; place-items: center; flex: none; }
 .side-link .tool-mark svg { width: 12px; height: 12px; }
+.side-link .tool-mark-text { color: #fff; font: 700 9px/1 var(--display); letter-spacing: 0.02em; }
 .side-link small { display: block; font-size: 11px; color: var(--text-3); font-weight: 400; }
 .invite-card { display: flex; flex-direction: column; gap: 4px; margin: 4px 0 10px; padding: 11px 12px; border-radius: 11px; background: var(--accent-soft); font-size: 12.5px; }
 .invite-card span { color: var(--text-2); }

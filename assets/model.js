@@ -1,3 +1,5 @@
+/* Shared Signoff engine (EE and ME). Edit it in ee_design_review only; me_design_review
+   vendors it unchanged with tools/sync_engine.py. Tool specifics go in assets/config.js. */
 /* Signoff data model: templates, project documents, progress and merging.
    Pure functions only (no DOM, no storage) so tests/test.html can exercise them. */
 (function (S) {
@@ -7,31 +9,12 @@
   var SEVERITIES = ['critical', 'major', 'minor'];
   var RESOLUTIONS = ['', 'fixed', 'waived'];
 
-  // Project profile tags. Must match tools/validate_templates.py and docs/templates.md.
-  var TAGS = [
-    { id: 'battery', label: 'Battery', desc: 'Runs from or charges a battery' },
-    { id: 'low-power', label: 'Low power', desc: 'Sleep / ultra-low-power budget' },
-    { id: 'mains', label: 'Mains / HV', desc: 'AC mains or > 60 V DC, isolation' },
-    { id: 'high-current', label: 'High current', desc: 'More than ~5 A, power stages' },
-    { id: 'motor', label: 'Motors', desc: 'Motors, solenoids, inductive loads' },
-    { id: 'rf', label: 'RF / Wireless', desc: 'Radio, antenna or RF front end' },
-    { id: 'high-speed', label: 'High-speed', desc: 'Multi-Gb/s links, controlled impedance' },
-    { id: 'ddr', label: 'DDR memory', desc: 'External DRAM' },
-    { id: 'fpga', label: 'FPGA / SoC', desc: 'FPGA or application processor' },
-    { id: 'bga', label: 'BGA', desc: 'BGA or fine-pitch area arrays' },
-    { id: 'hdi', label: 'HDI', desc: 'Microvias, via-in-pad' },
-    { id: 'flex', label: 'Flex / rigid-flex', desc: 'Flex or rigid-flex construction' },
-    { id: 'precision-analog', label: 'Precision analog', desc: 'Low-noise measurement, sensors' },
-    { id: 'audio', label: 'Audio', desc: 'Audio inputs or outputs' },
-    { id: 'display', label: 'Display', desc: 'Display or touch panel' },
-    { id: 'harsh-env', label: 'Harsh environment', desc: 'Industrial, outdoor, coated' },
-    { id: 'automotive', label: 'Automotive', desc: 'AEC-Q parts, vehicle transients' },
-    { id: 'medical', label: 'Medical', desc: 'IEC 60601 style requirements' },
-    { id: 'regulatory', label: 'Certification', desc: 'EMC / radio certification' },
-    { id: 'production', label: 'Volume production', desc: 'Test fixtures, cost, panels' }
-  ];
-
-  var STAGES = ['Concept', 'Schematic', 'Layout', 'Pre-fab', 'Bring-up', 'Released'];
+  // Discipline specifics (tags, stages, ID prefixes) come from assets/config.js, which
+  // tools/validate_templates.py reads too.
+  var C = S.config = window.SIGNOFF_CONFIG || {};
+  var TAGS = C.tags || [];
+  var STAGES = C.stages || [];
+  var IDS = C.ids || {};
 
   function now() { return new Date().toISOString(); }
 
@@ -85,7 +68,7 @@
     (templates || []).forEach(function (tp) { versions[tp.id] = tp.version || 1; });
     return {
       schema: 1,
-      id: uid('p'),
+      id: uid(IDS.project || 'p'),
       slug: slugify(fields.name),
       createdAt: t,
       createdBy: user || '',
@@ -95,7 +78,7 @@
         client: fields.client || '',
         board: fields.board || '',
         revision: fields.revision || '',
-        stage: fields.stage || 'Schematic',
+        stage: fields.stage || C.defaultStage || STAGES[0] || '',
         description: fields.description || '',
         profile: (fields.profile || []).slice(),
         checklists: (fields.checklists || []).slice(),
@@ -303,13 +286,13 @@
   // That tool stored checks[tab][itemId] = true | 'na' | false, sectionNA[tab][sectionId],
   // and the full (possibly edited) categories. Items it had that aren't in the current
   // templates come across as custom items.
-  var LEGACY_TABS = ['schematic', 'interfaces', 'pcb', 'assembly', 'fab'];
+  var LEGACY_TABS = C.legacyTabs || [];
 
   function importLegacy(data, user, templates) {
     var index = indexTemplates(templates);
     var p = newProject({
       name: data.projectName || 'Imported review',
-      stage: 'Schematic',
+      stage: C.defaultStage,
       checklists: LEGACY_TABS.filter(function (id) { return templates.some(function (t) { return t.id === id; }); })
     }, user, templates);
     var t = now();
@@ -343,7 +326,7 @@
   }
 
   function isLegacy(data) {
-    return !!data && Array.isArray(data.checks) && !data.meta;
+    return LEGACY_TABS.length > 0 && !!data && Array.isArray(data.checks) && !data.meta;
   }
 
   S.model = {

@@ -2,7 +2,7 @@
   "id": "assembly",
   "title": "Assembly & BOM Review",
   "short": "Assembly",
-  "version": 1,
+  "version": 2,
   "description": "Checks that the BOM, footprints, placement data, stencil, soldering process and assembly documentation let an assembler build the board right first time.",
   "sections": [
     {
@@ -154,7 +154,7 @@
         },
         {
           "id": "ap4",
-          "text": "Polarised components (diodes, electrolytics, ICs) have their orientation marked",
+          "text": "Polarized components (diodes, electrolytics, ICs) have their orientation marked",
           "hint": "Mark polarity on silkscreen and the assembly drawing so it is still visible after the part is placed.",
           "tags": [],
           "severity": "major"
@@ -275,7 +275,7 @@
         },
         {
           "id": "asm-pnp-5",
-          "text": "Each part's placement origin is at the body centre",
+          "text": "Each part's placement origin is at the body center",
           "hint": "Footprints with the origin at pin 1 or a corner give offset placements unless the assembler corrects them.",
           "tags": [],
           "severity": "major"
@@ -773,7 +773,7 @@
         },
         {
           "id": "asm-qua-4",
-          "text": "All parts are bought from authorised distributors or with documented traceability",
+          "text": "All parts are bought from authorized distributors or with documented traceability",
           "hint": "Broker parts carry counterfeit risk; record and approve any exceptions.",
           "tags": [],
           "severity": "major"
@@ -803,7 +803,7 @@
         },
         {
           "id": "asm-cst-3",
-          "text": "Through-hole parts are minimised or grouped for one soldering process",
+          "text": "Through-hole parts are minimized or grouped for one soldering process",
           "hint": "Each manual or selective solder step adds cost per board.",
           "tags": [],
           "severity": "minor"
