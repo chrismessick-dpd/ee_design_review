@@ -2,7 +2,7 @@
   "id": "schematic",
   "title": "Schematic Review",
   "short": "Schematic",
-  "version": 2,
+  "version": 3,
   "description": "Checks a schematic before layout or release: documentation, power, grounding, component ratings, connectivity, processors, interfaces, protection, safety, test and sourcing.",
   "sections": [
     {
@@ -323,7 +323,7 @@
         },
         {
           "id": "sch-dec-5",
-          "text": "Power distribution network target impedance is analysed for high-current, fast-transient rails",
+          "text": "Power distribution network target impedance is analyzed for high-current, fast-transient rails",
           "hint": "Large FPGAs and SoCs often need a PDN analysis or the vendor's decoupling calculator rather than rules of thumb.",
           "tags": [
             "fpga",
