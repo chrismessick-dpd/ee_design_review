@@ -13,12 +13,10 @@
 <body>
 <div id="summary">Running…</div>
 <div id="out"></div>
-<script src="../assets/config.js"></script>
-<script src="../assets/templates.js"></script>
-<script src="../assets/model.js"></script>
-<script src="../assets/github.js"></script>
-<script src="../assets/workspace.js"></script>
-<script src="../assets/demo.js"></script>
+<script>
+// Load the engine fresh on every run, so a browser cache never tests old code.
+['config', 'templates', 'model', 'github', 'workspace', 'demo'].forEach(function (n) { document.write('<script src="../assets/' + n + '.js?t=' + Date.now() + '"><\/script>'); });
+</script>
 <script>
 /* Unit tests for the model and the GitHub sync, run against a fake GitHub API.
    Open this file in a browser; the title shows PASS or FAIL. */
@@ -300,6 +298,30 @@
   hub.makeRepo('ann/review-ee-board', { 'README.md': '#' }, ['ann', 'dan']);
   hub.makeRepo('ann/review-me-housing', { 'README.md': '#' }, ['ann', 'dan']);
   eq(await wsFor('dan', { prefix: 'review-ee-' }).account.listRepos('ann', 'review-ee-'), ['review-ee-board'], 'a discipline prefix keeps the other tool’s shared repos out');
+
+  // The UI script isn't loaded here, so at least make sure it parses.
+  var appSrc = await (await fetch('../assets/app.js?t=' + Date.now())).text();
+  var appErr = ''; try { new Function(appSrc); } catch (e) { appErr = e.message; }
+  ok(!appErr, 'app.js parses', appErr);
+
+  // ── Discard unsynced changes ──
+  var dst = JSON.parse(JSON.stringify(annSt));
+  dst.projects[Q.id].items.sg9 = { status: 'issue', updatedAt: '2026-10-24T09:00:00Z', updatedBy: 'ann' };   // edit to throw away
+  var fresh = M.newProject({ name: 'Never Synced', checklists: ['schematic'] }, 'ann', T);
+  dst.projects[fresh.id] = fresh;
+  dst.roster.users.zed = { login: 'zed', name: 'Zed', role: 'fte', projects: [], updatedAt: '2026-10-24T09:00:00Z', updatedBy: 'ann' };
+  var callsBeforeDiscard = hub.calls.length;
+  var disc = await annWs.discard(dst, [Q.id, fresh.id, P.id], true);
+  ok(disc.projects[Q.id] && !disc.projects[Q.id].items.sg9 && disc.projects[Q.id].id === Q.id, 'discard restores an edited project from GitHub');
+  ok(disc.projects[fresh.id] === null, 'discard removes a project that was never synced');
+  ok(disc.projects[P.id] && disc.projects[P.id].comments.k1, 'discard restores a shared project from its own repo');
+  ok(disc.roster && !disc.roster.users.zed && disc.roster.users.cat, 'discard restores the People list');
+  ok(!hub.calls.slice(callsBeforeDiscard).some(function (c) { return /(POST|PATCH|PUT|DELETE)/.test(c); }), 'discard never writes to GitHub');
+  var cut = JSON.parse(JSON.stringify(annSt));
+  cut.roster.shared[P.id] = Object.assign({}, cut.roster.shared[P.id], { repo: 'ann/review-gone' });
+  cut.cache['ann/review-gone'] = { ['projects/' + P.id + '.json']: { sha: 'x' } };
+  var failed = await annWs.discard(cut, [P.id], false).then(function () { return false; }, function () { return true; });
+  ok(failed, 'discard fails safely when a synced project’s repo can’t be reached');
 
   // ── Store-level behaviour ──
   hub.makeRepo('ann/review-race', { 'README.md': '#' }, ['ann', 'bob']);
