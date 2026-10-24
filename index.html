@@ -6,7 +6,7 @@
 <meta name="color-scheme" content="light dark">
 <title>Signoff · Design Review</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23004952'/%3E%3Cpath d='M10 9h5v6.2l-5 .8zM10 17l5 .8V23h-5z' fill='%23fff'/%3E%3Cpath d='M16 9l7 2.5v9L16 23v-5.2l4-.8v-2l-4-.8z' fill='%23fff'/%3E%3C/svg%3E">
-<link rel="stylesheet" href="assets/styles.css?v=5c5864482fb8">
+<link rel="stylesheet" href="assets/styles.css?v=b43f5b0ce2db">
 </head>
 <body>
 <div id="demo-banner" class="demo-banner" hidden></div>
@@ -32,6 +32,10 @@
       </button>
     </div>
     <nav class="side-list" id="project-list"></nav>
+    <button class="side-link" id="people-link" data-act="people" hidden>
+      <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><circle cx="7.5" cy="7" r="2.8"/><path d="M2.5 16.5c.6-2.8 2.6-4.3 5-4.3s4.4 1.5 5 4.3"/><circle cx="14" cy="7.8" r="2.2"/><path d="M13.6 12.3c2 .1 3.4 1.4 3.9 3.7"/></svg>
+      People &amp; access
+    </button>
     <div class="side-foot">
       <button class="sync-pill" data-act="sync" id="sync-pill" title="Sync with GitHub (Ctrl+S)">
         <span class="sync-dot" id="sync-dot"></span>
@@ -39,7 +43,7 @@
       </button>
       <button class="icon-btn" data-act="theme" id="theme-btn" title="Dark mode" aria-label="Toggle dark mode"></button>
       <button class="icon-btn" data-act="settings" title="Settings" aria-label="Settings">
-        <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="10" cy="10" r="2.6"/><path d="M10 1.8v2.4M10 15.8v2.4M18.2 10h-2.4M4.2 10H1.8M15.8 4.2l-1.7 1.7M5.9 14.1l-1.7 1.7M15.8 15.8l-1.7-1.7M5.9 5.9L4.2 4.2" stroke-linecap="round"/></svg>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
       </button>
     </div>
   </aside>
@@ -62,11 +66,11 @@
 <div id="report" class="report" hidden></div>
 <input type="file" id="import-file" accept=".json,application/json" hidden>
 
-<script src="assets/version.js?v=5c5864482fb8"></script>
-<script src="assets/templates.js?v=5c5864482fb8"></script>
-<script src="assets/model.js?v=5c5864482fb8"></script>
-<script src="assets/github.js?v=5c5864482fb8"></script>
-<script src="assets/demo.js?v=5c5864482fb8"></script>
-<script src="assets/app.js?v=5c5864482fb8"></script>
+<script src="assets/version.js?v=b43f5b0ce2db"></script>
+<script src="assets/templates.js?v=b43f5b0ce2db"></script>
+<script src="assets/model.js?v=b43f5b0ce2db"></script>
+<script src="assets/github.js?v=b43f5b0ce2db"></script>
+<script src="assets/demo.js?v=b43f5b0ce2db"></script>
+<script src="assets/app.js?v=b43f5b0ce2db"></script>
 </body>
 </html>

@@ -524,3 +524,19 @@ kbd { font: 500 11px var(--mono); padding: 1px 5px; border-radius: 4px; backgrou
   .paper .r-meta { grid-template-columns: repeat(2, 1fr); }
   .btn-label { display: none; }
 }
+
+/* ── People & access ── */
+.side-link {
+  display: flex; align-items: center; gap: 9px; margin: 0 10px 8px; padding: 7px 10px; border: none; border-radius: 9px;
+  background: transparent; color: var(--text-2); font-size: 13px; font-weight: 500; text-align: left;
+}
+.side-link svg { width: 17px; height: 17px; flex: none; }
+.side-link:hover { background: var(--hair); color: var(--text); }
+.side-link.active { background: var(--accent); color: #fff; }
+.table.people td { vertical-align: middle; }
+.table.people tbody tr { cursor: default; }
+.table.people .chip { display: inline-block; margin: 2px 2px 2px 0; }
+.guide { background: var(--bg-sunk); border-radius: 10px; padding: 10px 13px; margin-bottom: 14px; font-size: 13px; color: var(--text-2); }
+.guide summary { cursor: pointer; font-weight: 500; color: var(--text); }
+.guide ol { margin: 8px 0 2px; padding-left: 20px; line-height: 1.6; }
+.guide a { color: var(--accent); }

@@ -27,8 +27,10 @@
   var DEFAULT_SETTINGS = { user: '', owner: 'chrismessick-dpd', repo: 'ee_design_review', branch: 'main', dataPath: 'data', templatePath: 'templates', theme: 'auto' };
   var settings = Object.assign({}, DEFAULT_SETTINGS, load('settings', {}));
   var projects = load('projects', {});      // slug -> project document (working copy)
-  var dirty = load('dirty', {});            // slug -> time of last unsynced edit
-  var cache = load('cache', {});            // repo path -> { sha, text } as of the last sync
+  var dirty = load('dirty', {});            // project id (or 'roster') -> time of last unsynced edit
+  var cache = load('cache', {});            // repo path -> { sha } as of the last sync
+  var roster = load('roster', M.emptyRoster());   // data/users.json: who sees which projects
+  Object.keys(dirty).forEach(function (k) { if (projects[k]) { dirty[projects[k].id] = dirty[k]; delete dirty[k]; } });
   var pulledTemplates = load('templates', []);
   var lastSync = load('lastSync', null);    // { at, version }
   var ui = Object.assign({ slug: '', view: 'overview', filter: 'all', query: '', showArchived: false }, load('ui', {}));
@@ -46,7 +48,27 @@
     save('projects', projects); save('settings', settings);
   }
 
-  function persist() { save('projects', projects); save('dirty', dirty); }
+  function persist() { save('projects', projects); save('dirty', dirty); save('roster', roster); }
+
+  // ── People and access ────────────────────────────────────
+  // Who you are comes from your GitHub token (settings.login, set on sync). FTEs see every
+  // project; contractors see the projects they're assigned in People. Before a first sync
+  // (no login yet) everything local is shown.
+  function myRole() { return DEMO ? 'fte' : M.roleOf(settings.login, roster, settings.owner); }
+  function isFte() { return myRole() === 'fte'; }
+  function visible(p) { return DEMO || !settings.login || M.canSee(p.id, settings.login, roster, settings.owner); }
+  function visibleProjects() { return Object.keys(projects).map(function (k) { return projects[k]; }).filter(visible); }
+  function touchRoster() { dirty.roster = M.now(); persist(); renderSyncState(); renderToolbar(); }
+  function setPerson(login, fields) {
+    login = String(login || '').trim().replace(/^@/, '').toLowerCase();
+    if (!login) return;
+    var prev = roster.users[login] || { login: login, name: '', role: 'contractor', projects: [] };
+    roster.users[login] = M.stamp(Object.assign({}, prev, fields, { login: login }), me());
+    touchRoster();
+  }
+  function assignedContractors(projectId) {
+    return M.liveUsers(roster).filter(function (u) { return u.role === 'contractor' && (u.projects || []).indexOf(projectId) >= 0; });
+  }
   function saveUi() { save('ui', { slug: ui.slug, view: ui.view, filter: ui.filter, showArchived: ui.showArchived }); }
 
   // ── Small helpers ────────────────────────────────────────
@@ -101,12 +123,12 @@
   }
 
   // ── Current project helpers ──────────────────────────────
-  function current() { return projects[ui.slug] || null; }
+  function current() { var p = projects[ui.slug]; return p && visible(p) ? p : null; }
   function templateById(id) { return TEMPLATES.filter(function (t) { return t.id === id; })[0]; }
   function projectTemplates(p) { return TEMPLATES.filter(function (t) { return p.meta.checklists.indexOf(t.id) >= 0; }); }
 
   function touch(p) {
-    dirty[p.slug] = M.now();
+    dirty[p.id] = M.now();
     persist();
     renderSidebar();
     renderSyncState();
@@ -172,7 +194,7 @@
   // ── Sidebar ──────────────────────────────────────────────
   function renderSidebar() {
     var q = ($('#project-search').value || '').toLowerCase();
-    var list = Object.keys(projects).map(function (k) { return projects[k]; })
+    var list = visibleProjects()
       .filter(function (p) { return !q || [p.meta.name, p.meta.client, p.meta.board].join(' ').toLowerCase().indexOf(q) >= 0; })
       .sort(function (a, b) { return (b.meta.updatedAt || '').localeCompare(a.meta.updatedAt || ''); });
     var active = list.filter(function (p) { return !p.meta.archived; });
@@ -183,14 +205,18 @@
         ring(st.pct, 26, 3.5) +
         '<span class="proj-body"><span class="proj-name">' + esc(p.meta.name) + '</span>' +
         '<span class="proj-sub">' + esc([p.meta.board, p.meta.revision && 'Rev ' + p.meta.revision].filter(Boolean).join(' · ') || p.meta.stage) + '</span></span>' +
-        (dirty[p.slug] ? '<span class="proj-dirty" title="Not synced yet"></span>' : '') + '</button>';
+        (dirty[p.id] ? '<span class="proj-dirty" title="Not synced yet"></span>' : '') + '</button>';
     }
-    var html = active.map(row).join('') || '<div class="side-empty">' + (q ? 'No matching projects.' : 'No projects yet.') + '</div>';
+    var html = active.map(row).join('') || '<div class="side-empty">' + (q ? 'No matching projects.' : myRole() === 'fte' ? 'No projects yet.' : 'No projects shared with you yet.') + '</div>';
     if (archived.length) {
       html += '<div class="side-archived"><div class="side-head"><span class="side-label">Archived</span><button class="btn-plain btn" style="padding:2px 6px;font-size:12px" data-act="toggle-archived">' + (ui.showArchived ? 'Hide' : 'Show ' + archived.length) + '</button></div>' +
         (ui.showArchived ? archived.map(row).join('') : '') + '</div>';
     }
     $('#project-list').innerHTML = html;
+    $('[data-act="new-project"]').hidden = !isFte();
+    var people = $('#people-link');
+    people.hidden = DEMO || !isFte();
+    people.classList.toggle('active', ui.page === 'people');
   }
 
   function renderSyncState(state) {
@@ -199,12 +225,13 @@
     if (DEMO) { dot.dataset.tone = 'idle'; title.textContent = 'Demo mode'; sub.textContent = 'Changes stay in this browser'; return; }
     if (state === 'busy') { dot.dataset.tone = 'busy'; title.textContent = 'Syncing…'; sub.textContent = settings.owner + '/' + settings.repo; return; }
     if (state === 'error') { dot.dataset.tone = 'error'; title.textContent = 'Sync failed'; sub.textContent = 'Click for details'; return; }
-    if (!getToken()) { dot.dataset.tone = n ? 'warn' : 'idle'; title.textContent = n ? plural(n, 'unsynced project') : 'Local only'; sub.textContent = 'Set up Git sync'; return; }
-    if (n) { dot.dataset.tone = 'warn'; title.textContent = plural(n, 'unsynced project'); sub.textContent = 'Click to sync'; return; }
+    if (!getToken()) { dot.dataset.tone = n ? 'warn' : 'idle'; title.textContent = n ? plural(n, 'unsynced change') : 'Local only'; sub.textContent = 'Set up Git sync'; return; }
+    if (n) { dot.dataset.tone = 'warn'; title.textContent = plural(n, 'unsynced change'); sub.textContent = 'Click to sync'; return; }
     var outdated = lastSync && lastSync.version && window.SIGNOFF_VERSION && lastSync.version.hash !== window.SIGNOFF_VERSION.hash;
     dot.dataset.tone = outdated ? 'warn' : 'ok';
     title.textContent = outdated ? 'Newer tool available' : 'Synced';
-    sub.textContent = outdated ? 'Get the latest from ' + settings.repo : (lastSync ? relTime(lastSync.at) : 'Ready');
+    sub.textContent = outdated ? 'Get the latest from ' + settings.repo : (lastSync ? relTime(lastSync.at) : 'Ready') +
+      (settings.login ? ' \u00b7 ' + settings.login + (myRole() === 'contractor' ? ' (contractor)' : myRole() === 'none' ? ' (no access yet)' : '') : '');
   }
 
   // ── Toolbar ──────────────────────────────────────────────
@@ -212,7 +239,12 @@
     var p = current();
     $('#toolbar-title').textContent = p ? p.meta.name : '';
     var seg = $('#view-seg'), acts = $('#toolbar-actions');
-    if (!p) { seg.innerHTML = ''; acts.innerHTML = ''; return; }
+    if (!p || ui.page === 'people') {
+      seg.innerHTML = '';
+      var dn = Object.keys(dirty).length;
+      acts.innerHTML = DEMO ? '' : '<button class="btn" data-act="sync" title="Sync with GitHub (Ctrl+S)">' + ICON.sync + '<span class="btn-label">Sync</span>' + (dn ? '<span class="badge">' + dn + '</span>' : '') + '</button>';
+      return;
+    }
     var st = M.projectStats(p, TEMPLATES);
     var views = [{ id: 'overview', label: 'Overview' }].concat(projectTemplates(p).map(function (t) {
       var c = st.per[t.id];
@@ -235,6 +267,8 @@
     var p = current();
     var page = $('#page');
     var scroll = $('#main').scrollTop;
+    if (ui.page === 'people' && isFte() && !DEMO) { page.innerHTML = peoplePage(); renderToolbar(); return; }
+    ui.page = '';
     if (!p) { page.innerHTML = emptyPage(); renderToolbar(); return; }
     renderToolbar();
     if (ui.view === 'overview') page.innerHTML = overviewPage(p);
@@ -244,7 +278,13 @@
   }
 
   function emptyPage() {
-    var none = !Object.keys(projects).length;
+    if (!isFte()) {
+      return '<div class="page"><div class="empty"><div class="empty-art">' + ICON.clipboard + '</div>' +
+        '<h2>' + (myRole() === 'none' ? 'You\u2019re not on a project yet' : 'Pick a project') + '</h2>' +
+        '<p>' + (myRole() === 'none' ? 'Signed in as <b>' + esc(settings.login) + '</b>. Ask your Dovetail contact to add you to a project, then sync.' : 'Choose a project from the sidebar.') + '</p>' +
+        '<button class="btn btn-primary" data-act="sync">Sync now</button></div></div>';
+    }
+    var none = !visibleProjects().length;
     return '<div class="page"><div class="empty"><div class="empty-art">' + ICON.clipboard + '</div>' +
       '<h2>' + (none ? 'Start a design review' : 'Pick a project') + '</h2>' +
       '<p>' + (none ? 'Create a project, choose the checklists and what kind of board it is, and Signoff builds a review tailored to it.' : 'Choose a project from the sidebar, or start a new one.') + '</p>' +
@@ -506,6 +546,7 @@
 
   function projectSheet(p) {
     var editing = !!p;
+    var contractors = M.liveUsers(roster).filter(function (u) { return u.role === 'contractor'; });
     var m = p ? p.meta : { name: '', client: '', board: '', revision: '', stage: 'Schematic', description: '', profile: [], checklists: TEMPLATES.map(function (t) { return t.id; }).filter(function (id) { return id !== 'bringup'; }) };
     var w = sheet('<div class="sheet-head"><h2>' + (editing ? 'Project details' : 'New design review') + '</h2><p>' + (editing ? 'Changes sync to everyone on this project.' : 'Pick the checklists and describe the board. Checks that don’t fit its profile are set aside as N/A, and you can still bring any of them back.') + '</p></div>' +
       '<div class="sheet-body">' +
@@ -522,6 +563,9 @@
       '<div class="field"><span class="field-label">Board profile — select everything that applies</span><div class="pick-grid" id="f-profile">' + M.TAGS.map(function (t) {
         return '<button type="button" class="pick' + (m.profile.indexOf(t.id) >= 0 ? ' on' : '') + '" data-pick="' + t.id + '"><b>' + esc(t.label) + '</b><span>' + esc(t.desc) + '</span></button>';
       }).join('') + '</div><p class="note" id="f-count"></p></div>' +
+      (!DEMO && contractors.length ? '<div class="field"><span class="field-label">Contractors on this project \u2014 FTEs always see it</span><div class="pick-grid" id="f-people">' + contractors.map(function (u) {
+        return '<button type="button" class="pick' + (editing && (u.projects || []).indexOf(p.id) >= 0 ? ' on' : '') + '" data-pick="' + esc(u.login) + '"><b>' + esc(u.name || u.login) + '</b><span>@' + esc(u.login) + '</span></button>';
+      }).join('') + '</div></div>' : '') +
       '</div><div class="sheet-foot">' +
       (editing ? '<button class="btn btn-danger" data-sheet="archive">' + (m.archived ? 'Unarchive' : 'Archive') + '</button><span class="spacer"></span>' : '') +
       '<button class="btn" data-sheet="cancel">Cancel</button><button class="btn btn-primary" data-sheet="ok">' + (editing ? 'Save' : 'Create review') + '</button></div>', { wide: true });
@@ -551,13 +595,23 @@
         description: w.querySelector('#f-desc').value.trim(), profile: picked('f-profile'), checklists: picked('f-checklists')
       };
       if (!fields.checklists.length) { toast('Pick at least one checklist'); return; }
-      if (editing) { updateMeta(fields); closeSheet(); return; }
+      var people = w.querySelector('#f-people') ? picked('f-people') : null;
+      function assign(projectId) {
+        if (!people) return;
+        contractors.forEach(function (u) {
+          var has = (u.projects || []).indexOf(projectId) >= 0, want = people.indexOf(u.login) >= 0;
+          if (has === want) return;
+          setPerson(u.login, { projects: want ? (u.projects || []).concat([projectId]) : u.projects.filter(function (x) { return x !== projectId; }) });
+        });
+      }
+      if (editing) { assign(p.id); updateMeta(fields); closeSheet(); return; }
       var doc = M.newProject(fields, me(), TEMPLATES);
       var slug = doc.slug, n = 2;
       while (projects[slug]) slug = doc.slug + '-' + n++;
       doc.slug = slug;
       projects[slug] = doc;
-      ui.slug = slug; ui.view = 'overview';
+      ui.slug = slug; ui.view = 'overview'; ui.page = '';
+      assign(doc.id);
       touch(doc); saveUi(); closeSheet(); render();
       toast('Review created');
     });
@@ -579,6 +633,13 @@
         '<div class="field"><label for="s-repo">Repository</label><input class="input" id="s-repo" value="' + esc(settings.repo) + '"></div></div>' +
         '<div class="row2"><div class="field"><label for="s-branch">Branch</label><input class="input" id="s-branch" value="' + esc(settings.branch) + '"></div>' +
         '<div class="field"><label for="s-path">Data folder</label><input class="input" id="s-path" value="' + esc(settings.dataPath) + '"></div></div>' +
+        (settings.login ? '<p class="note" style="margin:0 0 12px">Signed in to GitHub as <b>' + esc(settings.login) + '</b> \u00b7 ' +
+          { fte: 'FTE: sees every project', contractor: 'Contractor: sees assigned projects', none: 'Not on a project yet' }[myRole()] + '</p>' : '') +
+        '<details class="guide"' + (getToken() ? '' : ' open') + '><summary>New to GitHub? Set up in four steps</summary><ol>' +
+        '<li>Create a free account at <a href="https://github.com/signup" target="_blank" rel="noopener">github.com/signup</a>.</li>' +
+        '<li>Send your username to your Dovetail contact and accept the invitation email from GitHub.</li>' +
+        '<li><a href="https://github.com/settings/tokens/new?scopes=repo&amp;description=Dovetail%20Signoff" target="_blank" rel="noopener">Create a token</a> (the link fills in the settings; pick an expiry and click <i>Generate token</i>).</li>' +
+        '<li>Paste the token below and click <b>Save &amp; sync</b>.</li></ol></details>' +
         '<div class="field"><label for="s-token">Access token</label><input class="input" id="s-token" type="password" value="' + esc(token) + '" placeholder="github_pat_…" autocomplete="off">' +
         '<p class="note">The repo owner can use a fine-grained token with <b>Contents: read and write</b> on this repository. Collaborators need a classic token with the <b>repo</b> scope (fine-grained tokens can’t target someone else’s personal repo). The token is sent only to api.github.com and kept in this browser.</p></div>' +
         '<label class="check"><input type="checkbox" id="s-remember"' + (remembered ? ' checked' : '') + '> Remember the token after closing the browser (avoid on shared computers)</label>' +
@@ -617,11 +678,117 @@
         return;
       }
       if (!s.user) { w.querySelector('#s-user').focus(); toast('Add your name so others know who commented'); return; }
+      if (!DEMO) {
+        // A different token may be a different person: learn the login again on the next sync.
+        if (tok !== getToken() || s.owner !== settings.owner || s.repo !== settings.repo) { s.login = ''; access.loaded = false; }
+        setToken(tok, w.querySelector('#s-remember').checked);
+      }
       settings = s; save('settings', settings);
-      if (!DEMO) setToken(tok, w.querySelector('#s-remember').checked);
       closeSheet(); render();
       if (!DEMO && tok) sync();
     });
+  }
+
+  // ── People & access (FTEs only) ──────────────────────────
+  var access = { loaded: false, loading: false, collaborators: null, invited: null, error: '' };
+
+  function loadAccess(force) {
+    if (DEMO || !getToken() || access.loading || (access.loaded && !force)) return;
+    access.loading = true;
+    var store = new S.GitHubStore(Object.assign({}, settings, { token: getToken() }));
+    Promise.all([store.collaborators(), store.invitations().catch(function () { return null; })])
+      .then(function (r) { access.collaborators = r[0]; access.invited = r[1]; access.error = ''; })
+      .catch(function (err) { access.collaborators = null; access.error = err.status === 403 ? 'Your token can’t read the repo’s collaborators (it needs Administration access).' : err.message; })
+      .then(function () { access.loading = false; access.loaded = true; if (ui.page === 'people') renderPage(); });
+  }
+
+  function accessBadge(login) {
+    if (!access.collaborators) return '';
+    if (settings.owner && login === settings.owner.toLowerCase()) return '<span class="res fixed">Owner</span>';
+    if (access.collaborators.indexOf(login) >= 0) return '<span class="res fixed">Has repo access</span>';
+    if (access.invited && access.invited.indexOf(login) >= 0) return '<span class="res waived">Invite pending</span>';
+    return '<span class="res open">No repo access</span> <button class="btn btn-plain" style="padding:2px 8px;font-size:12px" data-act="invite" data-login="' + esc(login) + '">Invite</button>';
+  }
+
+  function peoplePage() {
+    loadAccess(false);
+    var people = M.liveUsers(roster);
+    var byId = {};
+    Object.keys(projects).forEach(function (k) { byId[projects[k].id] = projects[k]; });
+    var html = '<div class="page"><div class="cl-head"><div><div class="eyebrow">' + esc(settings.owner + '/' + settings.repo) + '</div><h1 class="page-title">People &amp; access</h1>' +
+      '<div class="page-sub"><span>FTEs see every project. Contractors see only the projects they’re added to.</span></div></div>' +
+      '<button class="btn btn-primary" data-act="add-person">Add person</button></div>';
+    if (!people.length) {
+      html += '<div class="card" style="padding:18px 20px;margin-bottom:14px"><b>No one is listed yet.</b> Until someone is, everyone who can sync is treated as an FTE. ' +
+        'Add yourself and the other FTEs first, then contractors.' +
+        (settings.login ? ' <button class="btn btn-plain" data-act="add-self">Add me (' + esc(settings.login) + ') as FTE</button>' : '') + '</div>';
+    }
+    if (people.length) {
+      html += '<div class="card" style="overflow:hidden"><table class="table people"><thead><tr><th>Person</th><th>Role</th><th>Projects</th><th>GitHub</th><th></th></tr></thead><tbody>' +
+        people.map(function (u) {
+          var projs = u.role === 'fte' ? '<span class="muted">All projects</span>' :
+            ((u.projects || []).map(function (id) { return byId[id] ? '<span class="chip">' + esc(byId[id].meta.name) + '</span>' : ''; }).join(' ') || '<span class="muted">None yet</span>') +
+            ' <button class="btn btn-plain" style="padding:2px 8px;font-size:12px" data-act="person-projects" data-login="' + esc(u.login) + '">Edit</button>';
+          return '<tr><td><div style="display:flex;gap:10px;align-items:center">' + avatar(u.name || u.login) + '<div><div>' + esc(u.name || u.login) + (u.login === settings.login ? ' <span class="muted">(you)</span>' : '') + '</div><div class="muted">@' + esc(u.login) + '</div></div></div></td>' +
+            '<td><div class="seg">' + [['fte', 'FTE'], ['contractor', 'Contractor']].map(function (r) {
+              return '<button class="' + (u.role === r[0] ? 'on' : '') + '" data-act="person-role" data-login="' + esc(u.login) + '" data-role="' + r[0] + '">' + r[1] + '</button>';
+            }).join('') + '</div></td>' +
+            '<td style="max-width:320px">' + projs + '</td>' +
+            '<td>' + (access.loading ? '<span class="muted">Checking…</span>' : accessBadge(u.login)) + '</td>' +
+            '<td><button class="cmt-del" style="opacity:1" data-act="remove-person" data-login="' + esc(u.login) + '">Remove</button></td></tr>';
+        }).join('') + '</tbody></table></div>';
+    }
+    html += '<p class="note" style="margin-top:14px">' + (access.error ? esc(access.error) + ' ' : '') +
+      'This list decides what Signoff shows and downloads for each person. GitHub itself grants access to the whole repository, so a contractor who browses the repo on github.com can still open other projects there. ' +
+      'On a personal account only the owner can invite people; once the repo moves to the company organization, any FTE admin can.</p></div>';
+    return html;
+  }
+
+  function personSheet(login) {
+    var u = login ? roster.users[login] : null;
+    var list = visibleProjects().filter(function (p) { return !p.meta.archived; }).sort(function (a, b) { return a.meta.name.localeCompare(b.meta.name); });
+    var role = u ? u.role : 'contractor';
+    var picked = u ? (u.projects || []).slice() : [];
+    var w = sheet('<div class="sheet-head"><h2>' + (u ? esc(u.name || u.login) : 'Add person') + '</h2><p>' + (u ? 'Choose the projects this contractor can see.' : 'They’ll need a free GitHub account. Use their GitHub username here.') + '</p></div>' +
+      '<div class="sheet-body">' +
+      (u ? '' : '<div class="row2"><div class="field"><label for="p-name">Name</label><input class="input" id="p-name" placeholder="First Last"></div>' +
+        '<div class="field"><label for="p-login">GitHub username</label><input class="input" id="p-login" placeholder="username" autocomplete="off"></div></div>' +
+        '<div class="field"><span class="field-label">Role</span><div class="seg full" id="p-role"><button type="button" data-role="fte">FTE — sees everything</button><button type="button" class="on" data-role="contractor">Contractor — chosen projects</button></div></div>') +
+      '<div class="field" id="p-projects-field"' + (role === 'fte' ? ' hidden' : '') + '><span class="field-label">Projects</span><div class="pick-grid" id="p-projects">' +
+      (list.length ? list.map(function (p) {
+        return '<button type="button" class="pick' + (picked.indexOf(p.id) >= 0 ? ' on' : '') + '" data-pick="' + esc(p.id) + '"><b>' + esc(p.meta.name) + '</b><span>' + esc([p.meta.client, p.meta.board].filter(Boolean).join(' · ') || p.meta.stage) + '</span></button>';
+      }).join('') : '<p class="note">No projects yet.</p>') + '</div></div>' +
+      '</div><div class="sheet-foot"><span class="spacer"></span><button class="btn" data-sheet="cancel">Cancel</button><button class="btn btn-primary" data-sheet="ok">' + (u ? 'Save' : 'Add') + '</button></div>');
+    w.addEventListener('click', function (e) {
+      var rb = e.target.closest('[data-role]');
+      if (rb) {
+        role = rb.dataset.role;
+        w.querySelectorAll('#p-role button').forEach(function (b) { b.classList.toggle('on', b === rb); });
+        w.querySelector('#p-projects-field').hidden = role === 'fte';
+        return;
+      }
+      var pk = e.target.closest('.pick');
+      if (pk) { pk.classList.toggle('on'); return; }
+      var b = e.target.closest('[data-sheet]');
+      if (!b) return;
+      if (b.dataset.sheet === 'cancel') return closeSheet();
+      var chosen = Array.prototype.map.call(w.querySelectorAll('#p-projects .pick.on'), function (x) { return x.dataset.pick; });
+      if (u) { setPerson(login, { projects: chosen }); closeSheet(); renderPage(); return; }
+      var l = w.querySelector('#p-login').value.trim().replace(/^@/, '').toLowerCase();
+      if (!/^[a-z0-9](?:[a-z0-9-]{0,38})$/.test(l)) { w.querySelector('#p-login').focus(); toast('Enter their GitHub username'); return; }
+      setPerson(l, { name: w.querySelector('#p-name').value.trim() || l, role: role, projects: role === 'fte' ? [] : chosen, deleted: false });
+      closeSheet(); renderPage();
+      toast('Added. Sync to share the change' + (access.collaborators && access.collaborators.indexOf(l) < 0 ? ', and invite them to the repo' : ''));
+    });
+  }
+
+  function inviteAccess(login) {
+    if (!confirm('Send ' + login + ' a GitHub invitation to ' + settings.owner + '/' + settings.repo + '?\n\nOn a personal repository every collaborator can push to it.')) return;
+    var store = new S.GitHubStore(Object.assign({}, settings, { token: getToken() }));
+    store.invite(login).then(function () { toast('Invitation sent to ' + login); loadAccess(true); })
+      .catch(function (err) {
+        toast(err.status === 403 || err.status === 404 ? 'Only the repo owner (or an org admin) can invite — or the token needs Administration: write' : 'Invite failed: ' + err.message);
+      });
   }
 
   // ── Sync ─────────────────────────────────────────────────
@@ -634,21 +801,42 @@
     syncing = true; renderSyncState('busy');
     var started = Object.assign({}, dirty);
     var store = new S.GitHubStore(Object.assign({}, settings, { token: getToken() }));
-    var names = Object.keys(dirty).map(function (k) { return projects[k] ? projects[k].meta.name : k; });
+    var byId = {};
+    Object.keys(projects).forEach(function (k) { byId[projects[k].id] = projects[k]; });
+    var names = Object.keys(dirty).map(function (k) { return k === 'roster' ? 'people' : byId[k] ? byId[k].meta.name : k; });
     var message = names.length ? 'Review update: ' + names.join(', ') + ' (' + me() + ')' : 'Review update (' + me() + ')';
-    store.sync(projects, cache, { message: message, onRetry: function () { toast('Someone else just synced — merging their changes'); } })
+    var currentId = projects[ui.slug] && projects[ui.slug].id;
+    // Who is syncing decides what is downloaded, so learn the GitHub login first.
+    (settings.login ? Promise.resolve() : store.user().then(function (u) {
+      settings.login = u.login.toLowerCase();
+      if (!settings.user) settings.user = u.name || u.login;
+      save('settings', settings);
+    })).then(function () {
+      return store.sync(byId, roster, cache, {
+        message: message,
+        canSee: function (id, r) { return M.canSee(id, settings.login, r, settings.owner); },
+        onRetry: function () { toast('Someone else just synced \u2014 merging their changes'); }
+      });
+    })
       .then(function (res) {
-        // Edits made while the sync ran are merged on top, and stay unsynced. A local project
-        // that clashed with a different one of the same name comes back under a new slug.
+        // Edits made while the sync ran are merged on top, and stay unsynced.
+        var mergedById = {};
+        Object.keys(projects).forEach(function (k) { byId[projects[k].id] = projects[k]; });
+        Object.keys(res.projects).forEach(function (id) {
+          mergedById[id] = byId[id] ? M.mergeProjects(byId[id], res.projects[id]) : res.projects[id];
+        });
+        // Slugs are only local handles for the sidebar; two projects with one name get a suffix.
         var next = {};
-        Object.keys(res.projects).forEach(function (slug) {
-          var mine = projects[slug], theirs = res.projects[slug];
-          next[slug] = mine && mine.id === theirs.id ? M.mergeProjects(mine, theirs) : theirs;
-          if (mine && mine.id !== theirs.id) toast('“' + mine.meta.name + '” already existed on GitHub — yours was kept as a separate project');
+        Object.keys(mergedById).forEach(function (id) {
+          var doc = mergedById[id], slug = doc.slug || M.slugify(doc.meta.name), n = 2;
+          while (next[slug]) slug = (doc.slug || M.slugify(doc.meta.name)) + '-' + n++;
+          next[slug] = doc;
         });
         projects = next;
-        Object.keys(started).forEach(function (slug) { if (dirty[slug] === started[slug] || !projects[slug]) delete dirty[slug]; });
-        if (!projects[ui.slug]) ui.slug = '';
+        roster = M.mergeRosters(roster, res.roster);
+        (res.removed || []).forEach(function (id) { delete dirty[id]; });
+        Object.keys(started).forEach(function (k) { if (dirty[k] === started[k]) delete dirty[k]; });
+        ui.slug = Object.keys(projects).filter(function (k) { return projects[k].id === currentId; })[0] || '';
         cache = res.cache;
         if (res.templates && res.templates.length) { pulledTemplates = res.templates; save('templates', pulledTemplates); refreshTemplates(); }
         lastSync = { at: M.now(), version: res.version };
@@ -656,7 +844,7 @@
         lastError = '';
         syncing = false;
         render();
-        toast(res.pushed ? 'Synced — ' + plural(res.pushed, 'project') + ' pushed' : 'Up to date');
+        toast(res.pushed ? 'Synced \u2014 ' + plural(res.pushed, 'file') + ' pushed' : 'Up to date');
       })
       .catch(function (err) {
         syncing = false; lastError = err.message;
@@ -792,10 +980,11 @@
     if (!el) return;
     var act = el.dataset.act, id = el.dataset.id;
     switch (act) {
-      case 'new-project': projectSheet(null); break;
+      case 'new-project': if (isFte()) projectSheet(null); break;
+      case 'people': ui.page = 'people'; selected = null; closeInspector(); renderSidebar(); renderPage(); $('#app').classList.remove('nav-open'); break;
       case 'edit-project': projectSheet(current()); break;
       case 'open-project':
-        ui.slug = el.dataset.slug; ui.view = 'overview'; ui.query = ''; ui.filter = 'all'; selected = null;
+        ui.slug = el.dataset.slug; ui.view = 'overview'; ui.page = ''; ui.query = ''; ui.filter = 'all'; selected = null;
         closeInspector(); saveUi(); render(); $('#app').classList.remove('nav-open'); $('#main').scrollTop = 0; break;
       case 'toggle-archived': ui.showArchived = !ui.showArchived; saveUi(); renderSidebar(); break;
       case 'view':
@@ -838,13 +1027,24 @@
       case 'sync': if (!DEMO && lastError && el.id === 'sync-pill' && !syncing) toast(lastError); sync(); break;
       case 'settings': settingsSheet(); break;
       case 'theme': toggleTheme(); break;
+      case 'add-person': personSheet(null); break;
+      case 'add-self': setPerson(settings.login, { name: settings.user || settings.login, role: 'fte', projects: [], deleted: false }); renderPage(); break;
+      case 'person-projects': personSheet(el.dataset.login); break;
+      case 'person-role':
+        if (el.dataset.login === settings.login && el.dataset.role !== 'fte' && !confirm('Make yourself a contractor? You would stop seeing most projects.')) break;
+        setPerson(el.dataset.login, { role: el.dataset.role }); renderPage(); break;
+      case 'remove-person':
+        if (confirm('Remove ' + el.dataset.login + ' from People? This doesn\u2019t remove their GitHub access to the repo.')) { setPerson(el.dataset.login, { deleted: true }); renderPage(); }
+        break;
+      case 'invite': inviteAccess(el.dataset.login); break;
       case 'report': openReport(); break;
       case 'close-report': $('#report').hidden = true; break;
       case 'print': window.print(); break;
       case 'export-csv': exportCsv(); break;
       case 'nav': $('#app').classList.toggle('nav-open'); break;
       case 'project-menu':
-        menu(el, [['edit', 'Project details…'], ['report', 'Review report'], ['csv', 'Export findings (CSV)'], ['json', 'Export project (JSON)'], '-', ['import', 'Import project or old checklist…'], '-', ['archive', current().meta.archived ? 'Unarchive project' : 'Archive project', true]])
+        menu(el, (isFte() ? [['edit', 'Project details\u2026']] : []).concat([['report', 'Review report'], ['csv', 'Export findings (CSV)'], ['json', 'Export project (JSON)']],
+          isFte() ? ['-', ['import', 'Import project or old checklist\u2026'], '-', ['archive', current().meta.archived ? 'Unarchive project' : 'Archive project', true]] : []))
           .then(function (choice) {
             if (choice === 'edit') projectSheet(current());
             else if (choice === 'report') openReport();
@@ -882,7 +1082,7 @@
     }
     else if (e.key === 'c' && selected) { select(selected, true); setTimeout(function () { var t = $('#comment-input'); if (t) t.focus(); }, 50); e.preventDefault(); }
     else if (e.key === '/') { var s = $('#item-search') || $('#project-search'); if (s) { e.preventDefault(); s.focus(); } }
-    else if (e.key === 'N') { projectSheet(null); }
+    else if (e.key === 'N' && isFte()) { projectSheet(null); }
   });
 
   document.addEventListener('input', function (e) {

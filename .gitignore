@@ -5,3 +5,4 @@ __pycache__/
 # Never commit credentials
 *token*.txt
 *access*.txt
+dist/

@@ -67,9 +67,10 @@
       });
   };
 
-  GitHubStore.prototype.projectsDir = function () {
-    return (this.cfg.dataPath ? this.cfg.dataPath.replace(/\/+$/, '') + '/' : '') + 'projects/';
+  GitHubStore.prototype.dataDir = function () {
+    return this.cfg.dataPath ? this.cfg.dataPath.replace(/\/+$/, '') + '/' : '';
   };
+  GitHubStore.prototype.projectsDir = function () { return this.dataDir() + 'projects/'; };
 
   GitHubStore.prototype.user = function () { return this.api(API + '/user'); };
 
@@ -94,49 +95,70 @@
     return this.api('/git/blobs/' + sha).then(function (b) { return b64Decode(b.content); });
   };
 
-  /* Sync local projects with the repo.
-     local:  { slug: projectDoc }   the working copies, including unsynced edits
-     cache:  { path: { sha } }      blob shas as of the last sync. A project whose sha hasn't
-                                    changed since is already merged into the local copy, so it
-                                    isn't downloaded again (and no second copy is stored).
-     Resolves { projects, cache, templates, version, pushed, commitUrl }; templates is null
-     when the repo's templates haven't changed since the last sync. */
-  GitHubStore.prototype.sync = function (local, cache, opts) {
+  /* Sync local projects and the users roster with the repo.
+     local:  { projectId: doc }    the working copies, including unsynced edits
+     roster: { users: {...} }      the local copy of data/users.json
+     cache:  { path: { sha } }     blob shas as of the last sync. A project whose sha hasn't
+                                   changed since is already merged into the local copy, so it
+                                   isn't downloaded again (and no second copy is stored).
+     opts.canSee(id, roster):      projects it rejects are neither downloaded nor pushed, and
+                                   local copies of them come back in `removed`.
+     Project files are named by id, so the file list doesn't show project names.
+     Resolves { projects, roster, removed, cache, templates, version, pushed, commitUrl };
+     templates is null when the repo's templates haven't changed since the last sync. */
+  GitHubStore.prototype.sync = function (local, roster, cache, opts) {
     var self = this;
     opts = opts || {};
+    var canSee = opts.canSee || function () { return true; };
     var attempt = 0;
     cache = cache || {};
 
     function fetchText(e) {
       return self.blob(e.sha).then(function (text) { return { path: e.path, sha: e.sha, text: text }; });
     }
-    function slugOf(path, dir) { return path.slice(dir.length).replace(/\.json$/, ''); }
+    function idOf(path, dir) { return path.slice(dir.length).replace(/\.json$/, ''); }
+    // Small files (roster, version) keep their text in the cache.
+    function cachedText(e) {
+      if (!e) return Promise.resolve(null);
+      var c = cache[e.path];
+      if (c && c.sha === e.sha && c.text != null) return Promise.resolve({ path: e.path, sha: e.sha, text: c.text });
+      return fetchText(e);
+    }
 
     function once() {
       attempt++;
-      var snap, templates = null, version = null;
+      var snap, blobs, projectEntries, rosterEntry, mergedRoster, templates = null, version = null;
       var nextCache = Object.assign({}, cache);   // only returned once the sync succeeds
       var dir = self.projectsDir();
+      var rosterPath = self.dataDir() + 'users.json';
       var tplDir = (self.cfg.templatePath || 'templates').replace(/\/+$/, '') + '/';
       var direct = function (e, base) { return e.path.indexOf(base) === 0 && /\.json$/.test(e.path) && e.path.slice(base.length).indexOf('/') < 0; };
+      var fresh = function (e) { return !(cache[e.path] && cache[e.path].sha === e.sha); };
       return self.snapshot().then(function (s) {
         snap = s;
-        var blobs = s.entries.filter(function (e) { return e.type === 'blob'; });
-        var projectEntries = blobs.filter(function (e) { return direct(e, dir); });
+        blobs = s.entries.filter(function (e) { return e.type === 'blob'; });
+        rosterEntry = blobs.filter(function (e) { return e.path === rosterPath; })[0];
+        // The roster comes first: it decides which projects this user downloads.
+        return cachedText(rosterEntry);
+      }).then(function (rf) {
+        var remoteRoster = null;
+        if (rf) {
+          nextCache[rf.path] = { sha: rf.sha, text: rf.text };
+          try { remoteRoster = JSON.parse(rf.text); } catch (e) { remoteRoster = null; }
+        }
+        mergedRoster = M.mergeRosters(roster, remoteRoster);
+        projectEntries = blobs.filter(function (e) { return direct(e, dir) && canSee(idOf(e.path, dir), mergedRoster); });
         var tplEntries = blobs.filter(function (e) { return direct(e, tplDir); });
         var versionEntry = blobs.filter(function (e) { return e.path === 'assets/version.js'; })[0];
-        var fresh = function (e) { return !(cache[e.path] && cache[e.path].sha === e.sha); };
         // Projects: fetch only what changed, or what we have no local copy of.
         var projectReads = projectEntries.map(function (e) {
-          return fresh(e) || !local[slugOf(e.path, dir)] ? fetchText(e) : Promise.resolve({ path: e.path, sha: e.sha, unchanged: true });
+          return fresh(e) || !local[idOf(e.path, dir)] ? fetchText(e) : Promise.resolve({ path: e.path, sha: e.sha, unchanged: true });
         });
         // Templates: all of them again if any changed, otherwise nothing.
         var tplReads = tplEntries.some(fresh) || tplEntries.length !== Object.keys(cache).filter(function (k) { return k.indexOf(tplDir) === 0; }).length
           ? Promise.all(tplEntries.map(fetchText)) : Promise.resolve(null);
-        var versionRead = !versionEntry ? Promise.resolve(null) :
-          !fresh(versionEntry) && cache[versionEntry.path].text ? Promise.resolve({ path: versionEntry.path, sha: versionEntry.sha, text: cache[versionEntry.path].text }) :
-          fetchText(versionEntry);
-        return Promise.all([Promise.all(projectReads), tplReads, versionRead, projectEntries, tplEntries]);
+        tplEntries.forEach(function (e) { nextCache[e.path] = { sha: e.sha }; });
+        return Promise.all([Promise.all(projectReads), tplReads, cachedText(versionEntry)]);
       }).then(function (got) {
         if (got[1]) {
           templates = [];
@@ -152,48 +174,38 @@
 
         var remote = {};
         got[0].forEach(function (f) {
-          var slug = slugOf(f.path, dir);
-          if (f.unchanged) { remote[slug] = { path: f.path, sha: f.sha, unchanged: true }; return; }
-          try { remote[slug] = { doc: JSON.parse(f.text), path: f.path, sha: f.sha }; } catch (e) { /* unreadable project file: leave it alone */ }
+          var id = idOf(f.path, dir);
+          if (f.unchanged) { remote[id] = { path: f.path, sha: f.sha, unchanged: true }; return; }
+          try { remote[id] = { doc: JSON.parse(f.text), path: f.path, sha: f.sha }; } catch (e) { /* unreadable project file: leave it alone */ }
         });
 
-        // Two different projects created offline under the same name: keep both.
-        var locals = Object.assign({}, local);
-        Object.keys(locals).forEach(function (slug) {
-          var r = remote[slug];
-          if (r && r.doc && locals[slug].id && r.doc.id && locals[slug].id !== r.doc.id) {
-            var n = 2;
-            while (remote[slug + '-' + n] || locals[slug + '-' + n]) n++;
-            var moved = JSON.parse(JSON.stringify(locals[slug]));
-            moved.slug = slug + '-' + n;
-            locals[moved.slug] = moved;
-            delete locals[slug];
-          }
-        });
-
+        // Local copies this user may no longer see are dropped, never pushed.
+        var removed = Object.keys(local).filter(function (id) { return !canSee(id, mergedRoster); });
         var merged = {}, candidates = [];
-        var slugs = Object.keys(remote).concat(Object.keys(locals).filter(function (k) { return !remote[k]; }));
-        slugs.forEach(function (slug) {
-          var r = remote[slug];
-          var doc = r && r.unchanged ? locals[slug] : M.mergeProjects(locals[slug], r && r.doc);
+        var ids = Object.keys(remote).concat(Object.keys(local).filter(function (id) { return !remote[id] && removed.indexOf(id) < 0; }));
+        ids.forEach(function (id) {
+          var r = remote[id];
+          var doc = r && r.unchanged ? local[id] : M.mergeProjects(local[id], r && r.doc);
           if (!doc) return;
-          if (doc.slug !== slug) { doc = Object.assign({}, doc, { slug: slug }); }
-          merged[slug] = doc;
-          candidates.push({ path: r ? r.path : dir + slug + '.json', text: M.stableStringify(doc), slug: slug, sha: r && r.sha });
+          merged[id] = doc;
+          candidates.push({ path: r ? r.path : dir + id + '.json', text: M.stableStringify(doc), label: doc.meta.name, sha: r && r.sha });
         });
-        got[3].concat(got[4]).forEach(function (e) { nextCache[e.path] = { sha: e.sha }; });
+        projectEntries.forEach(function (e) { nextCache[e.path] = { sha: e.sha }; });
+        if (Object.keys(mergedRoster.users).length) {
+          candidates.push({ path: rosterPath, text: M.stableStringify(mergedRoster), label: 'people', sha: rosterEntry && rosterEntry.sha, roster: true });
+        }
 
         return Promise.all(candidates.map(function (c) {
           return gitBlobSha(c.text).then(function (sha) { c.newSha = sha; return c; });
         })).then(function (all) {
           var changes = all.filter(function (c) { return c.newSha !== c.sha; });
-          if (!changes.length || opts.pullOnly) {
-            return { projects: merged, cache: nextCache, templates: templates, version: version, pushed: 0 };
-          }
+          var result = { projects: merged, roster: mergedRoster, removed: removed, cache: nextCache, templates: templates, version: version, pushed: 0 };
+          if (!changes.length || opts.pullOnly) return result;
           return self.commit(snap, changes, opts.message).then(function (commit) {
-            changes.forEach(function (c) { nextCache[c.path] = { sha: c.newSha }; });
-            return { projects: merged, cache: nextCache, templates: templates, version: version, pushed: changes.length,
-              commitUrl: commit.html_url, changed: changes.map(function (c) { return c.slug; }) };
+            changes.forEach(function (c) { nextCache[c.path] = c.roster ? { sha: c.newSha, text: c.text } : { sha: c.newSha }; });
+            result.pushed = changes.length;
+            result.commitUrl = commit.html_url;
+            return result;
           });
         }).catch(function (err) {
           // 422 "not a fast forward" (or 409): someone pushed first. Pull, merge, retry.
@@ -208,6 +220,20 @@
     return once();
   };
 
+  // ── Repository access. On a personal account only the owner can invite people; in an
+  // organization, its admins can. The token needs Administration access to the repo.
+  GitHubStore.prototype.collaborators = function () {
+    return this.api('/collaborators?per_page=100').then(function (list) { return (list || []).map(function (u) { return u.login.toLowerCase(); }); });
+  };
+  GitHubStore.prototype.invitations = function () {
+    return this.api('/invitations?per_page=100').then(function (list) {
+      return (list || []).map(function (i) { return ((i.invitee && i.invitee.login) || '').toLowerCase(); });
+    });
+  };
+  GitHubStore.prototype.invite = function (login) {
+    return this.api('/collaborators/' + encodeURIComponent(login), { method: 'PUT', body: { permission: 'push' } });
+  };
+
   GitHubStore.prototype.commit = function (snap, changes, message) {
     var self = this;
     return this.api('/git/trees', { method: 'POST', body: {
@@ -215,7 +241,7 @@
       tree: changes.map(function (c) { return { path: c.path, mode: '100644', type: 'blob', content: c.text }; })
     } }).then(function (tree) {
       return self.api('/git/commits', { method: 'POST', body: {
-        message: message || ('Signoff: update ' + changes.map(function (c) { return c.slug; }).join(', ')),
+        message: message || ('Signoff: update ' + changes.map(function (c) { return c.label; }).join(', ')),
         tree: tree.sha,
         parents: [snap.head]
       } });
