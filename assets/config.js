@@ -21,7 +21,7 @@ window.SIGNOFF_CONFIG = {
     "toolRepo": "ee_design_review",
     "dataRepo": "ee_design_review_data",
     "prefix": "review-ee-",
-    "suite": ["me_design_review", "me_design_review_data", "signoff"]
+    "suite": ["me_design_review", "me_design_review_data", "signoff", "pcb_dfm"]
   },
   "ids": { "project": "p", "comment": "c", "custom": "x" },
   "templateOrder": ["schematic", "interfaces", "pcb", "assembly", "fab", "bringup"],
