@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Signoff tests</title>
+<style>
+  body { font: 14px/1.5 -apple-system, "Segoe UI", sans-serif; margin: 32px; background: #f5f5f7; color: #1d1d1f; }
+  .pass { color: #248a3d; } .fail { color: #d70015; font-weight: 600; }
+  #summary { font-size: 20px; font-weight: 600; margin-bottom: 16px; }
+  pre { margin: 2px 0 8px 18px; color: #515154; }
+</style>
+</head>
+<body>
+<div id="summary">Running…</div>
+<div id="out"></div>
+<script src="../assets/templates.js"></script>
+<script src="../assets/model.js"></script>
+<script src="../assets/github.js"></script>
+<script src="../assets/demo.js"></script>
+<script>
+/* Unit tests for the model and the GitHub sync, run against a fake GitHub API.
+   Open this file in a browser; the title shows PASS or FAIL. */
+(async function () {
+  var M = Signoff.model, results = [];
+  function ok(cond, name, detail) { results.push({ ok: !!cond, name: name, detail: detail }); }
+  function eq(a, b, name) { ok(JSON.stringify(a) === JSON.stringify(b), name, 'got ' + JSON.stringify(a) + ', want ' + JSON.stringify(b)); }
+
+  var T = window.SIGNOFF_TEMPLATES;
+  var idx = M.indexTemplates(T);
+
+  // ── Templates ──
+  ok(T.length === 6, 'six templates bundled');
+  var ids = {}, dup = [];
+  T.forEach(function (t) { t.sections.forEach(function (s) { [s].concat(s.items).forEach(function (x) { if (ids[x.id]) dup.push(x.id); ids[x.id] = 1; }); }); });
+  eq(dup, [], 'ids are unique across templates');
+  ['sg1', 'adc1', 'pg1', 'ab1', 'gf1'].forEach(function (id) { ok(idx.items[id], 'legacy id ' + id + ' still present'); });
+  var newer = JSON.parse(JSON.stringify(T[0])); newer.version = T[0].version + 1; newer.title = 'Pulled';
+  eq(M.resolveTemplates(T, [newer])[0].title, 'Pulled', 'pulled template with higher version wins');
+  var older = JSON.parse(JSON.stringify(T[0])); older.version = 0; older.title = 'Old';
+  eq(M.resolveTemplates(T, [older])[0].title, T[0].title, 'bundled template wins over an older pulled one');
+
+  // ── Applicability ──
+  ok(M.applies([], []), 'untagged applies');
+  ok(!M.applies(['rf'], ['battery']), 'tagged item hidden outside profile');
+  ok(M.applies(['rf', 'mains'], ['mains']), 'any matching tag applies');
+  var p = M.newProject({ name: 'Test Board', checklists: ['schematic'], profile: [] }, 'Ann', T);
+  var rows = []; M.checklistRows(p, T[0]).forEach(function (g) { rows = rows.concat(g.rows); });
+  var hidden = rows.filter(function (r) { return r.hidden; });
+  ok(hidden.length > 0 && hidden.every(function (r) { return r.status === 'na' && r.auto === 'profile'; }), 'profile-hidden rows count as N/A');
+  p.items[hidden[0].id] = { include: true };
+  var r2 = []; M.checklistRows(p, T[0]).forEach(function (g) { r2 = r2.concat(g.rows); });
+  eq(r2.filter(function (r) { return r.id === hidden[0].id; })[0].status, 'open', 'include brings a hidden item back');
+  p.items[hidden[0].id] = { status: 'pass' };
+  var r3 = []; M.checklistRows(p, T[0]).forEach(function (g) { r3 = r3.concat(g.rows); });
+  eq(r3.filter(function (r) { return r.id === hidden[0].id; })[0].status, 'pass', 'explicit status overrides profile');
+  var st = M.projectStats(p, T);
+  ok(st.total === rows.length && st.reviewed === hidden.length, 'stats count hidden items as reviewed (N/A)');
+
+  // ── Merge ──
+  var base = M.newProject({ name: 'Merge', checklists: ['schematic'] }, 'Ann', T);
+  var a = JSON.parse(JSON.stringify(base)), b = JSON.parse(JSON.stringify(base));
+  a.items.sg1 = { status: 'pass', updatedAt: '2026-01-01T10:00:00Z', updatedBy: 'Ann' };
+  b.items.sg1 = { status: 'issue', updatedAt: '2026-01-01T11:00:00Z', updatedBy: 'Bob' };
+  a.items.sg2 = { status: 'pass', updatedAt: '2026-01-01T10:00:00Z', updatedBy: 'Ann' };
+  b.comments.c1 = { id: 'c1', item: 'sg1', author: 'Bob', text: 'hi', at: 'x', updatedAt: '2026-01-01T11:00:00Z', updatedBy: 'Bob' };
+  a.comments.c2 = { id: 'c2', item: 'sg1', author: 'Ann', text: 'yo', at: 'x', updatedAt: '2026-01-01T09:00:00Z', updatedBy: 'Ann' };
+  var m1 = M.mergeProjects(a, b), m2 = M.mergeProjects(b, a);
+  eq(m1.items.sg1.status, 'issue', 'newer item state wins');
+  ok(m1.items.sg2 && m1.comments.c1 && m1.comments.c2, 'both sides’ items and comments kept');
+  eq(M.stableStringify(m1), M.stableStringify(m2), 'merge is order independent');
+  var del = JSON.parse(JSON.stringify(m1)); del.comments.c1 = Object.assign({}, del.comments.c1, { deleted: true, updatedAt: '2026-01-02T00:00:00Z' });
+  ok(M.mergeProjects(m1, del).comments.c1.deleted, 'deletion tombstone survives merge');
+  eq(M.stableStringify({ b: 1, a: { d: 1, c: 2 } }), '{\n  "a": {\n    "c": 2,\n    "d": 1\n  },\n  "b": 1\n}\n', 'stable stringify sorts keys');
+
+  // ── Legacy import ──
+  var legacy = { version: '3.0', projectName: 'Old Board', categories: [[{ id: 's-gen', items: [{ id: 'sg1', text: 'x' }, { id: 'zz9', text: 'My own check', note: 'n' }] }], [], [], [], []],
+    checks: [{ sg1: true, sg2: 'na', sg3: false }, {}, {}, {}, {}], sectionNA: [{}, { 'if-adc': true }, {}, {}, {}] };
+  ok(M.isLegacy(legacy), 'legacy export detected');
+  var lp = M.importLegacy(legacy, 'Ann', T);
+  eq([lp.meta.name, lp.items.sg1.status, lp.items.sg2.status, !!lp.items.sg3, lp.sections['if-adc'].na, lp.custom.zz9.text, lp.custom.zz9.section],
+    ['Old Board', 'pass', 'na', false, true, 'My own check', 's-gen'], 'legacy import maps checks, N/A, sections and custom items');
+
+  // ── Git blob sha ──
+  eq(await Signoff.github.gitBlobSha('hello\n'), 'ce013625030ba8dba906f756967f9e9ca394464a', 'git blob sha matches git hash-object');
+
+  // ── GitHub sync against a fake API ──
+  function hash(s) { var h = 5381; for (var i = 0; i < s.length; i++) h = ((h * 33) ^ s.charCodeAt(i)) >>> 0; return h.toString(16); }
+  function FakeGitHub() {
+    var self = this;
+    this.blobs = {}; this.trees = {}; this.commits = {}; this.head = null; this.n = 0; this.calls = []; this.raceOnce = null;
+    function id() { return (++self.n).toString(16).padStart(40, '0'); }
+    this.commitFiles = function (files) {
+      var tsha = id(); self.trees[tsha] = files; var c = id(); self.commits[c] = { tree: tsha, parent: self.head }; self.head = c; return c;
+    };
+    this.files = function () { return Object.assign({}, self.trees[self.commits[self.head].tree]); };
+    this.fetch = async function (url, opts) {
+      var path = url.replace(/^https:\/\/api\.github\.com\/repos\/o\/r/, ''), method = opts.method || 'GET';
+      var body = opts.body ? JSON.parse(opts.body) : null;
+      self.calls.push(method + ' ' + path);
+      function res(status, data) { return { ok: status < 300, status: status, text: async function () { return JSON.stringify(data); } }; }
+      if (method === 'GET' && /^\/git\/ref\/heads\//.test(path)) return res(200, { object: { sha: self.head } });
+      if (method === 'GET' && /^\/git\/commits\//.test(path)) { var c = self.commits[path.split('/').pop()]; return res(200, { tree: { sha: c.tree } }); }
+      if (method === 'GET' && /^\/git\/trees\//.test(path)) {
+        var files = self.trees[path.split('/').pop().split('?')[0]];
+        return res(200, { tree: Object.keys(files).map(function (p) { var s = 'b' + hash(p + '\0' + files[p]); self.blobs[s] = files[p]; return { path: p, type: 'blob', sha: s }; }) });
+      }
+      if (method === 'GET' && /^\/git\/blobs\//.test(path)) return res(200, { content: Signoff.github.b64Encode(self.blobs[path.split('/').pop()]) });
+      if (method === 'POST' && path === '/git/trees') {
+        var f = Object.assign({}, self.trees[body.base_tree]); body.tree.forEach(function (e) { f[e.path] = e.content; });
+        var t = id(); self.trees[t] = f; return res(201, { sha: t });
+      }
+      if (method === 'POST' && path === '/git/commits') { var cs = id(); self.commits[cs] = { tree: body.tree, parent: body.parents[0] }; return res(201, { sha: cs, html_url: 'https://github.com/o/r/commit/' + cs }); }
+      if (method === 'PATCH' && /^\/git\/refs\/heads\//.test(path)) {
+        if (self.raceOnce) { var r = self.raceOnce; self.raceOnce = null; r(); }
+        if (self.commits[body.sha].parent !== self.head) return res(422, { message: 'Update is not a fast forward' });
+        self.head = body.sha; return res(200, {});
+      }
+      return res(404, { message: 'Not Found: ' + method + ' ' + path });
+    };
+  }
+  var gh = new FakeGitHub();
+  gh.commitFiles({ 'index.html': '<html>', 'assets/version.js': "window.SIGNOFF_VERSION = { hash: 'abc123', date: '2026-10-23' };" });
+  var cfg = { owner: 'o', repo: 'r', branch: 'main', dataPath: 'data', token: 't' };
+  var ann = new Signoff.GitHubStore(cfg, gh.fetch), bob = new Signoff.GitHubStore(cfg, gh.fetch);
+
+  var proj = M.newProject({ name: 'Sync Board', checklists: ['schematic'] }, 'Ann', T);
+  var annLocal = {}; annLocal[proj.slug] = proj;
+  var r1 = await ann.sync(annLocal, {}, { message: 'first' });
+  eq(r1.pushed, 1, 'first sync pushes the new project');
+  ok(gh.files()['data/projects/sync-board.json'], 'project file lands in data/projects/');
+  eq(r1.version && r1.version.hash, 'abc123', 'repo tool version read');
+
+  var bobRes = await bob.sync({}, {}, {});
+  ok(bobRes.projects['sync-board'] && bobRes.pushed === 0, 'second user pulls it without pushing');
+
+  // Both edit, Bob syncs first, then Ann: Ann's sync must merge Bob's work in.
+  var annDoc = JSON.parse(JSON.stringify(r1.projects['sync-board'])), bobDoc = JSON.parse(JSON.stringify(bobRes.projects['sync-board']));
+  annDoc.items.sg1 = { status: 'pass', updatedAt: '2026-10-23T10:00:00Z', updatedBy: 'Ann' };
+  bobDoc.items.sg2 = { status: 'issue', updatedAt: '2026-10-23T10:01:00Z', updatedBy: 'Bob' };
+  bobDoc.comments.c9 = { id: 'c9', item: 'sg2', author: 'Bob', text: 'needs a fix', at: 'x', updatedAt: '2026-10-23T10:01:00Z', updatedBy: 'Bob' };
+  await bob.sync({ 'sync-board': bobDoc }, bobRes.cache, {});
+  var annRes = await ann.sync({ 'sync-board': annDoc }, r1.cache, {});
+  var onRepo = JSON.parse(gh.files()['data/projects/sync-board.json']);
+  ok(onRepo.items.sg1 && onRepo.items.sg2 && onRepo.comments.c9, 'concurrent edits from both users end up on the repo');
+  eq(M.stableStringify(annRes.projects['sync-board']), gh.files()['data/projects/sync-board.json'], 'local copy equals repo after sync');
+
+  // Race: someone pushes between Ann's commit and her ref update -> 422 -> retry.
+  var raced = JSON.parse(JSON.stringify(annRes.projects['sync-board']));
+  raced.items.sg3 = { status: 'na', updatedAt: '2026-10-23T11:00:00Z', updatedBy: 'Ann' };
+  var retries = 0;
+  gh.raceOnce = function () {
+    var f = gh.files(), d = JSON.parse(f['data/projects/sync-board.json']);
+    d.items.sg4 = { status: 'pass', updatedAt: '2026-10-23T11:00:01Z', updatedBy: 'Bob' };
+    f['data/projects/sync-board.json'] = M.stableStringify(d);
+    gh.commitFiles(f);
+  };
+  await ann.sync({ 'sync-board': raced }, annRes.cache, { onRetry: function () { retries++; } });
+  var after = JSON.parse(gh.files()['data/projects/sync-board.json']);
+  ok(retries === 1 && after.items.sg3 && after.items.sg4, 'non-fast-forward is retried and both edits survive');
+
+  var warm = await ann.sync({}, {}, {});
+  var callsBefore = gh.calls.length;
+  var noop = await ann.sync({}, warm.cache, {});
+  var noopCalls = gh.calls.slice(callsBefore);
+  ok(noop.pushed === 0 && !noopCalls.some(function (c) { return /^(POST|PATCH)/.test(c); }), 'nothing to push makes no commit');
+  ok(!noopCalls.some(function (c) { return /blobs/.test(c); }), 'unchanged files come from the cache', noopCalls.join(', '));
+
+  // ── Demo ──
+  var demo = Signoff.demo.projects(T);
+  ok(demo.length === 2 && demo.every(function (d) { return Object.keys(d.items).length > 10; }), 'demo projects build');
+  ok(demo.some(function (d) { return Object.keys(d.items).some(function (k) { return d.items[k].status === 'issue'; }); }), 'demo has findings');
+
+  var failed = results.filter(function (r) { return !r.ok; });
+  document.getElementById('out').innerHTML = results.map(function (r) {
+    return '<div class="' + (r.ok ? 'pass' : 'fail') + '">' + (r.ok ? '✓ ' : '✗ ') + r.name + '</div>' + (r.ok ? '' : '<pre>' + (r.detail || '') + '</pre>');
+  }).join('');
+  document.getElementById('summary').textContent = (failed.length ? 'FAIL: ' + failed.length + ' of ' : 'PASS: all ') + results.length + ' tests';
+  document.title = failed.length ? 'FAIL' : 'PASS';
+})().catch(function (e) {
+  document.getElementById('summary').textContent = 'ERROR: ' + e.message;
+  document.title = 'ERROR';
+  console.error(e);
+});
+</script>
+</body>
+</html>

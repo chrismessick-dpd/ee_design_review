@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="color-scheme" content="light dark">
+<title>Signoff · Design Review</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23004952'/%3E%3Cpath d='M10 9h5v6.2l-5 .8zM10 17l5 .8V23h-5z' fill='%23fff'/%3E%3Cpath d='M16 9l7 2.5v9L16 23v-5.2l4-.8v-2l-4-.8z' fill='%23fff'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="assets/styles.css?v=7084c586dd00">
+</head>
+<body>
+<div id="demo-banner" class="demo-banner" hidden></div>
+<div class="app" id="app">
+  <aside class="sidebar" id="sidebar">
+    <div class="brand">
+      <div class="brand-mark" aria-hidden="true">
+        <svg viewBox="0 0 16 18"><path d="M0 0h6v7.6L0 8.4zM0 9.6l6 .8V18H0z" fill="#fff"/><path d="M7 0l9 3v12l-9 3v-7.4l5-.9V8.3l-5-.9z" fill="#fff"/></svg>
+      </div>
+      <div class="brand-text">
+        <div class="brand-name">Signoff</div>
+        <div class="brand-sub">Dovetail Design Review</div>
+      </div>
+    </div>
+    <div class="side-search">
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="7" cy="7" r="5"/><path d="M11 11l3.5 3.5" stroke-linecap="round"/></svg>
+      <input id="project-search" type="search" placeholder="Search projects" autocomplete="off">
+    </div>
+    <div class="side-head">
+      <span class="side-label">Projects</span>
+      <button class="icon-btn" data-act="new-project" title="New project (N)" aria-label="New project">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M8 3v10M3 8h10"/></svg>
+      </button>
+    </div>
+    <nav class="side-list" id="project-list"></nav>
+    <div class="side-foot">
+      <button class="sync-pill" data-act="sync" id="sync-pill" title="Sync with GitHub (Ctrl+S)">
+        <span class="sync-dot" id="sync-dot"></span>
+        <span class="sync-text"><span class="sync-title" id="sync-title">Local only</span><span class="sync-sub" id="sync-sub">Set up Git sync</span></span>
+      </button>
+      <button class="icon-btn" data-act="settings" title="Settings" aria-label="Settings">
+        <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="10" cy="10" r="2.6"/><path d="M10 1.8v2.4M10 15.8v2.4M18.2 10h-2.4M4.2 10H1.8M15.8 4.2l-1.7 1.7M5.9 14.1l-1.7 1.7M15.8 15.8l-1.7-1.7M5.9 5.9L4.2 4.2" stroke-linecap="round"/></svg>
+      </button>
+    </div>
+  </aside>
+
+  <main class="main" id="main">
+    <header class="toolbar" id="toolbar">
+      <button class="icon-btn menu-toggle" data-act="nav" aria-label="Projects">
+        <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M3 6h14M3 10h14M3 14h14"/></svg>
+      </button>
+      <div class="toolbar-title" id="toolbar-title"></div>
+      <div class="toolbar-center"><div class="seg" id="view-seg" role="tablist"></div></div>
+      <div class="toolbar-actions" id="toolbar-actions"></div>
+    </header>
+    <div id="page"></div>
+  </main>
+</div>
+
+<aside class="inspector" id="inspector" aria-label="Item detail"></aside>
+<div class="toasts" id="toasts"></div>
+<div id="report" class="report" hidden></div>
+<input type="file" id="import-file" accept=".json,application/json" hidden>
+
+<script src="assets/version.js?v=7084c586dd00"></script>
+<script src="assets/templates.js?v=7084c586dd00"></script>
+<script src="assets/model.js?v=7084c586dd00"></script>
+<script src="assets/github.js?v=7084c586dd00"></script>
+<script src="assets/demo.js?v=7084c586dd00"></script>
+<script src="assets/app.js?v=7084c586dd00"></script>
+</body>
+</html>

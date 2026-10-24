@@ -1,0 +1,1812 @@
+{
+  "id": "interfaces",
+  "title": "Interface Review",
+  "short": "Interfaces",
+  "version": 1,
+  "description": "Per-interface checks for the board's buses and I/O; the reviewer marks whole sections N/A for interfaces the board does not use.",
+  "sections": [
+    {
+      "id": "if-adc",
+      "title": "ADC (Analogue-to-Digital Converter)",
+      "tags": [],
+      "items": [
+        {
+          "id": "adc1",
+          "text": "Differential input voltage is within the PGA gain range for all expected signals",
+          "hint": "Check the worst-case signal including offsets and overrange at the chosen gain; clipping at the PGA output is silent in firmware.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "adc2",
+          "text": "Common-mode voltage at the PGA inputs is within the specified input common-mode range",
+          "hint": "Many PGAs restrict common-mode range at high gain. Check against the datasheet's CM-vs-gain plot, not just the supply rails.",
+          "tags": [],
+          "severity": "critical"
+        },
+        {
+          "id": "adc3",
+          "text": "Ratiometric measurement is used where appropriate (reference derived from the excitation voltage)",
+          "hint": "Bridges, potentiometers and RTDs cancel excitation drift when the ADC reference tracks the excitation.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "adc4",
+          "text": "Thermocouple inputs: cold-junction compensation sensor is placed close to the connector junction",
+          "hint": "The CJC sensor must be isothermal with the point where thermocouple wire meets copper. Keep heat sources away from that area.",
+          "tags": [
+            "precision-analog"
+          ],
+          "severity": "major"
+        },
+        {
+          "id": "adc5",
+          "text": "RTD / bridge excitation current source value and direction are verified",
+          "hint": "Confirm the compliance voltage is not exceeded at maximum sensor resistance and that self-heating is acceptable.",
+          "tags": [
+            "precision-analog"
+          ],
+          "severity": "major"
+        },
+        {
+          "id": "adc6",
+          "text": "Anti-aliasing filter cutoff is well below Nyquist for the chosen sample rate",
+          "hint": "Check the attenuation reached at Fs/2, not just the -3 dB point. Delta-sigma ADCs relax this but still alias around multiples of the modulator rate.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "adc7",
+          "text": "ADC input impedance is high enough relative to source impedance, or a buffer is added",
+          "hint": "For SAR ADCs, check the sample-capacitor kickback and acquisition time against the source resistance plus the RC filter, per datasheet.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "adc8",
+          "text": "Reference voltage source meets the stability and noise budget for the required accuracy",
+          "hint": "Compare reference tempco, initial accuracy and noise against the error budget. An internal MCU reference is often the limiting factor.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "ifc-adc-1",
+          "text": "Reference pin is decoupled with the capacitance and placement the datasheet specifies",
+          "hint": "Some references go unstable with the wrong capacitor value or ESR. Place the reference cap at the pin, not at the regulator.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "adc9",
+          "text": "Input overvoltage protection / clamping is present on all ADC inputs that can see out-of-range voltages",
+          "hint": "Use series resistance plus clamps to the rails or TVS. Check that clamp leakage does not create an error at the input impedance used.",
+          "tags": [],
+          "severity": "critical"
+        },
+        {
+          "id": "adc10",
+          "text": "Input mux settling time is budgeted when multiplexed channels are used",
+          "hint": "Switching between channels at very different voltages needs settling time for the RC filter and the sample capacitor.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "adc11",
+          "text": "Grounding scheme near the ADC follows the datasheet (typically a solid ground with AGND/DGND joined at the converter)",
+          "hint": "Most modern guidance is one unbroken ground plane with careful partitioning, rather than split planes. Confirm digital return currents do not cross the analog area.",
+          "tags": [],
+          "severity": "major"
+        }
+      ]
+    },
+    {
+      "id": "if-dac",
+      "title": "DAC (Digital-to-Analogue Converter)",
+      "tags": [],
+      "items": [
+        {
+          "id": "dac1",
+          "text": "Output voltage range covers the required span for the load",
+          "hint": "Include headroom for the output buffer swing near the rails.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "dac2",
+          "text": "DAC output buffer / op-amp drive capability is verified for the load impedance",
+          "hint": "Check current drive and stability with the load capacitance, including cable capacitance if the output leaves the board.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "dac3",
+          "text": "Reference voltage accuracy and noise meet the output accuracy requirement",
+          "hint": "Reference error passes straight to the output. Check its initial accuracy, tempco and noise against the error budget.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "dac4",
+          "text": "Output reconstruction filter is present where the application needs it and its cutoff is correct",
+          "hint": "Required for waveform / audio generation; usually unnecessary for slow setpoint DACs.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "dac5",
+          "text": "Settling time meets the system update-rate requirement",
+          "hint": "Use full-scale step settling to the required accuracy, including any buffer and filter.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "dac6",
+          "text": "DAC output short-circuit / overload protection is considered for outputs that leave the board",
+          "hint": "Series resistance or a protected buffer prevents damage when an external output is shorted.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "ifc-dac-1",
+          "text": "DAC output state at power-up and reset is safe for the driven load",
+          "hint": "Many DACs power up at zero-scale or mid-scale. Check what the load does before firmware writes the first code.",
+          "tags": [],
+          "severity": "major"
+        }
+      ]
+    },
+    {
+      "id": "if-uart",
+      "title": "UART / USART",
+      "tags": [],
+      "items": [
+        {
+          "id": "uart1",
+          "text": "Baud rate, stop bits and parity match between both ends of the link",
+          "hint": "Also check that the clock source gives an acceptable baud-rate error, per the MCU datasheet.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "uart2",
+          "text": "Logic levels are compatible at both ends, with level translation where supply voltages differ",
+          "hint": "A 5 V TX into a non-5 V-tolerant 3.3 V RX can back-power or damage the receiver.",
+          "tags": [],
+          "severity": "critical"
+        },
+        {
+          "id": "uart3",
+          "text": "RS-232: a transceiver is present and its supply arrangement is per datasheet",
+          "hint": "Modern RS-232 transceivers generate their own bipolar levels with a charge pump; check the pump capacitor values. See also the RS-232 / RS-485 / RS-422 section.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "uart4",
+          "text": "RS-485: termination (typically 120 Ω) is fitted at each physical cable end only",
+          "hint": "Intermediate nodes must not terminate. See the RS-232 / RS-485 / RS-422 section for further checks.",
+          "tags": [],
+          "severity": "critical"
+        },
+        {
+          "id": "ifc-uart-1",
+          "text": "RS-485: failsafe biasing holds the bus in a defined idle state",
+          "hint": "Either bias resistors at one node or a transceiver with built-in failsafe. Check the bias still meets the receiver threshold with both terminations fitted.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "uart5",
+          "text": "RS-485: half-duplex DE/RE control is verified so no bus contention is possible",
+          "hint": "Check DE timing releases after the last stop bit and the default state at MCU reset is receive.",
+          "tags": [],
+          "severity": "critical"
+        },
+        {
+          "id": "uart6",
+          "text": "Flow control (RTS/CTS) is wired if the data rate or latency requires it",
+          "hint": "Without flow control, the receiver must empty its FIFO fast enough at the worst-case interrupt latency.",
+          "tags": [],
+          "severity": "minor"
+        },
+        {
+          "id": "uart7",
+          "text": "ESD protection is fitted on connector pins of externally routed UART lines",
+          "hint": "Choose a TVS whose working voltage clears the signal swing. RS-232 levels need a higher-voltage part than logic-level UART.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "ifc-uart-2",
+          "text": "No back-powering occurs through UART lines when one side is unpowered",
+          "hint": "A driven TX into an unpowered device's RX can power it through ESD diodes. Use series resistors, power-off-tolerant buffers or sequencing.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "ifc-uart-3",
+          "text": "TX/RX crossover at the connector is documented and matches the cable / mating device",
+          "hint": "TX-to-TX swaps are among the most common respins; label the net names from the MCU's perspective.",
+          "tags": [],
+          "severity": "minor"
+        }
+      ]
+    },
+    {
+      "id": "if-spi",
+      "title": "SPI",
+      "tags": [],
+      "items": [
+        {
+          "id": "spi1",
+          "text": "CPOL and CPHA mode is supported by every device on the bus",
+          "hint": "Devices that support different modes on a shared bus force a mode change per transaction. Confirm the firmware handles it.",
+          "tags": [],
+          "severity": "critical"
+        },
+        {
+          "id": "spi2",
+          "text": "CS polarity and setup / hold timing are verified against each device datasheet",
+          "hint": "Some devices need CS toggled between words or a minimum CS-high time between transactions.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "spi3",
+          "text": "Each device has its own dedicated CS line with no shared-CS conflicts",
+          "hint": "Two devices sharing a CS will contend on MISO. Daisy-chain only where the devices explicitly support it.",
+          "tags": [],
+          "severity": "critical"
+        },
+        {
+          "id": "spi4",
+          "text": "Maximum SPI clock does not exceed any device's rated limit",
+          "hint": "Include the round-trip delay (clock out, data back) for reads at high clock rates.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "spi5",
+          "text": "Every device tri-states MISO when its CS is de-asserted",
+          "hint": "Some devices (and some ADCs) keep driving MISO; they need a buffer or a separate bus.",
+          "tags": [],
+          "severity": "critical"
+        },
+        {
+          "id": "spi6",
+          "text": "Series source-termination resistors are fitted on long or fast SPI traces to limit ringing",
+          "hint": "Place them at the driver: on SCK/MOSI at the controller, on MISO at each peripheral.",
+          "tags": [],
+          "severity": "minor"
+        },
+        {
+          "id": "ifc-spi-1",
+          "text": "CS lines have pull-ups so devices stay deselected while the MCU is in reset or unprogrammed",
+          "hint": "A floating CS during boot can let a device clock in noise or drive MISO against another device.",
+          "tags": [],
+          "severity": "major"
+        }
+      ]
+    },
+    {
+      "id": "if-i2c",
+      "title": "I2C",
+      "tags": [],
+      "items": [
+        {
+          "id": "i2c1",
+          "text": "Pull-up resistor values suit the bus capacitance and clock speed (100 kHz / 400 kHz / 1 MHz)",
+          "hint": "Check rise time against the I2C specification limit for the mode and the sink-current limit at the lowest value.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "i2c2",
+          "text": "Pull-ups are not duplicated across modules or breakout boards in parallel",
+          "hint": "When each module adds its own pull-ups, the effective resistance drops and can exceed the sink-current limit.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "i2c3",
+          "text": "All device addresses on each bus are unique",
+          "hint": "Include reserved addresses and any devices that respond to several addresses.",
+          "tags": [],
+          "severity": "critical"
+        },
+        {
+          "id": "i2c4",
+          "text": "Address configuration pins are tied to defined levels, not floating",
+          "hint": "A floating address pin can read differently between units or across temperature.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "i2c5",
+          "text": "Bus capacitance is within budget for the cable / trace length and number of devices",
+          "hint": "Long cables or many devices may need a bus buffer or a slower mode.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "i2c6",
+          "text": "Level shifting is used where devices on the bus run at different supply voltages",
+          "hint": "Use a dedicated I2C level translator or a MOSFET-based shifter. Generic push-pull translators break the open-drain bus.",
+          "tags": [],
+          "severity": "critical"
+        },
+        {
+          "id": "i2c7",
+          "text": "A bus-lockup recovery mechanism exists (GPIO to toggle SCL, or a device / bus reset)",
+          "hint": "A device reset mid-transfer can hold SDA low. Firmware recovery clocks SCL until SDA is released.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "ifc-i2c-1",
+          "text": "No device holds the bus low when it is unpowered while the rest of the bus is powered",
+          "hint": "Devices without power-off-tolerant I/O clamp SDA/SCL through ESD diodes and kill the bus. Check this for every switched rail.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "ifc-i2c-2",
+          "text": "Externally routed I2C (off-board cable) has ESD protection and is within its capacitance budget",
+          "hint": "I2C is not designed for long cables. Consider a differential extender or a buffer for cable runs.",
+          "tags": [],
+          "severity": "major"
+        }
+      ]
+    },
+    {
+      "id": "if-i2s",
+      "title": "I2S / PCM Audio",
+      "tags": [
+        "audio"
+      ],
+      "items": [
+        {
+          "id": "i2s1",
+          "text": "Clock roles are assigned so exactly one device drives BCLK and LRCK",
+          "hint": "With two masters the clock lines contend. With no master the codec stays silent.",
+          "tags": [],
+          "severity": "critical"
+        },
+        {
+          "id": "i2s2",
+          "text": "BCLK frequency equals sample rate × slot width × number of slots, as verified by calculation",
+          "hint": "Slot width is not always the sample bit depth: 24-bit data in 32-bit slots is common.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "i2s3",
+          "text": "Word-select (WS/LRCK) polarity matches both devices",
+          "hint": "A swapped WS polarity swaps the left and right channels, which is easy to miss in mono testing.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "i2s4",
+          "text": "Data format matches at both ends (I2S, left-justified, right-justified or TDM)",
+          "hint": "A one-bit offset between I2S and left-justified formats halves the amplitude or adds distortion.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "i2s5",
+          "text": "MCLK is provided if the codec requires it and its ratio to the sample rate is supported (e.g. 256 × Fs)",
+          "hint": "Check the codec's supported MCLK/Fs ratios for every sample rate the product uses.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "i2s6",
+          "text": "Codec power-up and mute sequencing avoids audible pops",
+          "hint": "Mute the amplifier until the codec reference has settled, and reverse the order at power-down.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "i2s7",
+          "text": "Series termination resistors are fitted on long I2S traces to reduce ringing",
+          "hint": "Place the resistor at the driver end of each clock line.",
+          "tags": [],
+          "severity": "minor"
+        }
+      ]
+    },
+    {
+      "id": "if-usb",
+      "title": "USB",
+      "tags": [],
+      "items": [
+        {
+          "id": "usb1",
+          "text": "D+ and D− are routed as a length-matched differential pair at 90 Ω differential impedance",
+          "hint": "Matters most at High Speed; Full Speed is tolerant. Use the fab's stack-up to set trace geometry.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "usb2",
+          "text": "A low-capacitance ESD protection device is fitted on D+ and D− at the connector",
+          "hint": "Choose a part rated for USB data lines (e.g. PRTR5V0U2X class); capacitance limits are tighter at High Speed.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "usb3",
+          "text": "Pull-up / pull-down on D+ or D− is correct for USB speed and role (host / device / OTG)",
+          "hint": "Many MCUs have integrated pull-ups; an extra external one will break enumeration.",
+          "tags": [],
+          "severity": "critical"
+        },
+        {
+          "id": "usb4",
+          "text": "VBUS has bulk and local decoupling within the limits allowed by the USB specification",
+          "hint": "Device-side VBUS capacitance is limited to control inrush; a host port needs enough bulk to ride through hot-plug events.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "ifc-usb-1",
+          "text": "Host / source ports have VBUS current limiting (load switch or polyfuse)",
+          "hint": "Protects the system rail from a shorted cable or a faulty device.",
+          "tags": [],
+          "severity": "critical"
+        },
+        {
+          "id": "usb5",
+          "text": "USB-C CC pins have the correct termination for the role (Rd 5.1 kΩ to GND for sink, Rp for source) or a CC / PD controller for DRP",
+          "hint": "Each CC pin needs its own resistor; sharing one resistor between CC1 and CC2 is a classic failure with e-marked cables.",
+          "tags": [],
+          "severity": "critical"
+        },
+        {
+          "id": "usb6",
+          "text": "Ground reference plane is unbroken beneath the USB differential pair",
+          "hint": "A split or slot under the pair breaks the return path, causing reflections and radiated emissions.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "usb7",
+          "text": "Connector shield is connected to chassis / GND according to the product's shielding strategy",
+          "hint": "Options include a direct bond, an RC network (e.g. a resistor and capacitor in parallel) or a ferrite. Choose deliberately for EMC and ESD.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "usb8",
+          "text": "Clock source meets the USB clock tolerance for the chosen speed, per the USB spec and MCU datasheet",
+          "hint": "Crystal-less operation is only valid where the MCU supports clock recovery from SOF packets.",
+          "tags": [],
+          "severity": "critical"
+        },
+        {
+          "id": "ifc-usb-2",
+          "text": "Device VBUS sensing exists where required and is divided / protected to suit the MCU pin",
+          "hint": "Self-powered devices must not drive D+ pull-up without VBUS present. VBUS pins can see transients above 5 V.",
+          "tags": [],
+          "severity": "critical"
+        },
+        {
+          "id": "ifc-usb-3",
+          "text": "USB PD: the controller's policy (voltages, currents, dead-battery behaviour) is defined and its strapping / firmware matches",
+          "hint": "Dead-battery operation needs the sink to present Rd with no firmware running. Check that the controller supports it.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "ifc-usb-4",
+          "text": "USB-C SuperSpeed or alternate-mode lanes have the required AC-coupling capacitors and mux / orientation handling",
+          "hint": "Check capacitor placement and value per the USB spec and the redriver / mux datasheet.",
+          "tags": [
+            "high-speed"
+          ],
+          "severity": "major"
+        },
+        {
+          "id": "ifc-usb-5",
+          "text": "Suspend current of the bus-powered device is within the USB specification limit",
+          "hint": "Count all leakage paths, LEDs and regulators that stay on in suspend.",
+          "tags": [
+            "low-power"
+          ],
+          "severity": "major"
+        }
+      ]
+    },
+    {
+      "id": "if-disp",
+      "title": "Display Interfaces (MIPI / LVDS / RGB)",
+      "tags": [
+        "display"
+      ],
+      "items": [
+        {
+          "id": "disp1",
+          "text": "MIPI DSI lane count and data rate match the display module specification",
+          "hint": "Also check the processor's DSI host supports the panel's video or command mode.",
+          "tags": [],
+          "severity": "critical"
+        },
+        {
+          "id": "disp2",
+          "text": "MIPI DSI differential pairs are routed at the specified impedance (typically 100 Ω differential)",
+          "hint": "Set the trace geometry from the fab's stack-up and keep each pair on one reference plane.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "disp3",
+          "text": "LVDS pairs are length-matched within each pair and between pairs to meet the skew budget",
+          "hint": "Take the skew limit from the LVDS transmitter and panel datasheets.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "disp4",
+          "text": "Parallel RGB: data, HSYNC, VSYNC and DE are length-matched to PCLK within the timing budget",
+          "hint": "Check setup and hold at the panel against the PCLK edge polarity.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "disp5",
+          "text": "Display power sequencing (e.g. VDDIO → VDD → backlight) matches the panel datasheet",
+          "hint": "Wrong sequencing can latch up the panel driver IC or show visible artefacts at power-on.",
+          "tags": [],
+          "severity": "critical"
+        },
+        {
+          "id": "disp6",
+          "text": "Backlight PWM dimming frequency avoids visible flicker",
+          "hint": "Rule of thumb: keep it well above a few hundred hertz, and outside the audio band if the inductor or ceramic caps could sing.",
+          "tags": [],
+          "severity": "minor"
+        },
+        {
+          "id": "disp7",
+          "text": "Touch controller bus and interrupt lines are routed with the pull-ups they need",
+          "hint": "See the Touch section for further checks.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "disp8",
+          "text": "ESD protection is fitted on display connector lines that are user-accessible",
+          "hint": "Keep the ESD device capacitance low enough for the interface speed.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "ifc-disp-1",
+          "text": "FPC connector pin-1 orientation, pitch and contact side (top / bottom) match the panel tail",
+          "hint": "A mirrored FPC pinout is a very common respin; check against the panel drawing, not just the netlist.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "ifc-disp-2",
+          "text": "Backlight driver has open-LED overvoltage protection",
+          "hint": "If the LED string opens, a boost driver without OVP can exceed its output capacitor and switch ratings.",
+          "tags": [],
+          "severity": "major"
+        }
+      ]
+    },
+    {
+      "id": "if-tmr",
+      "title": "Timers & PWM",
+      "tags": [],
+      "items": [
+        {
+          "id": "tmr1",
+          "text": "Complementary timer outputs have dead time configured to prevent shoot-through",
+          "hint": "Size the dead time from the gate driver and FET switching times, with margin over temperature. See also the Motor Driver Interfaces section.",
+          "tags": [],
+          "severity": "critical"
+        },
+        {
+          "id": "tmr2",
+          "text": "Break input (BRK/BRK2) fault wiring is verified for polarity and source",
+          "hint": "The break input should disable the outputs in hardware without needing firmware.",
+          "tags": [],
+          "severity": "critical"
+        },
+        {
+          "id": "tmr3",
+          "text": "PWM frequency and resolution meet the application requirement (motor, LED, etc.)",
+          "hint": "Check the timer clock gives the required resolution at the chosen PWM frequency.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "tmr4",
+          "text": "Capture / compare input filters are configured for noise immunity",
+          "hint": "Digital input filters reject short glitches on noisy encoder or capture lines.",
+          "tags": [],
+          "severity": "minor"
+        },
+        {
+          "id": "tmr5",
+          "text": "Encoder interface quadrature inputs and index pulse are wired to timer-capable pins",
+          "hint": "Both quadrature channels must land on the same timer's encoder-capable inputs.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "tmr6",
+          "text": "Timer clock source and prescaler values give the required resolution and range",
+          "hint": "Confirm low-power modes or clock-tree changes in firmware do not alter the timer clock unexpectedly.",
+          "tags": [],
+          "severity": "major"
+        }
+      ]
+    },
+    {
+      "id": "if-can",
+      "title": "CAN Bus",
+      "tags": [],
+      "items": [
+        {
+          "id": "can1",
+          "text": "Termination (typically 120 Ω) is present at each physical end of the bus only",
+          "hint": "With power off and both ends fitted, CANH to CANL should measure about half the termination value.",
+          "tags": [],
+          "severity": "critical"
+        },
+        {
+          "id": "can2",
+          "text": "A CAN transceiver sits between the controller TX/RX and the bus CANH/CANL",
+          "hint": "Check the transceiver matches the bus type (high-speed CAN, CAN FD or fault-tolerant).",
+          "tags": [],
+          "severity": "critical"
+        },
+        {
+          "id": "can3",
+          "text": "Bit rate and sample-point configuration are consistent across all nodes",
+          "hint": "A sample-point mismatch between nodes causes errors on long buses even when the bit rates match.",
+          "tags": [],
+          "severity": "critical"
+        },
+        {
+          "id": "can4",
+          "text": "Split termination (two half-value resistors with a centre-tap capacitor) is used where noise is a concern",
+          "hint": "The centre-tap capacitor to ground filters common-mode noise.",
+          "tags": [],
+          "severity": "minor"
+        },
+        {
+          "id": "can5",
+          "text": "A common-mode choke is fitted on CANH/CANL for EMC-sensitive designs",
+          "hint": "Some chokes can ring with the bus under fault conditions. Follow the transceiver vendor's recommendation.",
+          "tags": [],
+          "severity": "minor"
+        },
+        {
+          "id": "can6",
+          "text": "ESD / surge protection (TVS) rated for CAN is fitted on CANH and CANL at exposed connectors",
+          "hint": "Use a low-capacitance TVS rated for the CAN bus voltage range.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "ifc-can-1",
+          "text": "Transceiver supports the required data rate (classic CAN or CAN FD) and loop delay",
+          "hint": "Not every transceiver is rated for CAN FD data-phase bit rates.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "ifc-can-2",
+          "text": "Transceiver standby / silent pin has a defined state during MCU reset",
+          "hint": "A floating standby pin can leave the transceiver disabled, or let it disturb the bus during boot.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "ifc-can-3",
+          "text": "Ground reference between nodes is defined (shared ground wire or isolated transceiver)",
+          "hint": "Common-mode range of the transceiver must cover ground offsets between nodes.",
+          "tags": [],
+          "severity": "major"
+        }
+      ]
+    },
+    {
+      "id": "if-eth",
+      "title": "Ethernet",
+      "tags": [],
+      "items": [
+        {
+          "id": "eth1",
+          "text": "Magnetics (integrated or discrete) are present between PHY and connector",
+          "hint": "Unless the design deliberately uses a capacitively coupled board-to-board link per the PHY application note.",
+          "tags": [],
+          "severity": "critical"
+        },
+        {
+          "id": "eth2",
+          "text": "Magnetics centre-tap connection matches the PHY type (voltage-mode or current-mode) per datasheet",
+          "hint": "Current-mode PHYs need the centre tap biased to a supply; voltage-mode PHYs typically want it AC-coupled only. Getting this wrong kills the link.",
+          "tags": [],
+          "severity": "critical"
+        },
+        {
+          "id": "eth3",
+          "text": "PHY reference clock (typically 25 MHz or 50 MHz) meets the PHY's frequency tolerance and jitter spec",
+          "hint": "Check the frequency tolerance and load capacitors. In RMII, the 50 MHz clock may come from the PHY or the MAC.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "eth4",
+          "text": "MDI pairs are routed at 100 Ω differential impedance and length-matched",
+          "hint": "Keep the pairs away from board edges and over an unbroken reference plane.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "eth5",
+          "text": "Link / activity LEDs are planned (in the jack or discrete) and their PHY strap interaction is understood",
+          "hint": "LED pins often double as straps, so the LED circuit can set the strap level.",
+          "tags": [],
+          "severity": "minor"
+        },
+        {
+          "id": "eth6",
+          "text": "PHY address strapping and MDIO/MDC wiring are correct",
+          "hint": "MDIO needs a pull-up per the PHY datasheet.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "ifc-eth-1",
+          "text": "All PHY strap pins are at the intended level at reset, accounting for LED and other loads on shared pins",
+          "hint": "Straps often share LED or MAC pins; an LED or MCU pull can flip a strap. Check the strap thresholds in the datasheet.",
+          "tags": [],
+          "severity": "critical"
+        },
+        {
+          "id": "ifc-eth-2",
+          "text": "MAC-PHY interface mode (MII / RMII / RGMII) matches on both sides, including RGMII internal delays",
+          "hint": "RGMII needs a clock delay inserted by the PHY, the MAC or the PCB, and by exactly one of them.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "ifc-eth-3",
+          "text": "Isolation rating of the magnetics and the creepage from MDI to logic meet the product's requirement",
+          "hint": "Check the magnetics' rated isolation voltage and keep logic copper clear of the MDI side.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "ifc-eth-4",
+          "text": "PoE: PD controller classification and isolated converter are sized for the required power class",
+          "hint": "Size the isolated DC-DC for the full class power, including efficiency and hold-up.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "ifc-eth-5",
+          "text": "PoE: input TVS and bridge rectification are present per the PD controller datasheet",
+          "hint": "A PoE PD must accept either polarity on either pair set. Check the bridge and TVS ratings per datasheet.",
+          "tags": [],
+          "severity": "major"
+        }
+      ]
+    },
+    {
+      "id": "if-rf",
+      "title": "RF / Wireless (if applicable)",
+      "tags": [
+        "rf"
+      ],
+      "items": [
+        {
+          "id": "rf1",
+          "text": "Antenna is matched to the module / PA output (typically 50 Ω) with a Pi or L network footprint",
+          "hint": "Fit a Pi footprint even if only a 0 Ω is populated initially, so matching can be tuned on the final enclosure.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "rf2",
+          "text": "RF traces are impedance-controlled (e.g. 50 Ω microstrip or grounded coplanar waveguide)",
+          "hint": "Calculate the geometry from the actual stack-up, and stitch the coplanar ground with vias.",
+          "tags": [],
+          "severity": "critical"
+        },
+        {
+          "id": "rf3",
+          "text": "The antenna keep-out zone is free of copper on all layers",
+          "hint": "Follow the antenna or module vendor's keep-out drawing. Copper and components in the keep-out detune the antenna.",
+          "tags": [],
+          "severity": "critical"
+        },
+        {
+          "id": "rf4",
+          "text": "Crystal load capacitors for the RF device match the datasheet specification",
+          "hint": "Frequency error directly affects radio link margin. Account for stray capacitance.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "rf5",
+          "text": "Regulatory certification route (modular approval or full certification) is decided for the end product",
+          "hint": "A pre-certified module keeps its grant only if its conditions (antenna type, layout) are followed.",
+          "tags": [
+            "regulatory"
+          ],
+          "severity": "major"
+        },
+        {
+          "id": "rf6",
+          "text": "Antenna diversity or an external antenna connector option is provided if needed",
+          "hint": "Decide this before enclosure design, since connector placement drives the mechanical layout.",
+          "tags": [],
+          "severity": "minor"
+        },
+        {
+          "id": "ifc-rf-1",
+          "text": "Test point or U.FL-style connector is provided for conducted RF measurements",
+          "hint": "A switched test connector or RF test pad allows conducted power and sensitivity measurements during certification.",
+          "tags": [],
+          "severity": "major"
+        }
+      ]
+    },
+    {
+      "id": "if-gpio",
+      "title": "GPIO, Buttons & LEDs",
+      "tags": [],
+      "items": [
+        {
+          "id": "ifc-gpio-1",
+          "text": "Every GPIO has a defined state during reset and before firmware configures it",
+          "hint": "Pins float or default to pulled states that may enable loads. Add pull resistors where a floating pin is unsafe.",
+          "tags": [],
+          "severity": "critical"
+        },
+        {
+          "id": "ifc-gpio-2",
+          "text": "Boot-mode / strap pins are at the intended level and not disturbed by attached circuits",
+          "hint": "Check boot pins against the MCU datasheet. An external load can override the internal pull.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "ifc-gpio-3",
+          "text": "GPIO current per pin and per port is within MCU absolute limits",
+          "hint": "Sum the LED and other load currents on each port against the MCU's total I/O current limit.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "ifc-gpio-4",
+          "text": "No input is driven above its rated voltage (5 V tolerance checked, including when the MCU is unpowered)",
+          "hint": "5 V-tolerant pins are often tolerant only while VDD is present.",
+          "tags": [],
+          "severity": "critical"
+        },
+        {
+          "id": "ifc-gpio-5",
+          "text": "Buttons have debounce (hardware RC or firmware) and ESD protection where user-accessible",
+          "hint": "Use series resistance plus a TVS or ESD diode on buttons reachable through the enclosure.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "ifc-gpio-6",
+          "text": "Wake-capable pins are used for buttons / interrupts that must wake the device from sleep",
+          "hint": "Not every pin can wake the MCU from its deepest sleep mode. Check the datasheet's wake-pin list.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "ifc-gpio-7",
+          "text": "Unused pins are configured or terminated as the MCU datasheet recommends",
+          "hint": "Floating inputs increase supply current and can oscillate.",
+          "tags": [],
+          "severity": "major"
+        }
+      ]
+    },
+    {
+      "id": "if-debug",
+      "title": "JTAG / SWD / Debug",
+      "tags": [],
+      "items": [
+        {
+          "id": "ifc-dbg-1",
+          "text": "Debug connector pinout matches the standard probe / cable to be used",
+          "hint": "Check pin 1 orientation and keying against the probe vendor's pinout, not just the MCU datasheet.",
+          "tags": [],
+          "severity": "critical"
+        },
+        {
+          "id": "ifc-dbg-2",
+          "text": "Target voltage reference (VTref) is connected so the probe can sense I/O voltage",
+          "hint": "Without VTref, many probes cannot set their output levels.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "ifc-dbg-3",
+          "text": "Reset line is available on the debug header and has the pull-up / capacitor the MCU requires",
+          "hint": "A large reset capacitor can stop the probe from pulling reset low quickly enough.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "ifc-dbg-4",
+          "text": "Debug pins are not reused for other functions in a way that blocks connection after boot",
+          "hint": "If firmware remaps the SWD pins at boot, keep a way back in, such as connect-under-reset.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "ifc-dbg-5",
+          "text": "JTAG: TRST, TMS and TDI pull resistors follow the device datasheet",
+          "hint": "Wrong pull directions can hold the TAP in reset or make the chain unreliable.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "ifc-dbg-6",
+          "text": "JTAG chain order and TCK fan-out are checked for multi-device chains",
+          "hint": "Check TCK signal integrity where it fans out to several devices.",
+          "tags": [
+            "fpga"
+          ],
+          "severity": "major"
+        },
+        {
+          "id": "ifc-dbg-7",
+          "text": "Programming access exists in production (pads, pogo-pin pattern or Tag-Connect footprint)",
+          "hint": "Plan fixture access early. Pads hidden under components or shields cannot be probed.",
+          "tags": [
+            "production"
+          ],
+          "severity": "major"
+        },
+        {
+          "id": "ifc-dbg-8",
+          "text": "Readout / debug lock plan is defined for shipped units",
+          "hint": "Locking debug access is often irreversible. Agree the lock level and when it is applied.",
+          "tags": [
+            "production"
+          ],
+          "severity": "major"
+        }
+      ]
+    },
+    {
+      "id": "if-flash",
+      "title": "QSPI / OSPI Flash & EEPROM",
+      "tags": [],
+      "items": [
+        {
+          "id": "ifc-qspi-1",
+          "text": "Flash voltage matches the I/O supply of the controller",
+          "hint": "Common flash parts come in 1.8 V and 3.3 V variants that share a part-number prefix.",
+          "tags": [],
+          "severity": "critical"
+        },
+        {
+          "id": "ifc-qspi-2",
+          "text": "CS has a pull-up so the flash is deselected during reset and power-up",
+          "hint": "A floating CS can corrupt flash content during power transitions.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "ifc-qspi-3",
+          "text": "WP# and HOLD#/RESET# pins are pulled to an inactive state or driven when not used as IO2/IO3",
+          "hint": "In single or dual mode these pins are control inputs and must not float.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "ifc-qspi-4",
+          "text": "Quad / octal mode wiring matches the flash pinout and its QE / mode configuration",
+          "hint": "Check whether the part ships with quad mode enabled or needs a status-register write.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "ifc-qspi-5",
+          "text": "Boot ROM supports the chosen flash part, mode and address width if the device boots from it",
+          "hint": "Check the boot ROM's supported command set and dummy-cycle defaults.",
+          "tags": [],
+          "severity": "critical"
+        },
+        {
+          "id": "ifc-qspi-6",
+          "text": "Flash reset is asserted with the processor reset, so the flash is not left in a 4-byte or QPI mode after a warm reset",
+          "hint": "A warm reset that does not also reset the flash can leave the boot ROM unable to read it.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "ifc-eeprom-1",
+          "text": "EEPROM write-protect pin is in the intended state",
+          "hint": "Decide whether WP is controlled by firmware or strapped, and check its default level.",
+          "tags": [],
+          "severity": "major"
+        }
+      ]
+    },
+    {
+      "id": "if-sd",
+      "title": "SD / eMMC / SDIO",
+      "tags": [],
+      "items": [
+        {
+          "id": "ifc-sd-1",
+          "text": "CMD and DAT lines have pull-ups per the SD / eMMC specification and device datasheet",
+          "hint": "Take pull-up values from the host datasheet. Do not omit them on unused DAT lines.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "ifc-sd-2",
+          "text": "CLK has series termination at the host and no pull-up",
+          "hint": "Place the series resistor near the host to reduce ringing.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "ifc-sd-3",
+          "text": "Bus lines are length-matched to CLK for the highest speed mode used",
+          "hint": "Faster modes need tighter matching. Check the host datasheet.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "ifc-sd-4",
+          "text": "UHS-I card voltage switching (3.3 V to 1.8 V signalling) is supported by the I/O supply if UHS modes are used",
+          "hint": "Without a switchable I/O supply, the card falls back to slower modes.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "ifc-sd-5",
+          "text": "SD card power is switched so the card can be power-cycled to recover from errors",
+          "hint": "A card stuck in a bad state often recovers only after a full power cycle.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "ifc-sd-6",
+          "text": "ESD protection is fitted on the user-accessible SD slot lines",
+          "hint": "Use low-capacitance protection suited to the bus speed.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "ifc-sd-7",
+          "text": "eMMC VCC and VCCQ rails and their decoupling match the device datasheet",
+          "hint": "VCCQ may be 1.8 V or 3.3 V depending on the device and the bus mode.",
+          "tags": [],
+          "severity": "major"
+        }
+      ]
+    },
+    {
+      "id": "if-ddr",
+      "title": "DDR / External Memory",
+      "tags": [
+        "ddr"
+      ],
+      "items": [
+        {
+          "id": "ifc-ddr-1",
+          "text": "DDR type, density and speed grade are supported by the controller and its boot / init software",
+          "hint": "Confirm the controller's supported device widths, ranks and densities.",
+          "tags": [],
+          "severity": "critical"
+        },
+        {
+          "id": "ifc-ddr-2",
+          "text": "Pin and byte-lane mapping follows the controller's allowed swaps",
+          "hint": "Many controllers allow bit swaps within a byte lane but not across lanes. Check the vendor rules.",
+          "tags": [],
+          "severity": "critical"
+        },
+        {
+          "id": "ifc-ddr-3",
+          "text": "Data byte lanes are length-matched to their strobes within the controller vendor's limits",
+          "hint": "Use the vendor's limits, including package delays if the design guide requires them.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "ifc-ddr-4",
+          "text": "Address / command / control group is length-matched to the clock within the controller vendor's limits",
+          "hint": "Fly-by and T-branch topologies have different rules. Follow the controller design guide.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "ifc-ddr-5",
+          "text": "VTT termination regulator can source and sink the required current (fly-by topologies)",
+          "hint": "VTT must track VDDQ/2 and handle both sink and source current.",
+          "tags": [],
+          "severity": "critical"
+        },
+        {
+          "id": "ifc-ddr-6",
+          "text": "VREF generation, filtering and routing follow the controller / memory datasheet",
+          "hint": "Keep VREF away from noisy nets and decouple it at each device.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "ifc-ddr-7",
+          "text": "ZQ calibration resistors are fitted with the specified value and tolerance",
+          "hint": "Use a dedicated resistor per device where required; do not share ZQ resistors unless the datasheet allows it.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "ifc-ddr-8",
+          "text": "Memory power sequencing and RESET_n / CKE behaviour follow the JEDEC device datasheet",
+          "hint": "Incorrect sequencing can make initialization unreliable.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "ifc-ddr-9",
+          "text": "Signal-integrity simulation or the vendor's layout check has been completed",
+          "hint": "Run the controller vendor's layout or SI checklist before release.",
+          "tags": [],
+          "severity": "major"
+        }
+      ]
+    },
+    {
+      "id": "if-pcie",
+      "title": "PCIe",
+      "tags": [
+        "high-speed"
+      ],
+      "items": [
+        {
+          "id": "ifc-pcie-1",
+          "text": "TX/RX lane polarity and lane order are correct or are supported reversals",
+          "hint": "PCIe allows polarity inversion within a pair. Lane-reversal support depends on the device.",
+          "tags": [],
+          "severity": "critical"
+        },
+        {
+          "id": "ifc-pcie-2",
+          "text": "AC-coupling capacitors are on the TX side of each link with the value the spec requires",
+          "hint": "Check which end of the link needs the capacitors on each pair.",
+          "tags": [],
+          "severity": "critical"
+        },
+        {
+          "id": "ifc-pcie-3",
+          "text": "Reference clock source, architecture (common / separate) and jitter meet the endpoint requirement",
+          "hint": "Check the clock's jitter against the requirement for the PCIe generation used.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "ifc-pcie-4",
+          "text": "PERST# is driven with the required timing relative to power-good and refclk",
+          "hint": "PERST# must be held asserted until power and refclk are stable.",
+          "tags": [],
+          "severity": "critical"
+        },
+        {
+          "id": "ifc-pcie-5",
+          "text": "CLKREQ# and WAKE# are wired as open-drain with pull-ups if used",
+          "hint": "Check the pull-up voltage domain, since these signals may cross power domains.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "ifc-pcie-6",
+          "text": "Differential pairs are at the target impedance with intra-pair skew controlled",
+          "hint": "Route both signals of a pair together on one reference plane, with skew compensation near the mismatch.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "ifc-pcie-7",
+          "text": "M.2 / card-edge connector key, pinout and power rails match the module type",
+          "hint": "Check the M.2 key, module length and 3.3 V current per the module datasheet.",
+          "tags": [],
+          "severity": "major"
+        }
+      ]
+    },
+    {
+      "id": "if-csi",
+      "title": "MIPI CSI Camera",
+      "tags": [],
+      "items": [
+        {
+          "id": "ifc-csi-1",
+          "text": "Lane count, data rate and lane mapping are supported by the processor's CSI receiver",
+          "hint": "Check the processor supports the sensor's output format and bit depth.",
+          "tags": [],
+          "severity": "critical"
+        },
+        {
+          "id": "ifc-csi-2",
+          "text": "D-PHY / C-PHY pairs are routed at the target impedance and length-matched to the clock lane",
+          "hint": "Keep the clock and data lanes on the same layer and reference plane.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "ifc-csi-3",
+          "text": "Sensor MCLK frequency and source match the sensor datasheet",
+          "hint": "Some sensors need a specific MCLK frequency for their PLL to reach the configured frame rates.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "ifc-csi-4",
+          "text": "Sensor power rails and sequencing match the sensor datasheet",
+          "hint": "Image sensors often need the analog, digital and I/O rails in a specific order.",
+          "tags": [],
+          "severity": "critical"
+        },
+        {
+          "id": "ifc-csi-5",
+          "text": "Camera control I2C (CCI) address does not clash with other devices",
+          "hint": "Some sensors have a fixed address, so two identical cameras may need separate buses or an I2C mux.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "ifc-csi-6",
+          "text": "Reset / power-down pins have defined states during processor reset",
+          "hint": "An undefined power-down pin can leave the sensor drawing current or driving the bus while the host boots.",
+          "tags": [],
+          "severity": "major"
+        }
+      ]
+    },
+    {
+      "id": "if-hdmi",
+      "title": "HDMI / DisplayPort",
+      "tags": [
+        "high-speed"
+      ],
+      "items": [
+        {
+          "id": "ifc-hdmi-1",
+          "text": "TMDS / main-link pairs are at the target impedance and length-matched",
+          "hint": "Take impedance and skew limits from the transmitter / retimer design guide.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "ifc-hdmi-2",
+          "text": "Low-capacitance ESD protection rated for the link speed is fitted at the connector",
+          "hint": "The protection device's capacitance must suit the link speed.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "ifc-hdmi-3",
+          "text": "DDC / AUX pull-ups and level shifting are present per the interface specification",
+          "hint": "DDC is open-drain at 5 V on the cable side. Most SoCs need a level shifter.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "ifc-hdmi-4",
+          "text": "Hot-plug detect is wired and level-shifted to the controller",
+          "hint": "Hot-plug detect is often at 5 V on the cable side and needs a divider or shifter.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "ifc-hdmi-5",
+          "text": "HDMI 5 V output has current limiting (source) or is not back-driven (sink)",
+          "hint": "A source must limit its 5 V output; a sink must not back-drive the source through it.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "ifc-hdmi-6",
+          "text": "DisplayPort AC-coupling capacitors are present on the main link",
+          "hint": "Check the capacitor value and placement per the transmitter datasheet.",
+          "tags": [],
+          "severity": "major"
+        }
+      ]
+    },
+    {
+      "id": "if-serial",
+      "title": "RS-232 / RS-485 / RS-422",
+      "tags": [],
+      "items": [
+        {
+          "id": "ifc-ser-1",
+          "text": "Transceiver ESD / surge rating suits the cable environment",
+          "hint": "Add TVS rated for the transceiver's bus voltage range if the built-in protection is not enough. Complements the RS-232 / RS-485 checks in the UART section.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "ifc-ser-2",
+          "text": "RS-485 common-mode range covers the expected ground offset between nodes, or the link is isolated",
+          "hint": "Ground offsets between buildings or equipment can exceed the transceiver's common-mode range.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "ifc-ser-3",
+          "text": "RS-485 unit load and node count are within the transceiver's rating",
+          "hint": "Fractional unit-load transceivers allow more nodes on one segment.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "ifc-ser-4",
+          "text": "Data rate and cable length are within the transceiver's slew-rate capability",
+          "hint": "Slew-limited transceivers reduce EMI but cap the data rate.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "ifc-ser-5",
+          "text": "Isolated transceivers have an isolated supply sized and laid out per datasheet",
+          "hint": "Check the isolated supply delivers enough current for the transceiver at the maximum data rate.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "ifc-ser-6",
+          "text": "RS-422 receivers are terminated and the driver remains enabled (point-to-multipoint)",
+          "hint": "RS-422 drivers are normally always enabled. Termination sits at the far receiver.",
+          "tags": [],
+          "severity": "major"
+        }
+      ]
+    },
+    {
+      "id": "if-lin",
+      "title": "LIN",
+      "tags": [],
+      "items": [
+        {
+          "id": "ifc-lin-1",
+          "text": "LIN transceiver battery-pin rating covers the transients expected on the supply line",
+          "hint": "LIN nodes connect directly to the battery line, so the transceiver sees battery transients.",
+          "tags": [],
+          "severity": "critical"
+        },
+        {
+          "id": "ifc-lin-2",
+          "text": "Commander node has the commander pull-up and series diode per the transceiver datasheet",
+          "hint": "Only the commander node fits the pull-up.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "ifc-lin-3",
+          "text": "Bus capacitance on the node is within the transceiver / LIN spec allowance",
+          "hint": "Excess node capacitance slows edges and can cause bit errors.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "ifc-lin-4",
+          "text": "LIN wake-up and sleep modes are wired so the node meets its quiescent-current budget",
+          "hint": "Check the node's sleep current with the transceiver in sleep mode.",
+          "tags": [
+            "low-power"
+          ],
+          "severity": "major"
+        },
+        {
+          "id": "ifc-lin-5",
+          "text": "ESD protection on the LIN pin is suitable for automotive-level ESD",
+          "hint": "Choose a TVS rated for LIN bus voltages, or rely on the transceiver's rating if it is sufficient.",
+          "tags": [
+            "automotive"
+          ],
+          "severity": "major"
+        },
+        {
+          "id": "ifc-lin-6",
+          "text": "Transceiver INH / EN pins are wired to control the node's regulator as intended",
+          "hint": "INH can switch the node's regulator so the node fully powers down in sleep.",
+          "tags": [],
+          "severity": "major"
+        }
+      ]
+    },
+    {
+      "id": "if-1wire",
+      "title": "1-Wire",
+      "tags": [],
+      "items": [
+        {
+          "id": "ifc-1w-1",
+          "text": "Pull-up resistor value suits the bus length and number of devices",
+          "hint": "Long buses or many devices may need a lower pull-up value. Check the device datasheet.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "ifc-1w-2",
+          "text": "Strong pull-up (or external supply) is provided for devices that need it during conversion / write",
+          "hint": "Parasitically powered devices draw extra current during temperature conversion or EEPROM writes.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "ifc-1w-3",
+          "text": "Bus driver is open-drain with timing generated by a peripheral or tolerant firmware",
+          "hint": "Bit-banged timing must survive the worst-case interrupt latency.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "ifc-1w-4",
+          "text": "ESD protection is fitted where the bus leaves the board",
+          "hint": "Use protection that does not add enough capacitance to break the bus timing.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "ifc-1w-5",
+          "text": "Device discovery (ROM search) or fixed addressing is planned",
+          "hint": "Plan how ROM codes are discovered or stored when there are several devices.",
+          "tags": [],
+          "severity": "minor"
+        },
+        {
+          "id": "ifc-1w-6",
+          "text": "Long cable runs use a dedicated 1-Wire driver if needed",
+          "hint": "A dedicated 1-Wire master IC handles long cable runs better than a GPIO.",
+          "tags": [],
+          "severity": "major"
+        }
+      ]
+    },
+    {
+      "id": "if-sensor",
+      "title": "Analog Sensor Inputs",
+      "tags": [
+        "precision-analog"
+      ],
+      "items": [
+        {
+          "id": "ifc-sens-1",
+          "text": "4–20 mA input: burden resistor value, tolerance and power rating suit the full current range",
+          "hint": "Include fault currents above 20 mA and below 4 mA so faults can be detected.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "ifc-sens-2",
+          "text": "4–20 mA input: burden resistor and ADC input are protected against miswiring to the loop supply",
+          "hint": "A field wiring error can put the loop supply directly across the burden resistor or the ADC input.",
+          "tags": [],
+          "severity": "critical"
+        },
+        {
+          "id": "ifc-sens-3",
+          "text": "4–20 mA loop supply compliance voltage is enough for the transmitter plus burden and cable drop",
+          "hint": "Calculate the minimum loop supply needed at full-scale current with the worst-case cable resistance.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "ifc-sens-4",
+          "text": "Thermocouple input has open-thermocouple detection (bias / burnout current)",
+          "hint": "Without it, a broken thermocouple can read as a plausible temperature. Complements the CJC check in the ADC section.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "ifc-sens-5",
+          "text": "RTD wiring (2, 3 or 4 wire) matches the lead-resistance error budget",
+          "hint": "Two-wire RTDs add lead resistance directly to the reading; three- and four-wire connections cancel it. Complements the excitation check in the ADC section.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "ifc-sens-6",
+          "text": "Bridge sensors: excitation, gain and offset are budgeted for full-scale range",
+          "hint": "Check the bridge output range against the ADC input range at the chosen gain.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "ifc-sens-7",
+          "text": "Sensor inputs have EMI filtering suited to cable length and the environment",
+          "hint": "Use RC filtering on each input, plus differential filtering where the inputs are differential.",
+          "tags": [],
+          "severity": "major"
+        }
+      ]
+    },
+    {
+      "id": "if-audio",
+      "title": "Audio Codec & Amplifier",
+      "tags": [
+        "audio"
+      ],
+      "items": [
+        {
+          "id": "ifc-aud-1",
+          "text": "Codec analog supply is low-noise and decoupled per datasheet",
+          "hint": "Analog supply noise appears directly in the audio output.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "ifc-aud-2",
+          "text": "Microphone bias and input coupling capacitors are correct for the mic type",
+          "hint": "Electret mics need a bias supply; analog MEMS mics need supply and coupling per datasheet.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "ifc-aud-3",
+          "text": "Class-D amplifier output filter / ferrite choice suits the EMC requirement",
+          "hint": "Filterless class-D outputs can radiate on long speaker wires.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "ifc-aud-4",
+          "text": "Amplifier power and speaker impedance are compatible and the supply can deliver the peak current",
+          "hint": "Peak current at low speaker impedance can sag the supply and cause resets.",
+          "tags": [],
+          "severity": "critical"
+        },
+        {
+          "id": "ifc-aud-5",
+          "text": "Headphone output has coupling capacitors or is ground-centred (cap-less) per datasheet",
+          "hint": "Coupling-capacitor value sets the low-frequency cutoff with the headphone impedance.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "ifc-aud-6",
+          "text": "ESD protection is fitted on audio jacks without degrading audio quality",
+          "hint": "Low-capacitance protection avoids degrading the audio quality.",
+          "tags": [],
+          "severity": "major"
+        }
+      ]
+    },
+    {
+      "id": "if-touch",
+      "title": "Touch",
+      "tags": [
+        "display"
+      ],
+      "items": [
+        {
+          "id": "ifc-touch-1",
+          "text": "Touch controller supports the sensor size and channel count",
+          "hint": "Check the channel count and the sensor pattern against the controller vendor's guidance.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "ifc-touch-2",
+          "text": "Touch controller reset line is connected and defined during processor reset",
+          "hint": "Without reset control, a hung controller needs a full power cycle to recover.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "ifc-touch-3",
+          "text": "Interrupt line is wake-capable if touch must wake the system",
+          "hint": "Check that the interrupt pin can wake the processor from its sleep mode.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "ifc-touch-4",
+          "text": "Touch supply is clean and away from display / backlight switching noise",
+          "hint": "Display and backlight noise is a common cause of false touches.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "ifc-touch-5",
+          "text": "Ground and shield connections between touch panel, display and chassis follow the vendor guidance",
+          "hint": "Follow the touch vendor's grounding guidance; poor grounding gives false or missed touches.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "ifc-touch-6",
+          "text": "Firmware / configuration file loading for the touch controller is planned",
+          "hint": "Some controllers need a configuration or firmware file loaded at every boot.",
+          "tags": [],
+          "severity": "minor"
+        }
+      ]
+    },
+    {
+      "id": "if-wireless",
+      "title": "Wireless Modules (BLE / Wi-Fi / Cellular / GNSS)",
+      "tags": [
+        "rf"
+      ],
+      "items": [
+        {
+          "id": "ifc-wl-1",
+          "text": "Module footprint and keep-out follow the module vendor's reference design",
+          "hint": "Deviating from the reference layout can affect RF performance and the module's certification.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "ifc-wl-2",
+          "text": "Module supply can deliver the peak transmit current without dropping below its minimum voltage",
+          "hint": "Cellular modules draw large current bursts; size bulk capacitance per vendor guidance.",
+          "tags": [],
+          "severity": "critical"
+        },
+        {
+          "id": "ifc-wl-3",
+          "text": "Module reset / power-key / boot pins are controllable by the host",
+          "hint": "Host control lets firmware recover a hung module without a full power cycle.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "ifc-wl-4",
+          "text": "Host interface (UART / SPI / SDIO / USB) and its flow control are wired per the module datasheet",
+          "hint": "Hardware flow control is usually needed at high UART rates.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "ifc-wl-5",
+          "text": "Cellular: SIM / eSIM circuit has ESD protection and the required decoupling",
+          "hint": "Check the SIM interface follows the module vendor's reference design.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "ifc-wl-6",
+          "text": "GNSS: active antenna bias and LNA supply are provided if needed",
+          "hint": "Active GNSS antennas need a DC bias on the RF feed, with a current limit to protect against a shorted cable.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "ifc-wl-7",
+          "text": "Module certifications cover the chosen antenna type and gain",
+          "hint": "Using a different antenna type or a higher gain can invalidate the module's certification.",
+          "tags": [
+            "regulatory"
+          ],
+          "severity": "major"
+        }
+      ]
+    },
+    {
+      "id": "if-motor",
+      "title": "Motor Driver Interfaces",
+      "tags": [
+        "motor"
+      ],
+      "items": [
+        {
+          "id": "ifc-mot-1",
+          "text": "Driver enable / PWM inputs are pulled to a safe (off) state during MCU reset",
+          "hint": "Use pull resistors on driver inputs so the bridge stays off before firmware runs. Complements the dead-time and break-input checks in Timers & PWM.",
+          "tags": [],
+          "severity": "critical"
+        },
+        {
+          "id": "ifc-mot-2",
+          "text": "Current sense feedback scaling and filtering suit the ADC range and the control loop",
+          "hint": "Check the sense amplifier's bandwidth and the filter delay against the control loop requirement.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "ifc-mot-3",
+          "text": "Driver fault output is wired to an interrupt or the timer break input",
+          "hint": "Route the fault to the timer break input so the outputs shut down in hardware.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "ifc-mot-4",
+          "text": "Hall / encoder inputs have filtering and pull-ups for the cable length",
+          "hint": "Long cables near motor wiring pick up noise; add filtering and pull-ups at the receiver.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "ifc-mot-5",
+          "text": "Driver SPI / configuration interface is at a compatible logic level",
+          "hint": "Some drivers have 5 V logic levels that need translation to 3.3 V MCUs.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "ifc-mot-6",
+          "text": "Logic ground and power ground are joined so that motor currents do not flow in the logic reference",
+          "hint": "Motor current through the logic ground shifts logic references and causes false readings.",
+          "tags": [],
+          "severity": "major"
+        }
+      ]
+    },
+    {
+      "id": "if-indio",
+      "title": "Industrial I/O (24 V Digital)",
+      "tags": [
+        "harsh-env"
+      ],
+      "items": [
+        {
+          "id": "ifc-io-1",
+          "text": "24 V digital inputs tolerate reverse polarity and the overvoltage expected in the installation",
+          "hint": "Field wiring errors and surges are common in industrial installations.",
+          "tags": [],
+          "severity": "critical"
+        },
+        {
+          "id": "ifc-io-2",
+          "text": "Input thresholds and current match the relevant input type (e.g. IEC 61131-2 type 1 / 3) where required",
+          "hint": "Industrial input types define switching thresholds and minimum currents for compatibility with sensors.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "ifc-io-3",
+          "text": "Inputs are isolated or filtered so field noise does not reach logic",
+          "hint": "Optocouplers or digital isolators keep field noise and ground offsets out of the logic.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "ifc-io-4",
+          "text": "High-side outputs have short-circuit and thermal protection",
+          "hint": "Use smart high-side switches with built-in protection, or discrete current limiting.",
+          "tags": [],
+          "severity": "critical"
+        },
+        {
+          "id": "ifc-io-5",
+          "text": "Inductive loads on outputs have a demagnetization / clamp path",
+          "hint": "Turning off an inductive load without a clamp path can destroy the output switch.",
+          "tags": [],
+          "severity": "critical"
+        },
+        {
+          "id": "ifc-io-6",
+          "text": "Surge and EFT protection on field terminals suits the target immunity level",
+          "hint": "Choose TVS and filtering suited to the expected surge and EFT levels.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "ifc-io-7",
+          "text": "Field-side supply is protected and fused",
+          "hint": "Protect the field supply with a fuse or electronic current limit so a field short does not take down the board.",
+          "tags": [],
+          "severity": "major"
+        }
+      ]
+    }
+  ]
+}

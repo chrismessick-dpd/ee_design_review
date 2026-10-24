@@ -1,0 +1,846 @@
+{
+  "id": "fab",
+  "title": "Fabrication & Release Review",
+  "short": "Fab & Release",
+  "version": 1,
+  "description": "Checks that the fabrication package, drawing, stackup, panel and release records are complete and match the fabricator's capability before the board is ordered.",
+  "sections": [
+    {
+      "id": "g-fil",
+      "title": "Fab Package & Gerber Files",
+      "tags": [],
+      "items": [
+        {
+          "id": "gf1",
+          "text": "All required layers are exported: copper (top, bottom, inner), silkscreen, solder mask and paste",
+          "hint": "Compare the layer list against the stackup; a missing inner layer is easy to miss in a zip.",
+          "tags": [],
+          "severity": "critical"
+        },
+        {
+          "id": "gf2",
+          "text": "The board outline (Edge.Cuts / mechanical layer) is exported correctly",
+          "hint": "Include internal cutouts and slots, and make the outline a closed contour.",
+          "tags": [],
+          "severity": "critical"
+        },
+        {
+          "id": "gf3",
+          "text": "The drill file (Excellon / NC drill) is exported with correct units and zero suppression",
+          "hint": "Overlay the drill file on copper in a CAM viewer; a units or format mismatch shows up as offset or scaled holes.",
+          "tags": [],
+          "severity": "critical"
+        },
+        {
+          "id": "gf4",
+          "text": "Gerber files are opened in a CAM viewer and visually checked before submission",
+          "hint": "Use an independent viewer, not the CAD tool that made them.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "gf5",
+          "text": "File names follow the fabricator's requirements (no spaces, correct extensions)",
+          "tags": [],
+          "severity": "minor"
+        },
+        {
+          "id": "gf6",
+          "text": "The revision identifier is included in the file names or fab notes",
+          "hint": "Every file and the zip itself should carry the revision so mixed-revision packages are obvious.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "fab-pkg-1",
+          "text": "Gerber X2, ODB++ or IPC-2581 is used, as agreed with the fabricator",
+          "hint": "Intelligent formats carry layer function and stackup, reducing interpretation errors.",
+          "tags": [],
+          "severity": "minor"
+        },
+        {
+          "id": "fab-pkg-2",
+          "text": "Plated and non-plated holes are in separate drill files or clearly attributed",
+          "hint": "Mixing them leads to plated mounting holes or unplated vias.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "fab-pkg-3",
+          "text": "An IPC-D-356 netlist is included for the fabricator's electrical test",
+          "hint": "Without it the fab tests against a netlist extracted from the Gerbers, which won't catch design-to-Gerber errors.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "fab-pkg-4",
+          "text": "A drill drawing or drill table lists every hole size, symbol, quantity and plating",
+          "hint": "Check the totals against the drill file.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "fab-pkg-5",
+          "text": "A readme lists every file in the package and its function",
+          "hint": "Include layer order, contact name and the revision.",
+          "tags": [],
+          "severity": "minor"
+        },
+        {
+          "id": "fab-pkg-6",
+          "text": "The copper layer order is unambiguous and matches the stackup",
+          "hint": "Name files by layer number (L1…Ln) or use X2 attributes, so inner layers can't be swapped.",
+          "tags": [],
+          "severity": "critical"
+        },
+        {
+          "id": "fab-pkg-7",
+          "text": "The fabrication drawing is included as a PDF in the package",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "fab-pkg-8",
+          "text": "Each blind, buried or backdrill span has its own drill file",
+          "hint": "Name the start and end layer of each span.",
+          "tags": [
+            "hdi",
+            "high-speed"
+          ],
+          "severity": "major"
+        }
+      ]
+    },
+    {
+      "id": "g-fab",
+      "title": "Fabrication Drawing & Notes",
+      "tags": [],
+      "items": [
+        {
+          "id": "gn1",
+          "text": "Controlled impedance requirements are specified with reference to the stackup",
+          "hint": "Point to the impedance table rather than repeating values in several places.",
+          "tags": [],
+          "severity": "critical"
+        },
+        {
+          "id": "gn2",
+          "text": "Surface finish is specified (ENIG, HASL, OSP, etc.) and matches design requirements",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "gn3",
+          "text": "Copper weight is specified per layer (e.g. 1 oz outer, 0.5 oz inner)",
+          "hint": "State whether outer weights are base or finished after plating.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "gn4",
+          "text": "Solder mask and silkscreen colours are specified",
+          "tags": [],
+          "severity": "minor"
+        },
+        {
+          "id": "gn5",
+          "text": "Via fill / tenting requirements are specified (tented, plugged, filled)",
+          "hint": "Name the via type and treatment, ideally using IPC-4761 types, and which vias it applies to.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "gn6",
+          "text": "The IPC-6012 performance class (Class 2 or Class 3) is specified on the fab drawing",
+          "hint": "Class 3 costs more and limits fab choice; specify it only where needed.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "fab-not-1",
+          "text": "The base material is specified by type and key properties, or by IPC-4101 slash sheet",
+          "hint": "\"FR-4\" alone covers a wide range of materials; name Tg and, if needed, Td and Dk.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "fab-not-2",
+          "text": "Material Tg and Td suit lead-free assembly and the operating temperature",
+          "hint": "Mid- or high-Tg material is typical for lead-free, thick or high-layer-count boards; confirm per fab capability.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "fab-not-3",
+          "text": "Finished board thickness and tolerance are specified",
+          "hint": "Say where it is measured (over copper, over mask); it matters for edge connectors and card guides.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "fab-not-4",
+          "text": "Finished hole size tolerances are specified for plated and non-plated holes",
+          "hint": "Tolerances tighter than standard (press-fit, locating pins) must be called out explicitly.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "fab-not-5",
+          "text": "Flammability rating is specified where the product needs it (e.g. UL 94 V-0)",
+          "hint": "Check the safety standard for the product; the fab must use a recognised material and process.",
+          "tags": [
+            "mains",
+            "regulatory"
+          ],
+          "severity": "major"
+        },
+        {
+          "id": "fab-not-6",
+          "text": "Plated edges and castellated holes are called out on the drawing",
+          "hint": "Both need special process steps; the fab will not add them unprompted.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "fab-not-7",
+          "text": "Edge connector bevel angle and depth are specified",
+          "hint": "Card-edge fingers need a bevel to mate cleanly; follow the connector spec.",
+          "tags": [],
+          "severity": "minor"
+        }
+      ]
+    },
+    {
+      "id": "f-stk",
+      "title": "Stackup & Impedance",
+      "tags": [],
+      "items": [
+        {
+          "id": "fab-stk-1",
+          "text": "The fab drawing has a stackup with layer order, copper weights, dielectric thicknesses and materials",
+          "tags": [],
+          "severity": "critical"
+        },
+        {
+          "id": "fab-stk-2",
+          "text": "The stackup is confirmed by the fabricator with their actual materials before release",
+          "hint": "A stackup built from catalogue values can't always be made. Get the fab's stackup back in writing.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "fab-stk-3",
+          "text": "The stackup is symmetric about its centre",
+          "hint": "Asymmetric copper or dielectric causes bow and twist after lamination and reflow.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "fab-stk-4",
+          "text": "The impedance table lists each target, tolerance, layer, reference planes and trace geometry",
+          "hint": "Include differential pairs with both width and spacing.",
+          "tags": [
+            "high-speed",
+            "rf",
+            "ddr"
+          ],
+          "severity": "critical"
+        },
+        {
+          "id": "fab-stk-5",
+          "text": "Dk and loss tangent used in design are at the relevant frequency and confirmed by the fab",
+          "hint": "Datasheet Dk is often quoted at a lower frequency than the signal of interest.",
+          "tags": [
+            "rf",
+            "high-speed"
+          ],
+          "severity": "major"
+        },
+        {
+          "id": "fab-stk-6",
+          "text": "Dielectric thicknesses in the CAD stackup match the fab-confirmed stackup",
+          "hint": "Re-run impedance calculations if the fab changed any thickness or material.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "fab-stk-7",
+          "text": "The fab may adjust trace widths to hit impedance, within stated limits",
+          "hint": "State the maximum adjustment allowed so the fab can tune without breaking spacing rules.",
+          "tags": [
+            "high-speed",
+            "rf",
+            "ddr"
+          ],
+          "severity": "major"
+        },
+        {
+          "id": "fab-stk-8",
+          "text": "Heavy-copper layers meet the fab's minimum spacing and resin-fill capability",
+          "hint": "Heavy copper needs wider spacing and thicker prepreg to fill between features.",
+          "tags": [
+            "high-current"
+          ],
+          "severity": "major"
+        },
+        {
+          "id": "fab-stk-9",
+          "text": "Dielectric thickness between isolated layers meets the insulation requirement",
+          "hint": "Check against the safety standard's requirement for insulation through the board.",
+          "tags": [
+            "mains"
+          ],
+          "severity": "critical"
+        }
+      ]
+    },
+    {
+      "id": "f-drl",
+      "title": "Drill, Vias & Plating",
+      "tags": [],
+      "items": [
+        {
+          "id": "fab-drl-1",
+          "text": "The smallest plated drill and board thickness are within the fab's aspect-ratio capability",
+          "hint": "Rule of thumb: through-hole aspect ratio around 8:1 to 10:1 for standard processes; confirm with the fab.",
+          "tags": [],
+          "severity": "critical"
+        },
+        {
+          "id": "fab-drl-2",
+          "text": "Annular rings meet the fab's capability for the specified IPC class",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "fab-drl-3",
+          "text": "Hole wall plating thickness is specified, or set by the IPC-6012 class",
+          "hint": "Thicker plating improves via reliability under thermal cycling.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "fab-drl-4",
+          "text": "Microvia aspect ratio and size are within the fab's capability",
+          "hint": "Rule of thumb: microvia depth no more than about its diameter; confirm with the fab.",
+          "tags": [
+            "hdi"
+          ],
+          "severity": "critical"
+        },
+        {
+          "id": "fab-drl-5",
+          "text": "Stacked versus staggered microvias are agreed with the fab",
+          "hint": "Stacked microvias need filled vias and cost more; some fabs advise staggering for reliability.",
+          "tags": [
+            "hdi"
+          ],
+          "severity": "major"
+        },
+        {
+          "id": "fab-drl-6",
+          "text": "Via-in-pad vias are filled and plated over (capped)",
+          "hint": "Usually IPC-4761 Type VII. Unfilled via-in-pad wicks solder away from BGA and QFN joints.",
+          "tags": [
+            "hdi",
+            "bga"
+          ],
+          "severity": "critical"
+        },
+        {
+          "id": "fab-drl-7",
+          "text": "Backdrill depth, maximum stub length and must-not-cut layers are specified",
+          "hint": "Give it per net or per drill span, matched to the backdrill file.",
+          "tags": [
+            "high-speed"
+          ],
+          "severity": "major"
+        },
+        {
+          "id": "fab-drl-8",
+          "text": "Slots and non-round holes are defined in the drill or rout file and on the drawing",
+          "hint": "Plated slots in particular are often lost or made as round holes.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "fab-drl-9",
+          "text": "Press-fit holes are listed in the drill table with their finished size and tolerance",
+          "hint": "Use the connector manufacturer's hole specification; plating thickness affects the finished size.",
+          "tags": [],
+          "severity": "critical"
+        }
+      ]
+    },
+    {
+      "id": "f-msk",
+      "title": "Solder Mask & Silkscreen",
+      "tags": [],
+      "items": [
+        {
+          "id": "fab-msk-1",
+          "text": "Solder mask expansion around pads meets the fab's registration capability",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "fab-msk-2",
+          "text": "Solder mask web between fine-pitch pads meets the fab's minimum",
+          "hint": "Below the minimum, the fab will remove the web silently. Decide whether that is acceptable.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "fab-msk-3",
+          "text": "Mask openings exist for test points, fiducials and intentionally exposed copper",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "fab-msk-4",
+          "text": "There is no unintended exposed copper near pads or traces",
+          "hint": "Look for mask openings on vias or traces that could short to parts or chassis.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "fab-msk-5",
+          "text": "Silkscreen is clipped clear of pads and exposed copper",
+          "tags": [],
+          "severity": "minor"
+        },
+        {
+          "id": "fab-msk-6",
+          "text": "Silkscreen text height and line width meet the fab's minimum",
+          "hint": "Rule of thumb: around 0.15 mm (6 mil) line width and 0.8–1.0 mm text height for legibility.",
+          "tags": [],
+          "severity": "minor"
+        },
+        {
+          "id": "fab-msk-7",
+          "text": "Safety markings (high-voltage warnings, isolation boundaries) are on the silkscreen",
+          "hint": "Check the product's safety standard for required symbols.",
+          "tags": [
+            "mains"
+          ],
+          "severity": "major"
+        }
+      ]
+    },
+    {
+      "id": "f-fin",
+      "title": "Surface Finish",
+      "tags": [],
+      "items": [
+        {
+          "id": "fab-fin-1",
+          "text": "The surface finish suits the finest-pitch parts and their flatness needs",
+          "hint": "HASL is uneven and generally a poor fit for fine pitch and BGA; ENIG, OSP or immersion finishes are flatter.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "fab-fin-2",
+          "text": "The finish suits any wire bonding, press-fit or contact areas",
+          "hint": "Check connector and bonding requirements; ENEPIG or hard gold may be needed.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "fab-fin-3",
+          "text": "The finish's shelf life suits the build schedule",
+          "hint": "OSP and immersion silver or tin degrade with storage time; plan build dates accordingly.",
+          "tags": [],
+          "severity": "minor"
+        },
+        {
+          "id": "fab-fin-4",
+          "text": "The finish is lead-free where RoHS compliance is required",
+          "hint": "Specify lead-free HASL rather than plain HASL if HASL is used.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "fab-fin-5",
+          "text": "Hard gold areas (edge fingers, contact pads) have a specified thickness",
+          "hint": "Thickness depends on mating cycles; follow the connector or contact spec.",
+          "tags": [],
+          "severity": "major"
+        }
+      ]
+    },
+    {
+      "id": "g-pan",
+      "title": "Panelisation",
+      "tags": [],
+      "items": [
+        {
+          "id": "gp1",
+          "text": "Panel size and array configuration are agreed with the fabricator",
+          "hint": "Also confirm them with the assembler: the panel is their unit of work.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "gp2",
+          "text": "V-score or tab-route breakaway method is specified and consistent",
+          "hint": "V-score only works for straight edges that run the full panel width.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "gp3",
+          "text": "Rails, tooling holes and fiducials are included in the panel design",
+          "hint": "Follow the assembler's preferred rail width and tooling hole size.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "gp4",
+          "text": "Copper balance across the panel is checked to minimise warpage",
+          "hint": "Add copper thieving on rails and empty areas if layers are unbalanced.",
+          "tags": [],
+          "severity": "minor"
+        },
+        {
+          "id": "fab-pnl-1",
+          "text": "Panel dimensions fit the assembler's line limits",
+          "hint": "Check both minimum and maximum conveyor sizes and the maximum panel weight.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "fab-pnl-2",
+          "text": "Components near break lines keep a safe distance and MLCCs run parallel to the break line",
+          "hint": "Break stress cracks ceramic capacitors. Keep clearance per assembler guidance.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "fab-pnl-3",
+          "text": "Parts that overhang the board edge have clearance cutouts in the panel",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "fab-pnl-4",
+          "text": "A panel drawing is included in the release package",
+          "hint": "Dimension the array, rails, tooling holes, fiducials and break features.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "fab-pnl-5",
+          "text": "V-score depth, angle and residual web are specified per fab capability",
+          "tags": [],
+          "severity": "minor"
+        },
+        {
+          "id": "fab-pnl-6",
+          "text": "The depanelisation method won't overstress nearby components",
+          "hint": "Hand breaking and pizza-cutter separation flex the board; routing is gentler for sensitive parts.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "fab-pnl-7",
+          "text": "The policy for scrapped boards in a panel (X-outs) is agreed",
+          "hint": "Some assemblers reject panels containing X-outs, or charge extra for them.",
+          "tags": [
+            "production"
+          ],
+          "severity": "minor"
+        }
+      ]
+    },
+    {
+      "id": "f-tst",
+      "title": "Electrical Test & Coupons",
+      "tags": [],
+      "items": [
+        {
+          "id": "fab-tst-1",
+          "text": "100% bare-board electrical test is required",
+          "hint": "Flying probe for prototypes, fixture test for volume.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "fab-tst-2",
+          "text": "Electrical test uses the CAD netlist (IPC-D-356), not one extracted from the Gerbers",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "fab-tst-3",
+          "text": "Impedance coupons are required with a TDR test report",
+          "hint": "Make sure the coupon matches the actual trace geometry and reference planes.",
+          "tags": [
+            "high-speed",
+            "rf",
+            "ddr"
+          ],
+          "severity": "major"
+        },
+        {
+          "id": "fab-tst-4",
+          "text": "Microsection (cross-section) reports are requested",
+          "hint": "Show plating thickness, registration and laminate quality.",
+          "tags": [
+            "medical",
+            "automotive",
+            "harsh-env"
+          ],
+          "severity": "minor"
+        },
+        {
+          "id": "fab-tst-5",
+          "text": "A certificate of conformance is requested with each lot",
+          "tags": [],
+          "severity": "minor"
+        },
+        {
+          "id": "fab-tst-6",
+          "text": "Insulation or hipot testing between isolated nets is specified for the bare board",
+          "hint": "Define the test voltage, duration and which nets are tested.",
+          "tags": [
+            "mains"
+          ],
+          "severity": "major"
+        },
+        {
+          "id": "fab-tst-7",
+          "text": "Bare-board ionic cleanliness testing is specified",
+          "hint": "Residues on the bare board can cause leakage and corrosion under coating.",
+          "tags": [
+            "harsh-env",
+            "medical"
+          ],
+          "severity": "minor"
+        }
+      ]
+    },
+    {
+      "id": "g-drc",
+      "title": "Final DRC & DFM",
+      "tags": [],
+      "items": [
+        {
+          "id": "gd1",
+          "text": "Final DRC is run on the production-ready files with zero errors",
+          "hint": "Re-run after the last edit, including silkscreen and fill updates.",
+          "tags": [],
+          "severity": "critical"
+        },
+        {
+          "id": "gd2",
+          "text": "The design is compared with the previous revision for unintended changes",
+          "hint": "Use a Gerber or CAD diff; check that only the ECO's changes appear.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "gd3",
+          "text": "The fabricator's DFM check has passed, or all flagged issues are resolved",
+          "hint": "Record the decision on each flagged item.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "gd4",
+          "text": "The Gerber zip includes all required files and nothing extraneous",
+          "tags": [],
+          "severity": "minor"
+        },
+        {
+          "id": "gd5",
+          "text": "A checksum (e.g. MD5 or SHA-256) of the final package is recorded",
+          "hint": "Lets you prove later which exact files were ordered.",
+          "tags": [],
+          "severity": "minor"
+        },
+        {
+          "id": "fab-drc-1",
+          "text": "DRC rules match the chosen fabricator's capability, not tool defaults",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "fab-drc-2",
+          "text": "There are no unrouted connections",
+          "hint": "Check the ratsnest is empty, including after copper pours are refilled.",
+          "tags": [],
+          "severity": "critical"
+        },
+        {
+          "id": "fab-drc-3",
+          "text": "Copper-to-edge clearance meets the fab's capability for the chosen edge process",
+          "hint": "V-score and routed edges need different clearances; inner-layer planes need pullback too.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "fab-drc-4",
+          "text": "Gerbers are compared to the CAD netlist after export",
+          "hint": "A CAM netlist compare catches export errors such as missing pours or flashed pads.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "fab-drc-5",
+          "text": "Creepage and clearance are checked against the safety requirement",
+          "hint": "Check on every layer, including inner layers and between pad edges.",
+          "tags": [
+            "mains"
+          ],
+          "severity": "critical"
+        },
+        {
+          "id": "fab-drc-6",
+          "text": "Drill-to-copper clearance on inner layers meets fab capability",
+          "hint": "Drill wander causes shorts to inner planes if clearance is too small.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "fab-drc-7",
+          "text": "Any DRC waivers are documented with a reason",
+          "tags": [],
+          "severity": "minor"
+        }
+      ]
+    },
+    {
+      "id": "g-rel",
+      "title": "Release & Version Control",
+      "tags": [],
+      "items": [
+        {
+          "id": "gr1",
+          "text": "The Gerber package is committed to version control at the correct tag or revision",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "gr2",
+          "text": "The fab order confirmation number is recorded and linked to the design revision",
+          "tags": [],
+          "severity": "minor"
+        },
+        {
+          "id": "gr3",
+          "text": "Any deviations from the standard process are documented and approved",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "gr4",
+          "text": "Design files are locked and archived at the release revision",
+          "hint": "Include schematic, PCB, libraries and output settings, so the release can be regenerated.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "fab-rel-1",
+          "text": "The revision marked on the board (copper or silkscreen) matches the release revision",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "fab-rel-2",
+          "text": "Fab, assembly, BOM and centroid outputs are all from the same release revision",
+          "hint": "Release them together as one package to avoid mixing revisions.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "fab-rel-3",
+          "text": "An ECO or change list records what changed from the previous revision",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "fab-rel-4",
+          "text": "Design review sign-offs are recorded before release",
+          "hint": "Include schematic, layout and this fab review, with reviewer names and dates.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "fab-rel-5",
+          "text": "Open issues and errata from the previous revision are resolved or carried forward",
+          "tags": [],
+          "severity": "major"
+        }
+      ]
+    },
+    {
+      "id": "f-flx",
+      "title": "Flex & Rigid-Flex",
+      "tags": [
+        "flex"
+      ],
+      "items": [
+        {
+          "id": "fab-flx-1",
+          "text": "Bend areas are defined on the drawing with bend radius and static or dynamic use",
+          "tags": [],
+          "severity": "critical"
+        },
+        {
+          "id": "fab-flx-2",
+          "text": "Bend radius meets the fab's minimum for the flex thickness",
+          "hint": "Rule of thumb: about 10× thickness for static bends and much more for dynamic flexing; confirm with the fab.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "fab-flx-3",
+          "text": "No vias or pads are placed in bend areas",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "fab-flx-4",
+          "text": "Traces in bend areas run perpendicular to the bend line and are staggered between layers",
+          "hint": "Stacked traces on adjacent layers raise strain and crack sooner.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "fab-flx-5",
+          "text": "Coverlay openings meet fab capability, and coverlay versus flexible mask is chosen",
+          "tags": [],
+          "severity": "minor"
+        },
+        {
+          "id": "fab-flx-6",
+          "text": "Stiffeners are specified with material, thickness, location and adhesive",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "fab-flx-7",
+          "text": "Rigid-to-flex transition zones keep vias and pads at a safe distance",
+          "hint": "Distance per fab capability; components close to the transition stress the flex.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "fab-flx-8",
+          "text": "Rolled-annealed copper is specified for dynamic flex areas",
+          "hint": "Electrodeposited copper cracks sooner under repeated flexing.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "fab-flx-9",
+          "text": "ZIF tail thickness, including stiffener, matches the connector specification",
+          "hint": "Too thin and the contacts don't grip; too thick and the tail won't insert.",
+          "tags": [],
+          "severity": "critical"
+        }
+      ]
+    }
+  ]
+}

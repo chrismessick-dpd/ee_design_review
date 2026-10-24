@@ -1,0 +1,835 @@
+{
+  "id": "assembly",
+  "title": "Assembly & BOM Review",
+  "short": "Assembly",
+  "version": 1,
+  "description": "Checks that the BOM, footprints, placement data, stencil, soldering process and assembly documentation let an assembler build the board right first time.",
+  "sections": [
+    {
+      "id": "a-bom",
+      "title": "Bill of Materials",
+      "tags": [],
+      "items": [
+        {
+          "id": "ab1",
+          "text": "BOM is exported from the schematic at the release revision, with no manual edits",
+          "hint": "Hand-edited BOMs drift from the design. Regenerate from the CAD tool and diff against the previous release BOM.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "ab2",
+          "text": "Every component has a manufacturer part number (MPN) assigned",
+          "hint": "Without an MPN the assembler picks a part for you. Generic values like \"10k 0402\" are not enough for a build.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "ab3",
+          "text": "Every line has at least one approved distributor with stock and lead time checked",
+          "hint": "Check at the build quantity, not just a single unit. Record the date the check was made.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "ab4",
+          "text": "Alternate or equivalent parts are listed where applicable",
+          "hint": "Confirm each alternate is a true form-fit-function match: footprint, pinout, voltage rating, tolerance and temperature range.",
+          "tags": [],
+          "severity": "minor"
+        },
+        {
+          "id": "ab5",
+          "text": "No obsolete, NRND or EOL parts are used without an approved substitute",
+          "hint": "Check lifecycle status at the manufacturer or a distributor shortly before release; status changes without notice.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "ab6",
+          "text": "Per-board quantities match the reference designator count, with DNP items clearly flagged",
+          "hint": "Use a dedicated DNP field rather than notes in the description, so the assembler's import picks it up.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "ab7",
+          "text": "BOM reference designators match the schematic exactly",
+          "hint": "Look for missing, duplicated or renamed refdes after back-annotation.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "asm-bom-1",
+          "text": "Every line has a complete description: value, tolerance, rating, dielectric and package",
+          "hint": "\"10 µF 0805\" is ambiguous: X7R vs Y5V and the voltage rating change the effective capacitance under DC bias.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "asm-bom-2",
+          "text": "The package of every MPN matches the footprint used on the PCB",
+          "hint": "An 0402 part ordered for an 0603 footprint, or a QFN ordering code for an SOIC footprint, stops the build.",
+          "tags": [],
+          "severity": "critical"
+        },
+        {
+          "id": "asm-bom-3",
+          "text": "Each build variant has its own BOM, identified by an assembly part number",
+          "hint": "Variants managed by memory get built wrong. Make the variant visible on the BOM, the assembly drawing and ideally the board label.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "asm-bom-4",
+          "text": "Single-source parts are identified and the supply risk accepted",
+          "hint": "Flag them for the project lead; consider a second-source footprint or a buffer stock for critical ones.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "asm-bom-5",
+          "text": "Long-lead parts are identified and ordered or reserved early",
+          "hint": "Treat anything well beyond typical distributor lead time (rule of thumb: over ~12 weeks) as a schedule risk.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "asm-bom-6",
+          "text": "Consigned (customer-supplied) and turnkey parts are identified line by line",
+          "hint": "Assemblers need to know which parts they buy and which arrive in a kit, or lines end up short or double-bought.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "asm-bom-7",
+          "text": "Mechanical items (fasteners, standoffs, heatsinks, shields, labels) are on the BOM",
+          "hint": "Non-electrical parts are often missing because they have no schematic symbol. Add them as BOM-only items.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "asm-bom-8",
+          "text": "Programmable parts are identified with the firmware image and version to load",
+          "hint": "Say whether the assembler programs them pre-placement, in-circuit, or if programming happens at test.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "asm-bom-9",
+          "text": "Parts in automotive builds are AEC-Q qualified where required",
+          "hint": "Check the exact ordering code: the AEC-Q grade is often a suffix, and the standard part is not qualified.",
+          "tags": [
+            "automotive"
+          ],
+          "severity": "major"
+        }
+      ]
+    },
+    {
+      "id": "a-pkg",
+      "title": "Packages & Footprints",
+      "tags": [],
+      "items": [
+        {
+          "id": "ap1",
+          "text": "Every footprint is verified against the manufacturer's datasheet land pattern",
+          "hint": "Check pad size, pitch, body outline and any exposed pad. Library parts copied from other projects are a common source of error.",
+          "tags": [],
+          "severity": "critical"
+        },
+        {
+          "id": "ap2",
+          "text": "Component heights are checked against mechanical constraints (lid, heatsink, mating boards)",
+          "hint": "Use 3D models or the max-height dimension from the datasheet, not the typical value.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "ap3",
+          "text": "SMD and through-hole components are clearly distinguished in the BOM and assembly drawing",
+          "hint": "The assembler routes each to a different process; mixing them up adds cost and delay.",
+          "tags": [],
+          "severity": "minor"
+        },
+        {
+          "id": "ap4",
+          "text": "Polarised components (diodes, electrolytics, ICs) have their orientation marked",
+          "hint": "Mark polarity on silkscreen and the assembly drawing so it is still visible after the part is placed.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "ap5",
+          "text": "Fine-pitch and BGA components are reviewed for reflow profile compatibility",
+          "hint": "Large BGAs and small passives on the same board may need a compromise profile; check with the assembler.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "asm-fp-1",
+          "text": "Land patterns follow IPC-7351 with the density level (most, nominal, least) chosen deliberately",
+          "hint": "Nominal suits most reflow builds; least for very dense boards; most for hand soldering or wave.",
+          "tags": [],
+          "severity": "minor"
+        },
+        {
+          "id": "asm-fp-2",
+          "text": "Pin 1 is marked on silkscreen and the assembly layer, outside the part body",
+          "hint": "A pin-1 dot hidden under the body cannot be checked after placement.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "asm-fp-3",
+          "text": "Footprint pad numbers match the schematic symbol pin numbers for every unique part",
+          "hint": "Watch SOT-23 transistors and regulators (pinouts vary by vendor), connectors and mirrored headers.",
+          "tags": [],
+          "severity": "critical"
+        },
+        {
+          "id": "asm-fp-4",
+          "text": "The footprint matches the exact package variant of the ordered MPN",
+          "hint": "One IC often comes in QFN, DFN and WSON variants with different pad sizes or exposed pads. Check the ordering code.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "asm-fp-5",
+          "text": "Thermal vias in exposed pads are tented, plugged or filled to stop solder wicking",
+          "hint": "Open vias drain solder away from the joint and cause voids or a lifted part. Agree the treatment with fab and assembler.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "asm-fp-6",
+          "text": "Connector footprints include mechanical retention features (hold-down pads, bosses, pegs)",
+          "hint": "Surface-mount connectors without anchoring tear off under cable load.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "asm-fp-7",
+          "text": "BGA pads are mask-defined or copper-defined as the package datasheet recommends",
+          "hint": "Mixing the two on one package gives uneven joints.",
+          "tags": [
+            "bga"
+          ],
+          "severity": "major"
+        },
+        {
+          "id": "asm-fp-8",
+          "text": "Fine-pitch pads have solder mask dams between them, where fab capability allows",
+          "hint": "Without a dam, bridges are more likely. If the web is below fab minimum, agree a gang relief instead.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "asm-fp-9",
+          "text": "No open vias are placed in SMD pads unless filled and capped",
+          "hint": "Open via-in-pad wicks solder and gives voids or starved joints.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "asm-fp-10",
+          "text": "Small passives have balanced copper connections on both pads",
+          "hint": "One pad on a plane and the other on a thin trace heats unevenly and tombstones. Use thermal relief on plane connections.",
+          "tags": [],
+          "severity": "major"
+        }
+      ]
+    },
+    {
+      "id": "a-pnp",
+      "title": "Pick-and-Place & Centroid",
+      "tags": [],
+      "items": [
+        {
+          "id": "asm-pnp-1",
+          "text": "Centroid file lists refdes, X, Y, rotation and side for every placed part",
+          "hint": "Generate it from the release PCB file, not an earlier one.",
+          "tags": [],
+          "severity": "critical"
+        },
+        {
+          "id": "asm-pnp-2",
+          "text": "DNP parts are handled in the centroid file the same way as in the BOM",
+          "hint": "Either remove DNP parts or flag them; a mismatch between BOM and centroid causes placement of parts meant to be left off.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "asm-pnp-3",
+          "text": "Centroid file units and origin are stated and match the board origin on the drawing",
+          "hint": "Use mm and a board origin at a defined corner or datum, not an arbitrary CAD origin.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "asm-pnp-4",
+          "text": "The rotation convention is confirmed with the assembler",
+          "hint": "CAD library zero orientation often differs from the IPC-7351 convention. Ask for a first-article check of rotations.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "asm-pnp-5",
+          "text": "Each part's placement origin is at the body centre",
+          "hint": "Footprints with the origin at pin 1 or a corner give offset placements unless the assembler corrects them.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "asm-pnp-6",
+          "text": "The bottom-side coordinate convention (mirrored or viewed from top) is stated",
+          "hint": "Bottom-side X and rotation are frequently misinterpreted; say which view the numbers are in.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "asm-pnp-7",
+          "text": "The board (or panel) has at least three global fiducials, not in a straight line",
+          "hint": "Rule of thumb; follow the assembler's preferred fiducial size and position.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "asm-pnp-8",
+          "text": "Local fiducials are placed near fine-pitch and BGA parts where the assembler asks for them",
+          "hint": "Local fiducials correct for board stretch around critical parts.",
+          "tags": [
+            "bga"
+          ],
+          "severity": "minor"
+        },
+        {
+          "id": "asm-pnp-9",
+          "text": "Components keep clear of board edges used for conveyor rails, or a panel rail is added",
+          "hint": "Clearance needed depends on the assembler's line; ask before layout is frozen.",
+          "tags": [],
+          "severity": "major"
+        }
+      ]
+    },
+    {
+      "id": "a-stn",
+      "title": "Stencil & Paste",
+      "tags": [],
+      "items": [
+        {
+          "id": "asm-stn-1",
+          "text": "The paste layer has apertures on every pad to be soldered and none on pads that must stay bare",
+          "hint": "Remove paste from test points, fiducials, edge fingers and hand-solder pads.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "asm-stn-2",
+          "text": "Stencil thickness is agreed with the assembler for the finest-pitch part",
+          "hint": "Common rule of thumb is 0.10–0.13 mm (4–5 mil); the assembler will confirm for your part mix.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "asm-stn-3",
+          "text": "Aperture area ratio is acceptable for the smallest apertures",
+          "hint": "Rule of thumb: an area ratio of about 0.66 or more for reliable release. Check with the stencil supplier for 0201 and fine-pitch BGA.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "asm-stn-4",
+          "text": "Exposed-pad apertures are split into a windowpane pattern to limit paste coverage",
+          "hint": "Follow the package datasheet; too much paste floats the part and opens the perimeter joints.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "asm-stn-5",
+          "text": "Paste reductions on fine-pitch and BGA pads follow the assembler's recommendation",
+          "hint": "Many assemblers apply their own aperture rules; state whether yours or theirs take priority.",
+          "tags": [],
+          "severity": "minor"
+        },
+        {
+          "id": "asm-stn-6",
+          "text": "Parts needing extra paste (large connectors, shields) are covered by a step stencil or overprint",
+          "hint": "A single thickness rarely suits both 0.4 mm pitch parts and large connector tabs.",
+          "tags": [],
+          "severity": "minor"
+        },
+        {
+          "id": "asm-stn-7",
+          "text": "Solder paste type is specified: alloy, powder type and flux chemistry",
+          "hint": "No-clean vs water-soluble flux affects cleaning and coating. Finer powder types suit finer pitch.",
+          "tags": [],
+          "severity": "major"
+        }
+      ]
+    },
+    {
+      "id": "a-sol",
+      "title": "Soldering Process",
+      "tags": [],
+      "items": [
+        {
+          "id": "asm-sol-1",
+          "text": "Every part's peak temperature and time-above-liquidus limits suit the planned reflow profile",
+          "hint": "Check connectors, crystals, electrolytics, LEDs and plastic switches, which often have lower limits than ICs.",
+          "tags": [],
+          "severity": "critical"
+        },
+        {
+          "id": "asm-sol-2",
+          "text": "The assembler's dry storage and bake handling is confirmed for MSL 3 and higher parts",
+          "hint": "Parts out of the bag beyond floor life crack or delaminate in reflow (popcorning).",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "asm-sol-3",
+          "text": "Bottom-side parts are light enough to stay in place during the second reflow, or are glued",
+          "hint": "Check heavy inductors, connectors and large ICs on the first-reflowed side with the assembler.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "asm-sol-4",
+          "text": "Parts rated for only one reflow cycle are placed on the second-reflowed side",
+          "hint": "Some connectors, LEDs and sensors only allow a single reflow; check datasheets.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "asm-sol-5",
+          "text": "Every through-hole part has a defined soldering process",
+          "hint": "Wave, selective, pin-in-paste or hand solder. Each has its own pad and keep-out requirements.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "asm-sol-6",
+          "text": "Bottom-side keep-outs around through-hole pins suit selective or wave soldering",
+          "hint": "Selective nozzles need clearance from nearby SMD parts per assembler capability.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "asm-sol-7",
+          "text": "Through-hole drill sizes give suitable clearance over the lead diameter",
+          "hint": "Too tight and leads won't insert; too loose and the barrel doesn't fill. Clearance is a rule of thumb; check with the assembler.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "asm-sol-8",
+          "text": "Through-hole pins connected to planes have thermal relief for barrel fill",
+          "hint": "Solid plane connections sink heat and leave unfilled barrels, especially on thick or heavy-copper boards.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "asm-sol-9",
+          "text": "Parts that can't be washed (open microphones, buzzers, MEMS sensors, unsealed switches) are identified",
+          "hint": "If a wash step is used, these parts must be fitted after washing or protected.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "asm-sol-10",
+          "text": "BGA underfill or corner staking is decided for shock and vibration",
+          "hint": "Underfill hampers rework; decide deliberately and note it on the assembly drawing.",
+          "tags": [
+            "bga"
+          ],
+          "severity": "major"
+        }
+      ]
+    },
+    {
+      "id": "a-asm",
+      "title": "Assembly Drawings & Instructions",
+      "tags": [],
+      "items": [
+        {
+          "id": "aa1",
+          "text": "Assembly drawing (top and bottom views) is current and matches the PCB revision",
+          "hint": "Regenerate it from the release PCB file; old drawings with the right title block are a common trap.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "aa2",
+          "text": "All DNP components are clearly marked on the assembly drawing",
+          "hint": "Show them hatched or listed per variant so an operator can see what to leave off.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "aa3",
+          "text": "Special assembly notes are included (solder type, underfill, torque values)",
+          "hint": "Put the notes on the drawing itself, not just in an email to the assembler.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "aa4",
+          "text": "Conformal coating requirements are specified where applicable",
+          "hint": "Say whether the board is coated, which material, and which areas are masked.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "aa5",
+          "text": "Press-fit and hand-solder-only components are clearly identified",
+          "hint": "These need separate process steps; the assembler must plan them up front.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "asm-adr-1",
+          "text": "The assembly drawing shows a readable reference designator for every part",
+          "hint": "Check at print scale. Dense areas may need a magnified detail view.",
+          "tags": [],
+          "severity": "minor"
+        },
+        {
+          "id": "asm-adr-2",
+          "text": "The board revision and assembly part number appear in the drawing title block",
+          "hint": "The assembly number identifies the variant; the PCB revision identifies the bare board.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "asm-adr-3",
+          "text": "Programming and test steps are called out or a work instruction is referenced",
+          "hint": "Include firmware file names and versions, or point to the controlled document that has them.",
+          "tags": [],
+          "severity": "minor"
+        },
+        {
+          "id": "asm-adr-4",
+          "text": "Any rework wires or modifications are documented with routing and fixing method",
+          "hint": "Undocumented bodges are lost on the next build. Give a drawing per mod, with wire type and glue points.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "asm-adr-5",
+          "text": "The cleaning requirement is specified: no-clean residue allowed, or wash required",
+          "hint": "Residue matters for coating adhesion, high-impedance circuits and RF.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "asm-adr-6",
+          "text": "Label, serial number and marking locations are specified",
+          "hint": "Keep labels off vents, heat sources and areas that get coated.",
+          "tags": [],
+          "severity": "minor"
+        }
+      ]
+    },
+    {
+      "id": "a-cot",
+      "title": "Conformal Coating & Potting",
+      "tags": [
+        "harsh-env",
+        "automotive"
+      ],
+      "items": [
+        {
+          "id": "asm-cot-1",
+          "text": "The coating material type is chosen for the environment and recorded",
+          "hint": "Acrylic, silicone, urethane or parylene differ in moisture, chemical and temperature resistance and in reworkability.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "asm-cot-2",
+          "text": "Coating keep-out areas are defined and masked",
+          "hint": "Connectors, test points, switches, sensor openings, heatsink interfaces and grounding contacts usually stay uncoated.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "asm-cot-3",
+          "text": "Components are compatible with coating",
+          "hint": "Vented sensors, relays, trimmers, unsealed switches and some connectors are damaged or disabled by coating.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "asm-cot-4",
+          "text": "The board is cleaned before coating to a level compatible with the coating",
+          "hint": "Flux residue under coating causes poor adhesion and can lead to corrosion or leakage.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "asm-cot-5",
+          "text": "Potting compound stress and cure heat are checked against the components",
+          "hint": "Hard compounds can crack glass diodes and large ceramic capacitors through shrinkage or CTE mismatch.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "asm-cot-6",
+          "text": "Tall or heavy parts are staked or adhesive-bonded for vibration",
+          "hint": "Electrolytics, inductors and large connectors fatigue their joints under vibration.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "asm-cot-7",
+          "text": "Electrical testing is planned before coating or potting, or test access is kept",
+          "hint": "After potting, faults can't be diagnosed or reworked.",
+          "tags": [],
+          "severity": "major"
+        }
+      ]
+    },
+    {
+      "id": "a-mec",
+      "title": "Press-fit & Mechanical Assembly",
+      "tags": [],
+      "items": [
+        {
+          "id": "asm-mec-1",
+          "text": "Press-fit footprints use the connector manufacturer's finished hole size",
+          "hint": "Press-fit needs a tighter tolerance than ordinary plated holes; make sure the fab drawing calls it out.",
+          "tags": [],
+          "severity": "critical"
+        },
+        {
+          "id": "asm-mec-2",
+          "text": "Press-fit areas keep components out of the press tool and support keep-outs",
+          "hint": "Check the connector application spec for top and bottom keep-out zones.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "asm-mec-3",
+          "text": "The surface finish is compatible with the press-fit pins",
+          "hint": "Connector datasheets list approved finishes; some pins aren't qualified on every finish.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "asm-mec-4",
+          "text": "Fastener holes have keep-outs for screw heads, washers and tools",
+          "hint": "Check both sides of the board and the driver access path.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "asm-mec-5",
+          "text": "Heatsink attachment, thermal interface material and clamping are specified",
+          "hint": "Name the TIM, its thickness and the fastener torque or clip part number.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "asm-mec-6",
+          "text": "Board-to-board connector stack height and mating tolerance are checked",
+          "hint": "Add up connector heights, standoffs and tolerances against the datasheet's allowed mating range.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "asm-mec-7",
+          "text": "Heavy or cable-loaded connectors have mechanical strain relief",
+          "hint": "Through-hole anchors, screws or brackets stop cable loads from reaching solder joints.",
+          "tags": [],
+          "severity": "major"
+        }
+      ]
+    },
+    {
+      "id": "a-ins",
+      "title": "Inspection & Test",
+      "tags": [],
+      "items": [
+        {
+          "id": "asm-ins-1",
+          "text": "AOI is planned and part markings and polarity indicators are visible to it",
+          "hint": "Ask the assembler whether AOI runs on every build and what it needs.",
+          "tags": [
+            "production"
+          ],
+          "severity": "minor"
+        },
+        {
+          "id": "asm-ins-2",
+          "text": "X-ray inspection is specified for BGAs and bottom-terminated components",
+          "hint": "Hidden joints can't be checked optically.",
+          "tags": [
+            "bga"
+          ],
+          "severity": "major"
+        },
+        {
+          "id": "asm-ins-3",
+          "text": "Void acceptance criteria for thermal pads and BGA balls are agreed",
+          "hint": "Reference IPC-A-610 or state a customer requirement; thermal pads may need a tighter limit for heat flow.",
+          "tags": [],
+          "severity": "minor"
+        },
+        {
+          "id": "asm-ins-4",
+          "text": "First-article inspection is requested for the first build",
+          "hint": "FAI catches rotation, polarity and wrong-part errors before the full batch is built.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "asm-ins-5",
+          "text": "Test points are reachable after assembly for flying probe or ICT",
+          "hint": "Check that tall parts, shields and connectors don't block probe access.",
+          "tags": [
+            "production"
+          ],
+          "severity": "major"
+        },
+        {
+          "id": "asm-ins-6",
+          "text": "A functional test procedure or fixture is defined for production",
+          "hint": "Say what is tested, with which firmware, and what counts as a pass.",
+          "tags": [
+            "production"
+          ],
+          "severity": "major"
+        },
+        {
+          "id": "asm-ins-7",
+          "text": "Traceability is defined: serial number or lot recorded for each board",
+          "hint": "Link the serial number to the BOM revision, firmware version and test result.",
+          "tags": [
+            "production",
+            "medical",
+            "automotive"
+          ],
+          "severity": "minor"
+        }
+      ]
+    },
+    {
+      "id": "a-qua",
+      "title": "Quality & Compliance",
+      "tags": [],
+      "items": [
+        {
+          "id": "aq1",
+          "text": "All components meet RoHS / REACH requirements, or exceptions are documented",
+          "hint": "Check each MPN's compliance status, including mechanical items and cables.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "aq2",
+          "text": "Moisture sensitivity level (MSL) is noted for applicable packages",
+          "hint": "Record MSL in the BOM so the assembler can plan storage and baking.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "aq3",
+          "text": "ESD-sensitive components are identified and handling requirements noted",
+          "hint": "Especially important for RF front ends, unprotected MOSFET gates and lasers.",
+          "tags": [],
+          "severity": "minor"
+        },
+        {
+          "id": "aq4",
+          "text": "The IPC-A-610 acceptability class is specified for inspection",
+          "hint": "Class 2 for most products; Class 3 for high-reliability.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "asm-qua-1",
+          "text": "The IPC-A-610 assembly class matches the IPC-6012 class on the fab drawing",
+          "hint": "A Class 3 assembly on a Class 2 bare board, or vice versa, is usually a mistake.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "asm-qua-2",
+          "text": "Material declarations (RoHS, REACH SVHC) are collected for the compliance file",
+          "hint": "Distributor and manufacturer sites usually provide them per MPN.",
+          "tags": [],
+          "severity": "minor"
+        },
+        {
+          "id": "asm-qua-3",
+          "text": "The assembler holds the certification the product needs",
+          "hint": "For example ISO 13485 for medical or IATF 16949 for automotive.",
+          "tags": [
+            "medical",
+            "automotive"
+          ],
+          "severity": "major"
+        },
+        {
+          "id": "asm-qua-4",
+          "text": "All parts are bought from authorised distributors or with documented traceability",
+          "hint": "Broker parts carry counterfeit risk; record and approve any exceptions.",
+          "tags": [],
+          "severity": "major"
+        }
+      ]
+    },
+    {
+      "id": "a-cst",
+      "title": "Cost & Volume",
+      "tags": [
+        "production"
+      ],
+      "items": [
+        {
+          "id": "asm-cst-1",
+          "text": "The BOM is costed at the target volume, with price breaks and MOQs",
+          "hint": "Include reel minimums and assembler attrition allowance.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "asm-cst-2",
+          "text": "Parts are placed on one side where the design allows",
+          "hint": "A single reflow pass saves a stencil, a setup and a process step.",
+          "tags": [],
+          "severity": "minor"
+        },
+        {
+          "id": "asm-cst-3",
+          "text": "Through-hole parts are minimised or grouped for one soldering process",
+          "hint": "Each manual or selective solder step adds cost per board.",
+          "tags": [],
+          "severity": "minor"
+        },
+        {
+          "id": "asm-cst-4",
+          "text": "Passive values and packages are consolidated to reduce unique BOM lines",
+          "hint": "Fewer feeders and lines cut setup cost and inventory.",
+          "tags": [],
+          "severity": "minor"
+        },
+        {
+          "id": "asm-cst-5",
+          "text": "Very small packages (0201, 01005) are used only where needed",
+          "hint": "They raise assembly cost and limit which assemblers can build the board.",
+          "tags": [],
+          "severity": "minor"
+        },
+        {
+          "id": "asm-cst-6",
+          "text": "Assembler NRE (stencils, programs, fixtures) is quoted and accepted",
+          "hint": "Include test fixture and programming fixture costs.",
+          "tags": [],
+          "severity": "minor"
+        }
+      ]
+    }
+  ]
+}

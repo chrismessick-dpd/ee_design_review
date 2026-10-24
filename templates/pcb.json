@@ -1,0 +1,1605 @@
+{
+  "id": "pcb",
+  "title": "PCB Layout Review",
+  "short": "Layout",
+  "version": 1,
+  "description": "Layout review covering stackup, rules, mechanical fit, placement, power integrity, routing, specialised interfaces, safety spacing, EMC, test access and manufacturability.",
+  "sections": [
+    {
+      "id": "p-gen",
+      "title": "Board Setup, Stackup & Impedance",
+      "tags": [],
+      "items": [
+        {
+          "id": "pg1",
+          "text": "Board outline matches the mechanical drawing, including dimensions and tolerances",
+          "hint": "Overlay the DXF/STEP outline on the board outline layer and compare key dimensions. A wrong outline usually means a respin or a board that won't fit the enclosure.",
+          "tags": [],
+          "severity": "critical"
+        },
+        {
+          "id": "pg2",
+          "text": "Design rule check (DRC) runs with zero errors or every waived error is documented",
+          "hint": "Run full online and batch DRC on the final database. Any waiver should name the rule, the location and why it's acceptable.",
+          "tags": [],
+          "severity": "critical"
+        },
+        {
+          "id": "pg3",
+          "text": "Layer stackup matches the fabricator's confirmed stackup (copper weights, dielectric thicknesses, materials)",
+          "hint": "Get the stackup confirmed by the fab before routing impedance-controlled nets. Check the copper weight and dielectric thickness of every layer against the CAD layer setup.",
+          "tags": [],
+          "severity": "critical"
+        },
+        {
+          "id": "pg4",
+          "text": "Controlled-impedance trace widths and spacings match the stackup calculation",
+          "hint": "Recalculate with the fab's dielectric constants or use their impedance report. Check every impedance class on every layer it's routed on.",
+          "tags": [],
+          "severity": "critical"
+        },
+        {
+          "id": "pg5",
+          "text": "Board material (FR-4 grade, Rogers, etc.) meets the electrical and thermal requirements",
+          "hint": "Check Tg and Td against the reflow profile and operating temperature, and Dk/Df against the signal frequencies. Specify high-Tg material for lead-free reflow of thick or many-layer boards.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "pcb-stk-1",
+          "text": "Stackup is symmetric about the board centre",
+          "hint": "Asymmetric copper or dielectric causes bow and twist after reflow. Mirror copper weights and dielectric thicknesses top to bottom wherever possible.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "pcb-stk-2",
+          "text": "Every signal layer is adjacent to a solid reference plane",
+          "hint": "A signal layer between two signal layers with no plane has no defined impedance or return path. If unavoidable, route those layers orthogonally and only with slow signals.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "pcb-stk-3",
+          "text": "Power and ground planes that act as plane capacitance are on adjacent layers with thin dielectric",
+          "hint": "Close-spaced power/ground pairs give low-inductance high-frequency decoupling. Confirm the intended pairs are adjacent in the stackup.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "pcb-stk-4",
+          "text": "Impedance requirements and tolerances are stated on the fab drawing with layer and reference planes",
+          "hint": "List each controlled-impedance class (e.g. 50 ohm SE, 90/100 ohm diff), the layer, the reference layers and the tolerance, so the fab can tune and test coupons.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "pcb-stk-5",
+          "text": "Finished board thickness and tolerance match connector, card-edge and enclosure requirements",
+          "hint": "Card-edge connectors, press-fit parts and slot guides need a specific thickness. Check the stackup total including plating and mask.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "pcb-stk-6",
+          "text": "Outer-layer copper weight suits both the current and the finest pitch on that layer",
+          "hint": "Heavy outer copper limits minimum trace/space and fine-pitch etching. Confirm with the fab's capability table for the chosen weight, e.g. 35 µm (1 oz) vs 70 µm (2 oz).",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "pcb-stk-7",
+          "text": "Surface finish (ENIG, HASL, OSP, ENEPIG, immersion silver) is specified and suits the parts",
+          "hint": "Fine-pitch and BGA parts need a flat finish such as ENIG or OSP. Wire bonding and gold-finger contacts need specific finishes.",
+          "tags": [],
+          "severity": "minor"
+        }
+      ]
+    },
+    {
+      "id": "p-rules",
+      "title": "Design Rules & Constraints",
+      "tags": [],
+      "items": [
+        {
+          "id": "pcb-rule-1",
+          "text": "Design rules are set to the chosen fabricator's capability, not the CAD tool defaults",
+          "hint": "Enter minimum track, space, drill, annular ring and mask rules from the fab's capability sheet for the selected class/price tier.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "pcb-rule-2",
+          "text": "Net classes are defined for power, high-voltage, impedance-controlled and sensitive nets",
+          "hint": "Net classes drive width, clearance and via rules automatically. Check that every special net is assigned to its class.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "pcb-rule-3",
+          "text": "Clearance rules between net classes reflect the voltages present",
+          "hint": "High-voltage nets need larger clearance to everything else. Set class-to-class rules so DRC catches violations instead of relying on visual checks.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "pcb-rule-4",
+          "text": "Width rules for power nets are set from the current requirement",
+          "hint": "Set minimum width per power net class from an IPC-2152 style calculation so thin necks are caught by DRC.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "pcb-rule-5",
+          "text": "Differential pair rules (width, gap, uncoupled length) are defined for every pair class",
+          "hint": "Without pair rules the router and DRC can't enforce coupling. Check the rules match the impedance calculation.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "pcb-rule-6",
+          "text": "Length and match constraints are entered for timing-critical nets",
+          "hint": "Enter match groups and tolerances from the interface spec or datasheet, then confirm the length report passes.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "pcb-rule-7",
+          "text": "Schematic and layout are in sync, with no unresolved ECO differences",
+          "hint": "Run a forward or back-annotation compare. Any difference means the board won't match the schematic that was reviewed.",
+          "tags": [],
+          "severity": "major"
+        }
+      ]
+    },
+    {
+      "id": "p-mech",
+      "title": "Mechanical, Outline & Enclosure Fit",
+      "tags": [],
+      "items": [
+        {
+          "id": "pcb-mech-1",
+          "text": "Mounting holes are in the right positions with the right diameters for the fasteners",
+          "hint": "Check hole positions and diameters against the mechanical drawing or enclosure CAD. Include tolerance on position.",
+          "tags": [],
+          "severity": "critical"
+        },
+        {
+          "id": "pcb-mech-2",
+          "text": "Mounting holes are plated and grounded, or unplated and isolated, as the design intends",
+          "hint": "Grounded mounting holes are often part of the EMC or ESD strategy. Isolated holes need copper keepout around the fastener and washer.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "pcb-mech-3",
+          "text": "Copper keepout around mounting holes covers the fastener head, washer and standoff",
+          "hint": "A screw head or metal standoff touching copper can short a net to chassis. Size the keepout to the largest hardware plus tolerance.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "pcb-mech-4",
+          "text": "A 3D model check against the enclosure shows no collisions",
+          "hint": "Export STEP with accurate component models and check it in the enclosure assembly, including lids, ribs, bosses and cables.",
+          "tags": [],
+          "severity": "critical"
+        },
+        {
+          "id": "pcb-mech-5",
+          "text": "Component height limits are respected in every height-restricted zone",
+          "hint": "Check tall parts (electrolytics, inductors, connectors) against the enclosure. Include the board-to-lid gap and any tolerance stack.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "pcb-mech-6",
+          "text": "Connectors line up with the enclosure openings, including position and height tolerance",
+          "hint": "Check the mating face against the panel cut-outs. A connector that is off by a fraction of a mm may not mate through the opening.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "pcb-mech-7",
+          "text": "LEDs, buttons, light pipes and displays line up with their enclosure features",
+          "hint": "Check positions in the 3D assembly. Light pipes need the LED centred under them, and buttons need the right actuator height.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "pcb-mech-8",
+          "text": "Board-edge clearance suits the routing, V-score or breakout method",
+          "hint": "Copper and parts too close to a V-score or tab can crack or get damaged. Use the fab and assembler's edge-clearance rules.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "pcb-mech-9",
+          "text": "Keepouts for heatsinks, shields, clips and enclosure ribs are drawn and respected",
+          "hint": "Mechanical parts that are not in the BOM are easy to forget. Add them as keepout regions so DRC catches conflicts.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "pcb-mech-10",
+          "text": "Mechanical layers carry the fab and assembly drawings with dimensions, notes and datums",
+          "hint": "The fab needs a dimensioned outline with a datum. Check that the drawing on the mechanical layer matches the current outline.",
+          "tags": [],
+          "severity": "major"
+        }
+      ]
+    },
+    {
+      "id": "p-pla",
+      "title": "Component Placement",
+      "tags": [],
+      "items": [
+        {
+          "id": "pp1",
+          "text": "All components are inside the board outline with adequate clearance to the edge",
+          "hint": "Use the assembler's edge clearance, especially if the board travels on conveyor rails. Parts too close to a breakout tab can crack when depanelled.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "pp2",
+          "text": "Bypass capacitors are placed as close as possible to the IC power pins they serve",
+          "hint": "Put the smallest-value capacitor nearest the pin with the shortest possible loop to ground. Check in the layout, not just by reference designator.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "pp3",
+          "text": "High-dissipation components have enough copper area to spread their heat",
+          "hint": "Compare the copper area under and around each hot part with the datasheet's recommended thermal layout.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "pp4",
+          "text": "Sensitive analog parts are physically separated from noisy digital and switching circuits",
+          "hint": "Group by function and keep switching nodes, clocks and fast digital away from high-impedance analog inputs.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "pp5",
+          "text": "Connectors face the right way for their mating direction and assembly",
+          "hint": "Check pin 1 and the mating face in 3D against the cable or mating board. A mirrored connector is a respin.",
+          "tags": [],
+          "severity": "critical"
+        },
+        {
+          "id": "pp6",
+          "text": "Mechanical constraints (keepouts, mounting holes, standoffs) are respected",
+          "hint": "Check every placed part against the keepout regions on the mechanical layers.",
+          "tags": [],
+          "severity": "critical"
+        },
+        {
+          "id": "pp7",
+          "text": "Polarised parts and ICs are in a consistent, verified orientation",
+          "hint": "Keep the same orientation for like parts where possible to make inspection easier. Check every diode, electrolytic and IC pin 1 against the footprint.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "pcb-pl-1",
+          "text": "Every footprint matches the datasheet land pattern for the exact orderable part",
+          "hint": "Check pad size, pitch, pin numbering and package variant. Use IPC-7351 style land patterns or the manufacturer's recommendation.",
+          "tags": [],
+          "severity": "critical"
+        },
+        {
+          "id": "pcb-pl-2",
+          "text": "Components are placed in functional groups that follow the signal flow",
+          "hint": "Grouping by function shortens critical routes and keeps noisy and quiet circuits apart.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "pcb-pl-3",
+          "text": "Crystals and oscillators are next to their IC, away from board edges and noisy circuits",
+          "hint": "Keep crystal traces short with ground beneath and no signals routed under the crystal. Follow the IC's layout guidance for load capacitors.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "pcb-pl-4",
+          "text": "Switching regulators are placed per the datasheet layout example",
+          "hint": "The datasheet layout keeps the hot loop small. Moving the input capacitor or inductor away from it can cause noise and instability.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "pcb-pl-5",
+          "text": "Parts are placed to allow rework access, with room around BGAs and fine-pitch parts",
+          "hint": "Rework nozzles and soldering irons need clearance. Tall parts right next to a BGA block rework.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "pcb-pl-6",
+          "text": "Bottom-side parts suit the assembly process",
+          "hint": "Heavy or tall parts on the bottom may fall off during second-side reflow or need glue. Confirm with the assembler which parts can go on the bottom.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "pcb-pl-7",
+          "text": "Through-hole parts are placed for the chosen soldering method (wave, selective or hand)",
+          "hint": "Selective solder nozzles need clearance around pins. Wave soldering needs SMD parts on the bottom oriented and spaced for the wave.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "pcb-pl-8",
+          "text": "Heat-sensitive parts are kept away from hot components",
+          "hint": "Electrolytic capacitors, crystals, batteries and sensors drift or age faster near regulators and power resistors.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "pcb-pl-9",
+          "text": "Parts near board edges or V-score lines are oriented to reduce flex cracking",
+          "hint": "Ceramic capacitors near edges or depanel lines can crack. Orient them parallel to the break line and keep them back from it.",
+          "tags": [],
+          "severity": "major"
+        }
+      ]
+    },
+    {
+      "id": "p-pdn",
+      "title": "Decoupling & Power Integrity",
+      "tags": [],
+      "items": [
+        {
+          "id": "pcb-pdn-1",
+          "text": "Each decoupling capacitor connects to the power and ground planes through short, wide paths",
+          "hint": "Mounting inductance dominates at high frequency. Use short traces from pad to via, and vias placed beside or inside the pad.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "pcb-pdn-2",
+          "text": "Decoupling capacitors have their own vias rather than sharing vias with the IC pin",
+          "hint": "Shared vias increase the current loop. As a rule of thumb, give each capacitor its own via pair where space allows.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "pcb-pdn-3",
+          "text": "Bulk capacitance is placed where each rail enters a region or a high-current load",
+          "hint": "Bulk capacitors handle lower-frequency load steps. Put them at the regulator output and near large loads.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "pcb-pdn-4",
+          "text": "Voltage drop from regulator to load is within the load's tolerance at maximum current",
+          "hint": "Estimate IR drop through traces, planes and vias, or run a DC drop analysis for high-current rails.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "pcb-pdn-5",
+          "text": "Remote sense lines take a Kelvin connection at the load point",
+          "hint": "Route the sense pair together, away from the high-current path and switching nodes.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "pcb-pdn-6",
+          "text": "Regulator feedback traces are short and kept away from the switch node and inductor",
+          "hint": "Noise coupled into the feedback node causes jitter and instability. Route it on the quiet side of the circuit with a ground reference.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "pcb-pdn-7",
+          "text": "Switching regulator hot loops (input capacitor, switch, return) are as small as possible",
+          "hint": "The input loop carries the fastest current edges. Keep it tight on one layer with the input capacitor close to the switch pins.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "pcb-pdn-8",
+          "text": "Switch-node copper is no larger than needed to carry the current",
+          "hint": "A large switch-node area radiates. Keep it compact and do not route sensitive signals under or next to it.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "pcb-pdn-9",
+          "text": "Power delivery network impedance meets the target for processor, FPGA or memory rails",
+          "hint": "Use the vendor's PDN tool or a simulation to check impedance vs frequency against the target from the datasheet.",
+          "tags": [
+            "fpga",
+            "ddr"
+          ],
+          "severity": "major"
+        }
+      ]
+    },
+    {
+      "id": "p-pwr",
+      "title": "Power & Ground Planes",
+      "tags": [],
+      "items": [
+        {
+          "id": "pw1",
+          "text": "Power and ground planes are solid, with minimal splits or voids",
+          "hint": "Look at each plane layer on its own. Rows of vias with large anti-pads can cut a plane as badly as a deliberate split.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "pw2",
+          "text": "Plane connections to pads and vias use the intended thermal relief or direct connection",
+          "hint": "Thermal relief helps soldering on through-hole and large pads. High-current or thermal paths may need direct connections instead.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "pw3",
+          "text": "Ground stitching vias tie ground layers together around the board and between layers",
+          "hint": "Stitch ground pours to the ground plane so islands don't float, and consider a via fence along the board edge. Spacing is a rule of thumb set by the highest frequency of concern.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "pw4",
+          "text": "Plane-to-plane capacitance is used where it helps the power delivery network",
+          "hint": "Tightly coupled power/ground planes add low-inductance capacitance. Worth checking on dense, fast digital boards.",
+          "tags": [],
+          "severity": "minor"
+        },
+        {
+          "id": "pw5",
+          "text": "Where split analog and digital grounds are used, they join at a single, deliberate point",
+          "hint": "Most modern designs use one solid ground with careful placement instead of split grounds. If grounds are split, check no signal crosses the gap and the tie point is where the datasheet recommends.",
+          "tags": [
+            "precision-analog",
+            "audio"
+          ],
+          "severity": "major"
+        },
+        {
+          "id": "pcb-gnd-1",
+          "text": "Copper pours have no unconnected islands",
+          "hint": "Floating copper can act as an antenna. Remove islands or stitch them to ground with vias.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "pcb-gnd-2",
+          "text": "Plane necks between regions are wide enough for the current they carry",
+          "hint": "Narrow plane necks create hot spots and voltage drop. Check every place a pour narrows between vias or around cut-outs.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "pcb-gnd-3",
+          "text": "Power planes are pulled back from the board edge relative to ground",
+          "hint": "Rule of thumb: pull power planes back from the board edge relative to the ground plane to reduce edge radiation (often called the 20H rule). Treat this as guidance, not a hard limit.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "pcb-gnd-4",
+          "text": "Each power island is large enough and connected with enough vias for its current",
+          "hint": "Count vias at each layer transition of high-current rails. Via current capacity depends on plating thickness and diameter.",
+          "tags": [],
+          "severity": "major"
+        }
+      ]
+    },
+    {
+      "id": "p-rou",
+      "title": "General Routing",
+      "tags": [],
+      "items": [
+        {
+          "id": "pr1",
+          "text": "All nets are fully routed, with no unrouted connections",
+          "hint": "Check the unrouted-net report is empty. Watch for plane connections that DRC treats as connected but are actually cut off.",
+          "tags": [],
+          "severity": "critical"
+        },
+        {
+          "id": "pr2",
+          "text": "Differential pairs are routed symmetrically with matched lengths",
+          "hint": "Keep both traces of a pair together with equal length and the same via transitions. Check the match tolerance against the interface spec.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "pr3",
+          "text": "Fast signals have a continuous reference plane beneath them",
+          "hint": "Check every layer a fast signal uses, including after layer changes. A gap in the reference raises impedance and radiation.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "pr4",
+          "text": "Return current paths are not interrupted by plane splits or via anti-pads",
+          "hint": "Look for anti-pads merging into slots under signal routes, especially in connector and BGA fields.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "pr5",
+          "text": "Trace widths carry their current with margin for the allowed temperature rise",
+          "hint": "Size from IPC-2152 style charts using the actual copper weight and allowed rise. Inner layers run hotter than outer for the same width.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "pr6",
+          "text": "Crosstalk-sensitive traces have enough spacing from aggressors",
+          "hint": "Rule of thumb: 3W spacing (three times the trace width, centre to centre) for sensitive or fast signals. Use simulation for tight designs.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "pr7",
+          "text": "Fast signals use as few vias as possible",
+          "hint": "Each via adds a discontinuity and stub. Plan layer assignment to reduce layer changes on fast nets.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "pr8",
+          "text": "Fast signals have no trace stubs",
+          "hint": "Stubs from unused branches, test pads or T-junctions cause reflections. Route daisy-chain or fly-by, or keep stubs very short.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "pcb-rt-1",
+          "text": "Traces have no acute angles",
+          "hint": "Acute angles can trap etchant and narrow the trace. Use 45 degree or curved bends.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "pcb-rt-2",
+          "text": "Clock traces are short, point-to-point and away from board edges and I/O",
+          "hint": "Clocks are a common emission source. Route them on inner layers between planes where possible.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "pcb-rt-3",
+          "text": "Adjacent signal layers are routed orthogonally or with planes between them",
+          "hint": "Parallel routing on adjacent layers causes broadside coupling. Check layer pairs with no plane between them.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "pcb-rt-4",
+          "text": "Traces entering pads leave from the pad end or centre, not at an angle across the pad",
+          "hint": "Off-centre or wide traces into small pads cause tombstoning and uneven solder. Keep entry width at or below the pad width.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "pcb-rt-5",
+          "text": "Sensitive traces are not routed under noisy parts such as inductors, crystals or switch nodes",
+          "hint": "Magnetic and electric fields couple into traces directly underneath. Check the layers beneath every switching part.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "pcb-rt-6",
+          "text": "Long parallel runs between aggressor and victim nets are avoided",
+          "hint": "Coupled length matters as much as spacing. Check long buses and traces that share a channel.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "pcb-rt-7",
+          "text": "Unused copper fragments and dangling traces are removed",
+          "hint": "Leftover stubs act as antennas and confuse later revisions. Run the dangling-track check.",
+          "tags": [],
+          "severity": "minor"
+        }
+      ]
+    },
+    {
+      "id": "p-hs",
+      "title": "High-Speed & Differential Pairs",
+      "tags": [
+        "high-speed"
+      ],
+      "items": [
+        {
+          "id": "pcb-hs-1",
+          "text": "High-speed nets are routed on layers with the impedance defined in the stackup",
+          "hint": "Check each high-speed net only uses layers with a calculated geometry for its impedance class.",
+          "tags": [],
+          "severity": "critical"
+        },
+        {
+          "id": "pcb-hs-2",
+          "text": "Intra-pair skew compensation is placed near where the mismatch occurs",
+          "hint": "Compensating at the far end leaves the pair skewed along most of its length. Use small serpentines near the bend or pin that causes the mismatch, and check the result against the interface spec.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "pcb-hs-3",
+          "text": "Pair-to-pair length matching meets the interface spec where required",
+          "hint": "Some interfaces (e.g. parallel lanes with a forwarded clock) need lane-to-lane matching. Others tolerate skew. Follow the spec or IC guide.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "pcb-hs-4",
+          "text": "Differential pairs stay tightly coupled, with uncoupled length kept to a minimum",
+          "hint": "Breakouts at pins and around vias are the usual uncoupled sections. Keep them short and symmetric.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "pcb-hs-5",
+          "text": "Spacing between differential pairs is enough to keep crosstalk acceptable",
+          "hint": "Rule of thumb: keep pair-to-pair spacing several times the intra-pair gap. Simulate or follow the IC's layout guide for dense routing.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "pcb-hs-6",
+          "text": "Each high-speed signal via has a ground return via next to it",
+          "hint": "Ground vias beside signal vias keep the return path close at layer changes. For pairs, place them symmetrically.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "pcb-hs-7",
+          "text": "Via stubs on multi-gigabit links are back-drilled or avoided by layer choice",
+          "hint": "Long via stubs cause resonances. Route to layers that leave short stubs, or specify back-drilling on the fab drawing.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "pcb-hs-8",
+          "text": "AC coupling capacitors are placed per the interface spec, with matched pads and no stubs",
+          "hint": "Place both capacitors of a pair side by side. Consider a reference-plane cut-out under large pads to control impedance, per the IC guide.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "pcb-hs-9",
+          "text": "Pad and connector transitions are designed to keep impedance close to target",
+          "hint": "Large SMT pads and connector pins are capacitive. Use anti-pads or plane cut-outs per the connector or IC layout guide.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "pcb-hs-10",
+          "text": "Serpentine length tuning uses spacing and segment lengths that avoid self-coupling",
+          "hint": "Tight serpentines couple to themselves and shorten the effective delay. Rule of thumb: keep serpentine spacing at least a few trace widths.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "pcb-hs-11",
+          "text": "Fiber weave effect is addressed on long, fast differential pairs",
+          "hint": "Pairs running parallel to glass fibers see skew. Route at a slight angle, use spread glass, or follow the fab's advice for the data rate.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "pcb-hs-12",
+          "text": "Loss budget for each long high-speed channel is within the interface spec",
+          "hint": "Long traces on standard FR-4 may exceed the insertion loss budget. Estimate or simulate loss for the longest channels.",
+          "tags": [],
+          "severity": "major"
+        }
+      ]
+    },
+    {
+      "id": "p-ddr",
+      "title": "DDR Routing",
+      "tags": [
+        "ddr"
+      ],
+      "items": [
+        {
+          "id": "pcb-ddr-1",
+          "text": "DDR routing follows the memory controller vendor's layout guidelines",
+          "hint": "The SoC or FPGA vendor's layout guide sets topology, length rules and stackup. Check every rule against the layout.",
+          "tags": [],
+          "severity": "critical"
+        },
+        {
+          "id": "pcb-ddr-2",
+          "text": "Data byte lanes are routed on the same layer group as their strobe",
+          "hint": "Keep each DQ/DM byte lane and its DQS pair together, with the same number of vias, so they track over temperature.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "pcb-ddr-3",
+          "text": "Data-to-strobe length matching within each byte lane meets the vendor tolerance",
+          "hint": "Check the match group report per byte lane. Include package pin delays if the vendor requires it.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "pcb-ddr-4",
+          "text": "Address, command and control nets are matched to the clock within the vendor tolerance",
+          "hint": "Check the address/command group against CK in the length report.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "pcb-ddr-5",
+          "text": "Address and command routing uses the specified topology (fly-by or T-branch)",
+          "hint": "DDR3 and later normally use fly-by for multiple devices. Check the device order matches the write-levelling setup.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "pcb-ddr-6",
+          "text": "Fly-by termination resistors are at the end of the chain with short stubs",
+          "hint": "Place VTT termination after the last memory device and keep stubs from the main route short.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "pcb-ddr-7",
+          "text": "VTT and VREF are routed and decoupled per the layout guide",
+          "hint": "VREF should be a quiet, well-decoupled trace away from aggressors. VTT needs a low-impedance plane or wide trace with local capacitors.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "pcb-ddr-8",
+          "text": "Memory signals have a continuous reference plane with no splits beneath them",
+          "hint": "Check under the full length of every DDR net, including the breakout regions under the controller and memory.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "pcb-ddr-9",
+          "text": "Memory clock pairs are routed as controlled-impedance differential pairs",
+          "hint": "Check width, gap and intra-pair skew of CK pairs against the vendor's rules.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "pcb-ddr-10",
+          "text": "Spacing between byte lanes and between data and address groups meets the guide",
+          "hint": "Crosstalk between groups closes the timing eye. Follow the vendor's group-to-group spacing.",
+          "tags": [],
+          "severity": "major"
+        }
+      ]
+    },
+    {
+      "id": "p-rf",
+      "title": "RF Layout",
+      "tags": [
+        "rf"
+      ],
+      "items": [
+        {
+          "id": "pcb-rf-1",
+          "text": "RF traces are routed as controlled-impedance lines with the geometry from the stackup",
+          "hint": "Check width and gap for microstrip or coplanar waveguide against the calculation for the RF layer and its reference.",
+          "tags": [],
+          "severity": "critical"
+        },
+        {
+          "id": "pcb-rf-2",
+          "text": "Antenna placement and keepout follow the module or antenna datasheet",
+          "hint": "Antennas need specific copper-free areas, board-edge position and ground plane size. Copy the reference layout closely.",
+          "tags": [],
+          "severity": "critical"
+        },
+        {
+          "id": "pcb-rf-3",
+          "text": "No copper, components or traces sit inside the antenna keepout on any layer",
+          "hint": "The keepout applies to every layer, including ground pours. Check internal layers as well as the outer ones.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "pcb-rf-4",
+          "text": "Matching network footprints are placed close to the antenna feed or RF pin",
+          "hint": "Leave room for a pi or L network even if parts are not fitted, so the antenna can be tuned on the final board.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "pcb-rf-5",
+          "text": "RF traces have no sharp bends",
+          "hint": "Use curved or mitred bends. Keep RF traces short and avoid vias in the RF path unless designed for it.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "pcb-rf-6",
+          "text": "Coplanar ground beside RF traces is stitched with a dense row of vias",
+          "hint": "Rule of thumb: space stitching vias a small fraction of a wavelength apart along RF lines. Follow the RF IC's layout guide where it gives a value.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "pcb-rf-7",
+          "text": "RF ground plane under the radio IC and RF path is solid and unbroken",
+          "hint": "Do not route other signals through the RF reference layer under the RF section.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "pcb-rf-8",
+          "text": "Radio IC exposed pad has the recommended number of ground vias",
+          "hint": "The exposed pad is often the RF ground and the main thermal path. Follow the datasheet via pattern.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "pcb-rf-9",
+          "text": "Shield can footprint, if used, is continuous and well grounded",
+          "hint": "Shield frames need a solid ground ring with stitching vias. Check that tall parts fit under the can.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "pcb-rf-10",
+          "text": "Digital and switching circuits are kept away from the RF section and antenna",
+          "hint": "Clocks, DC-DC converters and display interfaces can desense the receiver. Keep them physically separate.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "pcb-rf-11",
+          "text": "RF test connector or test point footprint is provided for conducted measurements",
+          "hint": "A switched RF connector or a pad for a pigtail makes conducted power and sensitivity tests possible for certification and debug.",
+          "tags": [],
+          "severity": "major"
+        }
+      ]
+    },
+    {
+      "id": "p-ana",
+      "title": "Analog & Mixed-Signal Layout",
+      "tags": [
+        "precision-analog",
+        "audio"
+      ],
+      "items": [
+        {
+          "id": "pcb-ana-1",
+          "text": "High-impedance analog inputs are short and kept away from digital and switching traces",
+          "hint": "Picoamp or high-gain inputs pick up coupling easily. Route them on the shortest path with ground on either side.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "pcb-ana-2",
+          "text": "Guard rings surround high-impedance input nodes where leakage matters",
+          "hint": "Drive a guard at the same potential as the input to cut surface leakage. Leave it out of the solder mask if the datasheet suggests it.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "pcb-ana-3",
+          "text": "Current sense resistors use Kelvin connections",
+          "hint": "Take sense traces from the inside edges of the resistor pads, routed as a pair, so the measurement excludes the solder joint and trace resistance.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "pcb-ana-4",
+          "text": "ADC and DAC reference pins are decoupled at the pin with short loops",
+          "hint": "Reference noise feeds straight into the conversion result. Place the reference capacitor as close as the datasheet shows.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "pcb-ana-5",
+          "text": "Analog and digital sections of each ADC/DAC are placed per the datasheet",
+          "hint": "Place the converter so analog pins face the analog section and digital pins face the digital section.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "pcb-ana-6",
+          "text": "Differential analog inputs are routed as a symmetric pair",
+          "hint": "Matching length and environment keeps common-mode rejection. Route both traces together over the same reference.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "pcb-ana-7",
+          "text": "Thermal gradients across precision parts are minimised",
+          "hint": "Heat sources near references, thermocouples or matched resistors cause drift. Keep matched parts together and away from hot parts.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "pcb-ana-8",
+          "text": "Sensitive analog nets are not routed beneath digital buses or switching regulators",
+          "hint": "Check every layer beneath the analog path, not only the top layer.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "pcb-ana-9",
+          "text": "Audio input and output grounds return to the intended point",
+          "hint": "Speaker and headphone return currents can modulate the input ground. Route high-current audio returns separately from input references.",
+          "tags": [],
+          "severity": "minor"
+        }
+      ]
+    },
+    {
+      "id": "p-hc",
+      "title": "High-Current & Thermal",
+      "tags": [
+        "high-current",
+        "motor",
+        "battery"
+      ],
+      "items": [
+        {
+          "id": "pcb-hc-1",
+          "text": "High-current paths have enough copper width or area for their current",
+          "hint": "Check every high-current path, including through connectors, fuses and switches, against IPC-2152 style data for the copper weight used.",
+          "tags": [],
+          "severity": "critical"
+        },
+        {
+          "id": "pcb-hc-2",
+          "text": "Vias carrying high current are numerous enough for the load",
+          "hint": "Each via carries limited current. Use multiple vias at layer changes and check against plating thickness.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "pcb-hc-3",
+          "text": "Power stage component placement keeps high di/dt loops small",
+          "hint": "Place half-bridge FETs, the DC-link capacitor and gate drivers so the commutation loop is as small as possible.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "pcb-hc-4",
+          "text": "Gate drive traces are short and routed with their return",
+          "hint": "Route gate and source return as a pair to reduce loop inductance and ringing.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "pcb-hc-5",
+          "text": "Thermal vias are placed under exposed pads and hot components",
+          "hint": "Use the datasheet's thermal via pattern. Specify via fill or tenting if solder wicking into open vias is a concern.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "pcb-hc-6",
+          "text": "Thermal reliefs are not used where a part relies on the copper for heat sinking",
+          "hint": "Spokes reduce heat transfer. Hot parts often need solid connections even if soldering takes more heat.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "pcb-hc-7",
+          "text": "Heatsink and thermal-pad contact areas are free of tall parts and solder mask where needed",
+          "hint": "Exposed copper or a flat area may be needed for a thermal pad or clip-on heatsink.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "pcb-hc-8",
+          "text": "Current shunts and their Kelvin traces are placed away from heat sources",
+          "hint": "Shunt resistance changes with temperature. Keep sense traces away from the high-current path.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "pcb-hc-9",
+          "text": "Connectors and terminal blocks are rated and placed for the current, with wide copper to each pin",
+          "hint": "Spread current across all connector pins assigned to the rail. Thin traces to a connector pin are a common hot spot.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "pcb-hc-10",
+          "text": "Battery connection traces can survive a short circuit until the protection trips",
+          "hint": "Battery short-circuit current can be very high. Check the copper and fuse withstand the energy before the protection acts.",
+          "tags": [
+            "battery"
+          ],
+          "severity": "major"
+        }
+      ]
+    },
+    {
+      "id": "p-iso",
+      "title": "Creepage, Clearance & Isolation",
+      "tags": [
+        "mains",
+        "medical"
+      ],
+      "items": [
+        {
+          "id": "pcb-iso-1",
+          "text": "Creepage between isolated circuits meets the applicable safety standard on every layer",
+          "hint": "Take values from the applicable standard's tables for the working voltage, pollution degree and material group. Measure along the surface, including around slots.",
+          "tags": [],
+          "severity": "critical"
+        },
+        {
+          "id": "pcb-iso-2",
+          "text": "Clearance through air between isolated circuits meets the applicable safety standard",
+          "hint": "Clearance is measured in a straight line through air. Include parts that overhang the board and the enclosure.",
+          "tags": [],
+          "severity": "critical"
+        },
+        {
+          "id": "pcb-iso-3",
+          "text": "Isolation barrier is clear of all copper, vias and pours on every layer",
+          "hint": "Check internal layers. A pour or via inside the barrier on any layer defeats the isolation.",
+          "tags": [],
+          "severity": "critical"
+        },
+        {
+          "id": "pcb-iso-4",
+          "text": "Isolation slots are used where creepage cannot be met on the surface",
+          "hint": "Slots increase creepage distance. Check the slot width and position against the requirement and fab capability.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "pcb-iso-5",
+          "text": "Isolating components (optocouplers, transformers, isolators) straddle the barrier",
+          "hint": "Check that the component's own creepage and the board creepage both meet the requirement.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "pcb-iso-6",
+          "text": "Primary-side and secondary-side components are clearly grouped on each side of the barrier",
+          "hint": "A part from one side placed on the other is an easy error. Mark the barrier on silkscreen or the assembly layer.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "pcb-iso-7",
+          "text": "Mains input traces, fuses and protection parts have the required spacing to each other and to chassis",
+          "hint": "Include spacing between line and neutral as well as to protective earth. Use the applicable standard's tables.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "pcb-iso-8",
+          "text": "Protective earth connections are sized and fastened as the safety standard requires",
+          "hint": "Earth connections often need specific copper area and fastening. Check with the safety engineer.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "pcb-iso-9",
+          "text": "High-voltage areas are marked on the silkscreen",
+          "hint": "A warning symbol or outline around hazardous voltage areas helps during test and service.",
+          "tags": [],
+          "severity": "minor"
+        }
+      ]
+    },
+    {
+      "id": "p-emc",
+      "title": "EMC & ESD Layout",
+      "tags": [],
+      "items": [
+        {
+          "id": "pcb-emc-1",
+          "text": "ESD protection devices are placed at the connector, before any other component",
+          "hint": "The ESD path should go from connector pin to protection device to ground with the shortest possible trace. Route the protected signal through the device pad.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "pcb-emc-2",
+          "text": "ESD protection has a short, low-inductance connection to ground",
+          "hint": "Use multiple vias directly at the ground pad of the protection device.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "pcb-emc-3",
+          "text": "I/O connector shields connect to chassis or ground as the grounding plan intends",
+          "hint": "Check the shield connection: direct, through a capacitor, or through an RC network. Follow the system grounding plan.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "pcb-emc-4",
+          "text": "Filters on I/O lines are placed at the connector",
+          "hint": "Common-mode chokes and ferrites only work if they sit between the noise source and the cable.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "pcb-emc-5",
+          "text": "Noisy circuits are kept away from I/O connectors and cables",
+          "hint": "Cables act as antennas. Keep clocks and switching regulators away from the connector area.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "pcb-emc-6",
+          "text": "Chassis ground and signal ground are separated or joined as the grounding plan intends",
+          "hint": "Check the chassis pour, gap and any bridging capacitors match the plan.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "pcb-emc-7",
+          "text": "Exposed metal (buttons, connectors, screws) has an ESD discharge path that avoids sensitive circuits",
+          "hint": "An ESD strike must flow to ground without passing near sensitive ICs. Check the path from each user touch point.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "pcb-emc-8",
+          "text": "Reset and other sensitive control lines are kept short and away from board edges",
+          "hint": "ESD and fast transients can trigger resets through long traces. Add filtering near the IC pin if they must be long.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "pcb-emc-9",
+          "text": "Footprints for optional EMC parts (ferrites, capacitors, RC snubbers) are provided on risky nets",
+          "hint": "Spare footprints let the team fix EMC problems at pre-compliance testing without a respin.",
+          "tags": [
+            "regulatory"
+          ],
+          "severity": "minor"
+        }
+      ]
+    },
+    {
+      "id": "p-flex",
+      "title": "Flex & Rigid-Flex",
+      "tags": [
+        "flex"
+      ],
+      "items": [
+        {
+          "id": "pcb-flex-1",
+          "text": "Bend regions have no vias, pads or components",
+          "hint": "Vias and pads in a bend crack with flexing. Keep them in rigid or stiffened areas.",
+          "tags": [],
+          "severity": "critical"
+        },
+        {
+          "id": "pcb-flex-2",
+          "text": "Bend radius meets the fab's guidelines for the flex thickness and layer count",
+          "hint": "Bend radius depends on flex thickness and whether the bend is static or dynamic. Use the fab's design guide.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "pcb-flex-3",
+          "text": "Traces in bend regions run perpendicular to the bend line",
+          "hint": "Traces at an angle to the bend line take uneven strain. Route straight across the bend.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "pcb-flex-4",
+          "text": "Traces on adjacent flex layers are staggered, not stacked, through bends",
+          "hint": "Stacked traces form an I-beam that stiffens the flex and concentrates stress.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "pcb-flex-5",
+          "text": "Ground planes in flex areas use hatched copper where flexibility is needed",
+          "hint": "Solid copper stiffens the flex. Check that a hatched plane still gives the needed impedance and shielding.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "pcb-flex-6",
+          "text": "Pad and trace junctions in flex areas use teardrops or fillets",
+          "hint": "Teardrops reduce stress at the junction and help coverlay adhesion.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "pcb-flex-7",
+          "text": "Stiffeners are defined with material, thickness and position on the drawing",
+          "hint": "Stiffeners under connectors and components need to be on the fab drawing, with adhesive type.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "pcb-flex-8",
+          "text": "Rigid-to-flex transitions keep copper features away from the transition line",
+          "hint": "The transition zone sees the most stress. Follow the fab's keepout from the rigid edge.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "pcb-flex-9",
+          "text": "Coverlay openings are sized and positioned per the fab's guidelines",
+          "hint": "Coverlay openings are less accurate than solder mask. Check the fab's minimum opening and registration tolerance.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "pcb-flex-10",
+          "text": "Flex outline has radiused internal corners and tear-stop features",
+          "hint": "Sharp internal corners on flex tear easily. Add radii and copper tear-stops at slits.",
+          "tags": [],
+          "severity": "minor"
+        }
+      ]
+    },
+    {
+      "id": "p-bga",
+      "title": "BGA Fanout & HDI",
+      "tags": [
+        "bga",
+        "hdi"
+      ],
+      "items": [
+        {
+          "id": "pcb-bga-1",
+          "text": "BGA fanout pattern follows the package vendor's recommended via and escape strategy",
+          "hint": "Check the vendor's escape routing guide for via size, pad size and number of layers needed.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "pcb-bga-2",
+          "text": "BGA pad type (solder mask defined or non-solder mask defined) matches the vendor recommendation",
+          "hint": "Pad type affects joint reliability. Use the package datasheet.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "pcb-bga-3",
+          "text": "Dog-bone vias are fully covered or plugged so solder doesn't wick away from the ball",
+          "hint": "Open vias next to BGA pads can steal solder. Tent, plug or mask them per the assembler's advice.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "pcb-bga-4",
+          "text": "Via-in-pad is filled and plated over (capped) where used",
+          "hint": "Open via-in-pad wicks solder and causes voids. Specify filled and capped vias on the fab drawing.",
+          "tags": [
+            "hdi"
+          ],
+          "severity": "major"
+        },
+        {
+          "id": "pcb-bga-5",
+          "text": "Microvia aspect ratio and stacking are within the fab's capability",
+          "hint": "Stacked microvias can be less reliable than staggered ones. Check the fab's rules for stacking and aspect ratio.",
+          "tags": [
+            "hdi"
+          ],
+          "severity": "major"
+        },
+        {
+          "id": "pcb-bga-6",
+          "text": "Sequential lamination build-up is described clearly on the fab drawing",
+          "hint": "Show which layers each microvia and buried via spans, with drill tables per span.",
+          "tags": [
+            "hdi"
+          ],
+          "severity": "major"
+        },
+        {
+          "id": "pcb-bga-7",
+          "text": "Power and ground balls have enough vias to the planes",
+          "hint": "Share vias between balls only if the vendor allows it. Check the current per via.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "pcb-bga-8",
+          "text": "Decoupling capacitors under the BGA are placed and connected per the vendor's guide",
+          "hint": "Bottom-side capacitors under a BGA need short via connections to the power balls.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "pcb-bga-9",
+          "text": "Unused BGA balls are handled as the datasheet requires",
+          "hint": "Some unused balls must be tied to ground or left floating. Check the pin list.",
+          "tags": [],
+          "severity": "minor"
+        }
+      ]
+    },
+    {
+      "id": "p-silk",
+      "title": "Silkscreen, Marking & Polarity",
+      "tags": [],
+      "items": [
+        {
+          "id": "pcb-silk-1",
+          "text": "Pin 1 is marked clearly for every IC and connector",
+          "hint": "The mark should be visible after the part is placed, not hidden under the body.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "pcb-silk-2",
+          "text": "Reference designators are readable and placed next to their parts",
+          "hint": "Use a consistent orientation, with at most two reading directions.",
+          "tags": [],
+          "severity": "minor"
+        },
+        {
+          "id": "pcb-silk-3",
+          "text": "Silkscreen text size meets the fab's minimum line width and height",
+          "hint": "Text below the fab's limits smudges. Use the fab's minimum values.",
+          "tags": [],
+          "severity": "minor"
+        },
+        {
+          "id": "pcb-silk-4",
+          "text": "Board name, part number and revision are on the silkscreen or copper",
+          "hint": "Every board should be traceable. Copper text survives harsh processing better than silk.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "pcb-silk-5",
+          "text": "Space for a serial number or barcode label is provided",
+          "hint": "Leave a clear area for a label or laser marking, sized for the label or code.",
+          "tags": [
+            "production"
+          ],
+          "severity": "minor"
+        },
+        {
+          "id": "pcb-silk-6",
+          "text": "Connector pin functions and voltage markings are on the silkscreen where users connect cables",
+          "hint": "Mark supply inputs with voltage and polarity, and mark user-wired terminals.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "pcb-silk-7",
+          "text": "Regulatory and safety markings required on the board are present",
+          "hint": "Some products need certification marks, UL recognition or warning symbols on the PCB. Confirm with the compliance plan.",
+          "tags": [
+            "regulatory",
+            "mains",
+            "medical"
+          ],
+          "severity": "minor"
+        },
+        {
+          "id": "pcb-silk-8",
+          "text": "Test points, jumpers and debug headers are labelled",
+          "hint": "Labels speed bring-up and test. Use net names or short descriptions.",
+          "tags": [],
+          "severity": "minor"
+        }
+      ]
+    },
+    {
+      "id": "p-tes",
+      "title": "Test Points & DFT",
+      "tags": [],
+      "items": [
+        {
+          "id": "pt1",
+          "text": "Test points are provided for all critical signals and power rails",
+          "hint": "Every power rail, reset, clock and key interface should be probe-able on the assembled board.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "pt2",
+          "text": "JTAG/SWD/debug header is accessible with the board installed",
+          "hint": "Check access in the enclosure. A debug port that needs disassembly slows bring-up and field debug.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "pt3",
+          "text": "In-circuit test (bed-of-nails) access is maintained for all testable nets",
+          "hint": "Agree the test strategy with the contract manufacturer. Missing access means untested nets in production.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "pt4",
+          "text": "Polarity markers are visible on the silkscreen for all polarised components",
+          "hint": "Check every diode, LED, electrolytic and tantalum capacitor. The marking must be visible after assembly.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "pcb-dft-1",
+          "text": "Test points are on one side of the board where the fixture design requires",
+          "hint": "Single-sided fixtures are cheaper. Put all test points on the side the fixture probes.",
+          "tags": [
+            "production"
+          ],
+          "severity": "major"
+        },
+        {
+          "id": "pcb-dft-2",
+          "text": "Test point size and spacing meet the test fixture's probe requirements",
+          "hint": "Use the test house's minimum pad size and pitch. Small pads cause unreliable contact.",
+          "tags": [
+            "production"
+          ],
+          "severity": "major"
+        },
+        {
+          "id": "pcb-dft-3",
+          "text": "Test points are kept clear of tall components",
+          "hint": "Probes need clear access. Tall parts nearby block probes and fixture plates.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "pcb-dft-4",
+          "text": "Programming and debug connectors are placed for both bench and production use",
+          "hint": "Consider a pogo-pin pad pattern for production programming in addition to a bench header.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "pcb-dft-5",
+          "text": "Ground test points are near each group of signal test points",
+          "hint": "Short ground leads are needed for clean scope measurements.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "pcb-dft-6",
+          "text": "Zero-ohm links or jumpers are provided to isolate rails for bring-up",
+          "hint": "Breaking a rail lets you measure current and isolate faults during bring-up.",
+          "tags": [],
+          "severity": "major"
+        }
+      ]
+    },
+    {
+      "id": "p-man",
+      "title": "Manufacturability (DFM)",
+      "tags": [],
+      "items": [
+        {
+          "id": "pm1",
+          "text": "Minimum trace width and spacing are within the fabricator's capability",
+          "hint": "Compare against the capability sheet for the copper weight on each layer. Finer features usually cost more.",
+          "tags": [],
+          "severity": "critical"
+        },
+        {
+          "id": "pm2",
+          "text": "Minimum drill size and aspect ratio are within the fabricator's capability",
+          "hint": "Aspect ratio is board thickness over drill diameter. Check against the fab limit for through vias and microvias separately.",
+          "tags": [],
+          "severity": "critical"
+        },
+        {
+          "id": "pm3",
+          "text": "Annular ring is sufficient for all vias and plated through-hole pads",
+          "hint": "Set annular ring per fab capability and the IPC-6012 class ordered. Drill wander eats into small rings.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "pm4",
+          "text": "Solder mask slivers between pads are eliminated",
+          "hint": "Slivers below the fab's minimum web flake off. Gang-relieve fine-pitch pads if the web cannot be held.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "pm5",
+          "text": "Courtyards and silkscreen do not overlap pads or conflict with adjacent parts",
+          "hint": "Overlapping courtyards mean parts will collide. Run the courtyard check and the silk-to-pad check.",
+          "tags": [],
+          "severity": "minor"
+        },
+        {
+          "id": "pm6",
+          "text": "Fiducial marks are present on each populated side for automated assembly",
+          "hint": "Use global fiducials on the board or panel, and local fiducials near fine-pitch parts if the assembler asks. Keep a clear mask opening around them.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "pm7",
+          "text": "Tooling holes are present and correctly sized for panelisation",
+          "hint": "Use the assembler's tooling hole size and position, usually on the panel rails.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "pcb-dfm-1",
+          "text": "Solder mask dams between fine-pitch pads meet the fab's minimum",
+          "hint": "Mask dams prevent solder bridges. Check the dam width against the fab capability.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "pcb-dfm-2",
+          "text": "Solder mask expansion is set per fab capability",
+          "hint": "Too small and mask may encroach on pads, too large and adjacent pads merge. Use the fab's registration tolerance.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "pcb-dfm-3",
+          "text": "Via tenting, plugging or filling is specified on the fab drawing",
+          "hint": "State which vias are tented, plugged or filled. Partially tented vias can trap chemicals.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "pcb-dfm-4",
+          "text": "Copper has no acid traps",
+          "hint": "Acute angles between traces trap etchant. Most CAD tools have a check for this.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "pcb-dfm-5",
+          "text": "Copper has no slivers below the fab's minimum width",
+          "hint": "Thin copper slivers from pours can lift and short. Set a minimum pour width and remove slivers.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "pcb-dfm-6",
+          "text": "Copper is balanced across each layer and between layers",
+          "hint": "Uneven copper causes warp and plating thickness variation. Add copper thieving in empty areas if the fab agrees.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "pcb-dfm-7",
+          "text": "Panelisation is agreed with the assembler, including rails, breakaway method and panel size",
+          "hint": "Check the panel drawing with the assembler. Parts near tabs or V-scores need extra clearance.",
+          "tags": [
+            "production"
+          ],
+          "severity": "major"
+        },
+        {
+          "id": "pcb-dfm-8",
+          "text": "Paste layer is correct, including paste reduction on large pads and exposed pads",
+          "hint": "Exposed pads usually need a windowed paste pattern to avoid voids and float. Follow the datasheet or assembler's advice.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "pcb-dfm-9",
+          "text": "Gerber, drill and fab drawing outputs have been checked in a Gerber viewer",
+          "hint": "Generate from the final database, then check every output layer. Confirm drill files match the drill table.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "pcb-dfm-10",
+          "text": "IPC-6012 class and acceptance criteria are stated on the fab drawing",
+          "hint": "State Class 2 or Class 3 as the product needs. This drives annular ring, plating and inspection.",
+          "tags": [],
+          "severity": "minor"
+        }
+      ]
+    }
+  ]
+}

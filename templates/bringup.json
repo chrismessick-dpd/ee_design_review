@@ -1,0 +1,1040 @@
+{
+  "id": "bringup",
+  "title": "Bring-up & Validation",
+  "short": "Bring-up",
+  "version": 1,
+  "description": "Checks for first boards back, from receiving inspection through power-on, functional bring-up and design validation before releasing the next revision.",
+  "sections": [
+    {
+      "id": "b-receiving",
+      "title": "Receiving Inspection",
+      "tags": [],
+      "items": [
+        {
+          "id": "bu-rcv-1",
+          "text": "Received boards match the ordered revision, quantity and assembly variant",
+          "hint": "Check the silkscreen revision, fab date code and assembly variant label against the purchase order and release package. Mixed revisions in one batch cause confusing bring-up results.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "bu-rcv-2",
+          "text": "Each board has a unique serial number or label recorded in the bring-up log",
+          "hint": "Results, rework and failures must be traceable to a specific unit. Label boards before anyone starts probing.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "bu-rcv-3",
+          "text": "Visual inspection shows no solder bridges, tombstones, missing or misplaced parts",
+          "hint": "Inspect under magnification against the assembly drawing; use IPC-A-610 as the acceptance reference. Pay particular attention to fine-pitch leads and QFN edges.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "bu-rcv-4",
+          "text": "Polarized parts (diodes, electrolytic and tantalum capacitors, LEDs) are fitted in the correct orientation",
+          "hint": "Compare each polarity mark to the assembly drawing, not just the silkscreen, since silkscreen marks are sometimes wrong. A reversed tantalum can fail short on first power.",
+          "tags": [],
+          "severity": "critical"
+        },
+        {
+          "id": "bu-rcv-5",
+          "text": "Pin-1 orientation of every IC and connector matches the assembly drawing",
+          "hint": "Check ICs, regulators, crystals with polarity and keyed connectors. A rotated regulator or MCU usually damages itself or the rail on power-up.",
+          "tags": [],
+          "severity": "critical"
+        },
+        {
+          "id": "bu-rcv-6",
+          "text": "Do-not-fit (DNF) positions are unpopulated and fitted options match the build variant",
+          "hint": "Walk the BOM's DNF list and variant table. A fitted DNF strap or resistor can short rails or select the wrong mode.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "bu-rcv-7",
+          "text": "Bare-board dimensions, hole positions and mounting features match the fabrication drawing",
+          "hint": "Measure board outline and key mounting holes with calipers, and trial-fit into the enclosure or mechanical fixture if available.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "bu-rcv-8",
+          "text": "X-ray inspection report for BGA and bottom-terminated parts shows acceptable voiding and no bridges or opens",
+          "hint": "Request X-ray images for every BGA/LGA/QFN thermal pad. Compare voiding to the assembler's acceptance criteria; open balls often show as missing joints in the image.",
+          "tags": [
+            "bga"
+          ],
+          "severity": "critical"
+        },
+        {
+          "id": "bu-rcv-9",
+          "text": "Flex sections are free of cracks, delamination and coverlay damage at the bend regions",
+          "hint": "Inspect stiffener edges and the rigid-flex transition under magnification. Do not flex the board beyond its specified bend radius during handling.",
+          "tags": [
+            "flex"
+          ],
+          "severity": "major"
+        },
+        {
+          "id": "bu-rcv-10",
+          "text": "Conformal coating (if applied) covers the intended areas and keep-out areas such as connectors and test points are clean",
+          "hint": "Inspect under UV light if the coating has a tracer. Coating on connector contacts or test pads causes intermittent contact.",
+          "tags": [
+            "harsh-env"
+          ],
+          "severity": "major"
+        }
+      ]
+    },
+    {
+      "id": "b-prepower",
+      "title": "Pre-Power Checks",
+      "tags": [],
+      "items": [
+        {
+          "id": "bu-pre-1",
+          "text": "Resistance from each power rail to ground is measured and recorded on an unpowered board",
+          "hint": "Measure every rail at a test point or capacitor with a DMM, observing meter polarity. Compare across boards; an outlier points to a short or a missing part.",
+          "tags": [],
+          "severity": "critical"
+        },
+        {
+          "id": "bu-pre-2",
+          "text": "No rail measures a hard short (near 0 Ω) to ground or to another rail",
+          "hint": "Large-capacitance or low-voltage core rails can read low ohms legitimately; compare against a known-good board or the expected load. Locate shorts with a thermal camera at very low current limit or a milliohm meter.",
+          "tags": [],
+          "severity": "critical"
+        },
+        {
+          "id": "bu-pre-3",
+          "text": "Input power connector polarity and pinout are verified against the schematic",
+          "hint": "Check with a continuity meter from connector pins to the input protection and ground. A mirrored connector footprint is a common first-article error.",
+          "tags": [],
+          "severity": "critical"
+        },
+        {
+          "id": "bu-pre-4",
+          "text": "Jumpers, straps, DIP switches and boot-mode resistors are set to the bring-up configuration",
+          "hint": "Document the configuration used in the bring-up log. Default boot from an unprogrammed external flash may need a strap change to enter the debugger or ROM bootloader.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "bu-pre-5",
+          "text": "Rail-to-rail resistance shows no unexpected low-impedance paths between rails",
+          "hint": "Check pairs of adjacent rails, especially those sharing a regulator or a level translator. Back-feeding through I/O protection diodes can show up here as a diode drop in diode-test mode.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "bu-pre-6",
+          "text": "High-voltage and isolation barriers show no continuity across the barrier",
+          "hint": "Measure resistance from primary to secondary side; use an insulation resistance tester at a voltage appropriate to the design and per the safety requirement.",
+          "tags": [
+            "mains"
+          ],
+          "severity": "critical"
+        },
+        {
+          "id": "bu-pre-7",
+          "text": "Bring-up power plan lists each rail's expected voltage and current and the current limit to use",
+          "hint": "Prepare this before power-on from the power tree. It gives every check below a pass/fail reference.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "bu-pre-8",
+          "text": "Battery is not connected for first power-up; a current-limited supply or battery simulator is used instead",
+          "hint": "A battery can deliver very high fault current into a short. Connect the real battery only after the protection and charge paths are verified.",
+          "tags": [
+            "battery"
+          ],
+          "severity": "critical"
+        }
+      ]
+    },
+    {
+      "id": "b-poweron",
+      "title": "First Power-On",
+      "tags": [],
+      "items": [
+        {
+          "id": "bu-on-1",
+          "text": "First power-up uses a bench supply with current limit set just above the expected input current",
+          "hint": "Rule of thumb: start at a limit modestly above the calculated quiescent current, then raise it in steps. Watch for the supply going into current limit.",
+          "tags": [],
+          "severity": "critical"
+        },
+        {
+          "id": "bu-on-2",
+          "text": "Input voltage is ramped slowly from zero while input current is monitored",
+          "hint": "Watch for current rising abnormally before regulators should be active, which indicates a short or reversed part. Stop and investigate any unexpected step.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "bu-on-3",
+          "text": "Thermal camera or touch check shows no unexpected hot spots within the first seconds of power",
+          "hint": "A thermal camera finds shorted capacitors and back-driven ICs quickly. Compare against expected hot parts (regulators, processors).",
+          "tags": [],
+          "severity": "critical"
+        },
+        {
+          "id": "bu-on-4",
+          "text": "Input current at idle is within the expected range from the power budget",
+          "hint": "Record the value for each board. Large board-to-board spread usually indicates an assembly defect.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "bu-on-5",
+          "text": "Every rail measures within its specified tolerance at the regulator output and at the far-end load",
+          "hint": "Measure at the load pins as well as the regulator to catch distribution drop. Compare to datasheet tolerance of the load ICs.",
+          "tags": [],
+          "severity": "critical"
+        },
+        {
+          "id": "bu-on-6",
+          "text": "Power-good, status and indicator signals report the expected state",
+          "hint": "Check PGOOD outputs, reset supervisors and status LEDs. A missing power-good often explains a processor that never leaves reset.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "bu-on-7",
+          "text": "Mains-connected boards are first powered through an isolation transformer with suitable safety precautions",
+          "hint": "Use an isolation transformer, a variac for slow ramp and differential or isolated probes. Follow the lab's high-voltage work procedure.",
+          "tags": [
+            "mains"
+          ],
+          "severity": "critical"
+        }
+      ]
+    },
+    {
+      "id": "b-rails",
+      "title": "Power Rail Validation",
+      "tags": [],
+      "items": [
+        {
+          "id": "bu-rail-1",
+          "text": "Ripple and noise on each rail is within the load ICs' requirements",
+          "hint": "Measure with a short ground spring at the probe tip, bandwidth limit noted, at the load. Long ground leads add pickup and give misleading results.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "bu-rail-2",
+          "text": "Load-step response keeps each rail within tolerance during transients",
+          "hint": "Use an electronic load or a switched resistor at realistic slew rates, or exercise the real firmware load. Check overshoot, undershoot and settling against load IC limits.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "bu-rail-3",
+          "text": "Switching regulator loop stability is acceptable (bode measurement or load-step ringing)",
+          "hint": "Measure phase margin with a loop injection transformer if a test point exists; otherwise judge from load-step ringing. Low margin causes intermittent faults across temperature.",
+          "tags": [
+            "high-current"
+          ],
+          "severity": "major"
+        },
+        {
+          "id": "bu-rail-4",
+          "text": "Power-up sequencing order and timing match the requirements of the sequenced devices",
+          "hint": "Capture all relevant rails and resets on a multi-channel scope at power-on. Compare to processor, FPGA or DDR datasheet sequencing requirements.",
+          "tags": [],
+          "severity": "critical"
+        },
+        {
+          "id": "bu-rail-5",
+          "text": "Power-down sequencing does not violate device requirements or back-power any rail",
+          "hint": "Capture rails at power removal. Look for rails held up through I/O pins or slow-discharging outputs.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "bu-rail-6",
+          "text": "Board starts reliably at minimum specified input voltage",
+          "hint": "Test with the worst-case source impedance (cable, battery) where possible. Include inrush current interacting with the source.",
+          "tags": [],
+          "severity": "critical"
+        },
+        {
+          "id": "bu-rail-7",
+          "text": "Board starts and operates at maximum specified input voltage",
+          "hint": "Verify no component exceeds its rating and that protection does not trip falsely. Measure peak stress on switching nodes.",
+          "tags": [],
+          "severity": "critical"
+        },
+        {
+          "id": "bu-rail-8",
+          "text": "Inrush current at power-on is within source, connector and fuse limits",
+          "hint": "Capture input current with a current probe at the worst-case input voltage. Hot-plugging can produce higher inrush and input voltage spikes than a slow bench ramp.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "bu-rail-9",
+          "text": "Converter efficiency at typical and full load meets the power budget",
+          "hint": "Measure input and output power with accurate meters. Low efficiency points to inductor saturation, wrong frequency or layout problems.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "bu-rail-10",
+          "text": "Over-current, over-voltage and thermal protection trip at the designed thresholds",
+          "hint": "Test each protection feature at limited energy where possible. Confirm recovery behavior (latch-off vs hiccup) matches the design intent.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "bu-rail-11",
+          "text": "Motor or actuator supply holds within limits during start-up, stall and regenerative braking",
+          "hint": "Capture bus voltage while starting, stalling and decelerating the load. Regenerated energy can pump the bus above component ratings.",
+          "tags": [
+            "motor"
+          ],
+          "severity": "critical"
+        },
+        {
+          "id": "bu-rail-12",
+          "text": "Rail and connector temperature rise at full load is acceptable",
+          "hint": "Run at maximum current until temperatures settle and measure copper, connectors and fuses with a thermal camera or thermocouples.",
+          "tags": [
+            "high-current"
+          ],
+          "severity": "major"
+        }
+      ]
+    },
+    {
+      "id": "b-clocks",
+      "title": "Clocks & Reset",
+      "tags": [],
+      "items": [
+        {
+          "id": "bu-clk-1",
+          "text": "Every crystal and oscillator starts reliably and runs at the expected frequency",
+          "hint": "Measure with a frequency counter or scope through a buffered output where possible; probing a crystal directly loads it and can stop or pull it.",
+          "tags": [],
+          "severity": "critical"
+        },
+        {
+          "id": "bu-clk-2",
+          "text": "Crystal frequency accuracy is within the requirement (load capacitance trimmed)",
+          "hint": "Measure ppm error against a reference. Adjust load capacitors if the offset is systematic; timing-critical radios and RTCs are most sensitive.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "bu-clk-3",
+          "text": "Crystal oscillators start reliably at cold and at minimum supply",
+          "hint": "Check oscillator margin per the MCU vendor's guidance (negative resistance test or start-up over temperature). Marginal crystals fail in the field, not on the bench.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "bu-clk-4",
+          "text": "Clock signal integrity (amplitude, edge rate, jitter) meets the receiver requirements",
+          "hint": "Measure at the receiving device with adequate scope bandwidth. Check jitter for SerDes, ADC and high-speed reference clocks against datasheet limits.",
+          "tags": [
+            "high-speed"
+          ],
+          "severity": "major"
+        },
+        {
+          "id": "bu-clk-5",
+          "text": "PLLs lock and report lock status as expected",
+          "hint": "Read lock bits through the debugger or test firmware. Intermittent lock loss is often a supply-noise issue.",
+          "tags": [
+            "fpga"
+          ],
+          "severity": "major"
+        },
+        {
+          "id": "bu-clk-6",
+          "text": "Reset is held until all required rails are stable and released cleanly",
+          "hint": "Scope reset against supplies at power-on and with a slow input ramp. Check for glitches on reset during brown-out.",
+          "tags": [],
+          "severity": "critical"
+        },
+        {
+          "id": "bu-clk-7",
+          "text": "Brown-out produces a clean reset and recovery without lock-up",
+          "hint": "Dip input voltage slowly below threshold and back. The board must reset and restart, not hang in a partial state.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "bu-clk-8",
+          "text": "Real-time clock keeps time on backup supply for the required duration",
+          "hint": "Remove main power and confirm the RTC retains time. Measure backup current against the budget.",
+          "tags": [
+            "low-power"
+          ],
+          "severity": "major"
+        }
+      ]
+    },
+    {
+      "id": "b-debug",
+      "title": "Programming & Debug Access",
+      "tags": [],
+      "items": [
+        {
+          "id": "bu-dbg-1",
+          "text": "Debugger connects to each programmable device through the debug header",
+          "hint": "Confirm the JTAG/SWD chain is detected and IDs read correctly. Failure here is usually a pinout, pull-up or reset strap problem.",
+          "tags": [],
+          "severity": "critical"
+        },
+        {
+          "id": "bu-dbg-2",
+          "text": "Each device can be programmed and verified through the intended programming path",
+          "hint": "Program and verify readback for MCUs, flash, CPLDs and FPGAs. Note programming time for production planning.",
+          "tags": [],
+          "severity": "critical"
+        },
+        {
+          "id": "bu-dbg-3",
+          "text": "FPGA configures from its boot flash and reports DONE / configuration status",
+          "hint": "Check the configuration mode straps and that the image boots after a power cycle, not only from JTAG.",
+          "tags": [
+            "fpga"
+          ],
+          "severity": "critical"
+        },
+        {
+          "id": "bu-dbg-4",
+          "text": "Boot ROM recovery or bootloader path works on a blank or corrupted device",
+          "hint": "Confirm a bricked unit can be recovered in the field or factory without rework.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "bu-dbg-5",
+          "text": "Debug console (UART or equivalent) outputs readable text at the configured baud rate",
+          "hint": "A console that works early is the fastest bring-up tool; garbled output usually means a clock or baud configuration error.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "bu-dbg-6",
+          "text": "Debug and programming interfaces can be locked or disabled as required for production security",
+          "hint": "Verify the readout protection or debug lock procedure on a sacrificial unit before it is applied to production.",
+          "tags": [
+            "production"
+          ],
+          "severity": "major"
+        }
+      ]
+    },
+    {
+      "id": "b-periph",
+      "title": "Peripheral & Interface Bring-up",
+      "tags": [],
+      "items": [
+        {
+          "id": "bu-per-1",
+          "text": "Every I2C, SPI and UART device responds at its expected address or ID",
+          "hint": "Run a bus scan and read ID registers. Missing devices point to address straps, pull-ups or assembly faults.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "bu-per-2",
+          "text": "All GPIO, LED, button and control signals toggle and read correctly",
+          "hint": "Use a test firmware to exercise each pin and confirm against the pinout. This catches schematic-to-firmware pin mapping errors early.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "bu-per-3",
+          "text": "External memory passes a full read/write memory test at rated speed",
+          "hint": "Run a pattern-based memory test (walking ones, address-in-address, random) across the full array, including at temperature corners later.",
+          "tags": [
+            "ddr"
+          ],
+          "severity": "critical"
+        },
+        {
+          "id": "bu-per-4",
+          "text": "DDR training or calibration completes with adequate margin",
+          "hint": "Review read/write eye or training margin reports from the controller or vendor tool. Low margin predicts failures over temperature and production spread.",
+          "tags": [
+            "ddr"
+          ],
+          "severity": "critical"
+        },
+        {
+          "id": "bu-per-5",
+          "text": "High-speed serial links train at the target rate with error-free BER test",
+          "hint": "Run PRBS or vendor link tests for a duration long enough to support the BER target. Capture eye diagrams where tools permit.",
+          "tags": [
+            "high-speed"
+          ],
+          "severity": "critical"
+        },
+        {
+          "id": "bu-per-6",
+          "text": "USB enumerates at the intended speed and passes basic transfer tests",
+          "hint": "Check enumeration on several hosts and cables. Verify VBUS behavior and current limits.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "bu-per-7",
+          "text": "Ethernet link establishes at all supported speeds and passes traffic without errors",
+          "hint": "Check link at each negotiated speed and run a sustained traffic test, watching error counters.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "bu-per-8",
+          "text": "Display initializes and shows correct image without artifacts, and touch reports accurate coordinates",
+          "hint": "Check color order, orientation, backlight dimming and touch across the full panel area.",
+          "tags": [
+            "display"
+          ],
+          "severity": "major"
+        },
+        {
+          "id": "bu-per-9",
+          "text": "Audio input and output paths work with expected level and no audible noise or distortion",
+          "hint": "Check with a test tone and an audio analyzer if available. Listen at minimum volume for hum and digital whine.",
+          "tags": [
+            "audio"
+          ],
+          "severity": "major"
+        },
+        {
+          "id": "bu-per-10",
+          "text": "Motor driver commutates correctly in both directions and current sensing reads accurately",
+          "hint": "Start at reduced supply and current limit. Compare measured phase current against the sensed value.",
+          "tags": [
+            "motor"
+          ],
+          "severity": "critical"
+        },
+        {
+          "id": "bu-per-11",
+          "text": "Motor driver fault protection (over-current, stall, shoot-through) trips as designed",
+          "hint": "Test with a locked rotor or controlled overload at reduced energy. Confirm the driver recovers as intended.",
+          "tags": [
+            "motor"
+          ],
+          "severity": "major"
+        },
+        {
+          "id": "bu-per-12",
+          "text": "External connectors pass signals with correct pinout to mating cables and boards",
+          "hint": "Test with the actual mating harness or board rather than a bench lead. Mirror-image pinouts are a common first-article error.",
+          "tags": [],
+          "severity": "critical"
+        },
+        {
+          "id": "bu-per-13",
+          "text": "Sensors return plausible readings that respond correctly to stimulus",
+          "hint": "Compare against a reference instrument or known stimulus. Check axis orientation and sign for IMUs and similar sensors.",
+          "tags": [],
+          "severity": "major"
+        }
+      ]
+    },
+    {
+      "id": "b-analog",
+      "title": "Analog Performance",
+      "tags": [
+        "precision-analog",
+        "audio"
+      ],
+      "items": [
+        {
+          "id": "bu-ana-1",
+          "text": "Noise floor of each analog channel is measured and meets the requirement",
+          "hint": "Capture with inputs shorted or terminated and compute RMS noise or noise density. Compare to the noise budget.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "bu-ana-2",
+          "text": "Offset and gain errors are measured and within the requirement or calibration range",
+          "hint": "Apply known reference inputs at multiple points. Errors beyond the calibration range indicate a design or part issue.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "bu-ana-3",
+          "text": "Linearity across the full input range meets the requirement",
+          "hint": "Sweep the input with a precision source and plot error vs input. Look for clipping near the rails.",
+          "tags": [
+            "precision-analog"
+          ],
+          "severity": "major"
+        },
+        {
+          "id": "bu-ana-4",
+          "text": "Voltage reference output is within tolerance and stable over warm-up",
+          "hint": "Measure with a meter of better accuracy than the reference. Record drift during warm-up and over temperature later.",
+          "tags": [
+            "precision-analog"
+          ],
+          "severity": "major"
+        },
+        {
+          "id": "bu-ana-5",
+          "text": "Digital and switching activity does not couple into analog channels",
+          "hint": "Compare noise with processors, radios and switchers active vs idle. Look for spurs at known clock or switching frequencies.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "bu-ana-6",
+          "text": "Amplifier stages are stable with no oscillation under all load conditions",
+          "hint": "Check with step inputs and capacitive loads such as cables. Oscillation may appear only as excess noise or offset on a DMM.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "bu-ana-7",
+          "text": "Sensor front-ends meet accuracy with the actual sensor connected",
+          "hint": "Test with the production sensor and cable rather than a simulator; cable capacitance and leakage affect high-impedance inputs.",
+          "tags": [
+            "precision-analog"
+          ],
+          "severity": "major"
+        }
+      ]
+    },
+    {
+      "id": "b-rf",
+      "title": "RF Bring-up",
+      "tags": [
+        "rf"
+      ],
+      "items": [
+        {
+          "id": "bu-rf-1",
+          "text": "Conducted transmit power at each channel and band is within the requirement",
+          "hint": "Measure at the RF test connector or with a coax pigtail into a spectrum analyzer or power meter, accounting for cable loss.",
+          "tags": [],
+          "severity": "critical"
+        },
+        {
+          "id": "bu-rf-2",
+          "text": "Receiver sensitivity meets the requirement at the specified error rate",
+          "hint": "Use a signal generator or radio tester through calibrated attenuation. Compare against the radio vendor's reference figures.",
+          "tags": [],
+          "severity": "critical"
+        },
+        {
+          "id": "bu-rf-3",
+          "text": "Antenna match (return loss / VSWR) is acceptable across the band in the final enclosure",
+          "hint": "Measure with a VNA at the antenna feed with the enclosure, battery and nearby cables in place. Tune the matching network as needed and record final values.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "bu-rf-4",
+          "text": "Harmonics and spurious emissions at the conducted port are within the regulatory limits",
+          "hint": "Sweep a wide span on a spectrum analyzer while transmitting at max power. Fix filtering before radiated testing.",
+          "tags": [
+            "regulatory"
+          ],
+          "severity": "major"
+        },
+        {
+          "id": "bu-rf-5",
+          "text": "Frequency error of the transmitter is within the radio standard's tolerance",
+          "hint": "Measure carrier frequency offset with a radio tester; trim the crystal load if needed.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "bu-rf-6",
+          "text": "Board-generated noise does not desense the receiver",
+          "hint": "Compare sensitivity with all other subsystems active vs idle. Display, switching regulators and memory clocks are common culprits.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "bu-rf-7",
+          "text": "Radiated performance (TRP/TIS or range test) is acceptable in the final enclosure",
+          "hint": "Run an over-the-air test in a chamber if available, or a documented range test against a reference device.",
+          "tags": [],
+          "severity": "major"
+        }
+      ]
+    },
+    {
+      "id": "b-thermal",
+      "title": "Thermal Validation",
+      "tags": [],
+      "items": [
+        {
+          "id": "bu-thm-1",
+          "text": "Component temperatures at worst-case load and maximum ambient are within ratings with margin",
+          "hint": "Measure at room temperature and extrapolate, or test in a chamber at maximum ambient. Use thermocouples on critical parts for accuracy.",
+          "tags": [],
+          "severity": "critical"
+        },
+        {
+          "id": "bu-thm-2",
+          "text": "Thermal testing is done in the final enclosure or a representative airflow condition",
+          "hint": "An open bench board runs much cooler than an enclosed product. Note the enclosure state in the results.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "bu-thm-3",
+          "text": "Thermal shutdown and throttling behave as designed",
+          "hint": "Heat the hot parts deliberately and confirm firmware throttling or hardware shutdown and recovery.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "bu-thm-4",
+          "text": "Touch-accessible surfaces stay within the product's touch-temperature requirement",
+          "hint": "Measure external enclosure surfaces at maximum load and ambient against the applicable safety standard's limits.",
+          "tags": [
+            "medical",
+            "mains"
+          ],
+          "severity": "major"
+        },
+        {
+          "id": "bu-thm-5",
+          "text": "Battery temperature during charge and peak discharge stays within the cell's specified window",
+          "hint": "Place a thermocouple on the cell; nearby heat sources can push the cell out of its charge range.",
+          "tags": [
+            "battery"
+          ],
+          "severity": "critical"
+        }
+      ]
+    },
+    {
+      "id": "b-environment",
+      "title": "Environmental & Margin Testing",
+      "tags": [],
+      "items": [
+        {
+          "id": "bu-env-1",
+          "text": "Board operates correctly at the minimum and maximum rated ambient temperature",
+          "hint": "Run the functional test in a chamber at each extreme with soak time for thermal equilibrium.",
+          "tags": [],
+          "severity": "critical"
+        },
+        {
+          "id": "bu-env-2",
+          "text": "Board operates at the four corners of supply voltage and temperature",
+          "hint": "Combine minimum and maximum input with cold and hot. Failures often appear only at one corner.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "bu-env-3",
+          "text": "Temperature cycling causes no intermittent faults or solder joint failures",
+          "hint": "Cycle through the rated range while monitoring function. Inspect suspect joints afterward.",
+          "tags": [
+            "harsh-env",
+            "automotive"
+          ],
+          "severity": "major"
+        },
+        {
+          "id": "bu-env-4",
+          "text": "Board survives vibration and mechanical shock to the product requirement",
+          "hint": "Monitor function during the test where possible. Check heavy parts, connectors and tall capacitors afterward.",
+          "tags": [
+            "harsh-env",
+            "automotive"
+          ],
+          "severity": "major"
+        },
+        {
+          "id": "bu-env-5",
+          "text": "Humidity or condensation exposure does not cause leakage or corrosion failures",
+          "hint": "Test coated and uncoated variants if relevant. High-impedance analog nodes are most sensitive.",
+          "tags": [
+            "harsh-env"
+          ],
+          "severity": "major"
+        },
+        {
+          "id": "bu-env-6",
+          "text": "Automotive supply transients (load dump, cold crank, reverse battery) are survived as specified",
+          "hint": "Use a transient generator for the pulses required by the requirement specification. Monitor whether the board must keep running or only survive.",
+          "tags": [
+            "automotive"
+          ],
+          "severity": "critical"
+        },
+        {
+          "id": "bu-env-7",
+          "text": "Unit-to-unit variation is checked across all bring-up boards",
+          "hint": "Run key measurements on every board, not just the golden one, to see the spread before production.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "bu-env-8",
+          "text": "Long-duration soak test runs without errors, resets or memory leaks",
+          "hint": "Run the full system for an extended period (rule of thumb: at least overnight) with logging.",
+          "tags": [],
+          "severity": "major"
+        }
+      ]
+    },
+    {
+      "id": "b-emc",
+      "title": "Pre-compliance EMC & ESD",
+      "tags": [
+        "regulatory",
+        "medical",
+        "automotive"
+      ],
+      "items": [
+        {
+          "id": "bu-emc-1",
+          "text": "Radiated emissions pre-scan shows margin to the applicable limits",
+          "hint": "Scan in a pre-compliance chamber or with near-field probes to identify sources. Margin is needed for lab and unit variation.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "bu-emc-2",
+          "text": "Conducted emissions on power ports are within the applicable limits with margin",
+          "hint": "Measure with a LISN on the power input. Switching regulators and motor drivers are the usual sources.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "bu-emc-3",
+          "text": "Board survives ESD contact and air discharge at all user-accessible points",
+          "hint": "Test with an ESD gun at the levels required by the product's standard. Classify the result (no effect, self-recovery, reset, damage).",
+          "tags": [],
+          "severity": "critical"
+        },
+        {
+          "id": "bu-emc-4",
+          "text": "Board tolerates fast transients and surges on external cables as required",
+          "hint": "Apply EFT and surge to power and long signal cables per the target standard. Confirm protection parts are effective.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "bu-emc-5",
+          "text": "Radiated and conducted immunity tests cause no unacceptable performance loss",
+          "hint": "Pre-test with a field probe or injection clamp. Analog and radio performance are the most commonly affected.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "bu-emc-6",
+          "text": "Cables, enclosure and grounding used in pre-compliance match the production configuration",
+          "hint": "Different cables or shielding can invalidate the results. Record the test setup with photos.",
+          "tags": [],
+          "severity": "major"
+        }
+      ]
+    },
+    {
+      "id": "b-battery",
+      "title": "Battery & Low-Power",
+      "tags": [
+        "battery",
+        "low-power"
+      ],
+      "items": [
+        {
+          "id": "bu-bat-1",
+          "text": "Sleep current in each low-power mode meets the budget",
+          "hint": "Measure with a source meter or power analyzer with sufficient dynamic range; average over several wake cycles. Check every unit, since one leaky part dominates.",
+          "tags": [],
+          "severity": "critical"
+        },
+        {
+          "id": "bu-bat-2",
+          "text": "Active and wake-up current profile matches the energy budget",
+          "hint": "Capture a full duty cycle and integrate charge. Long wake times or peripherals left on are common surprises.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "bu-bat-3",
+          "text": "No unintended leakage paths through I/O pins, pull-ups or powered-down peripherals",
+          "hint": "Isolate subsystems one at a time to find which contributes extra sleep current.",
+          "tags": [
+            "low-power"
+          ],
+          "severity": "major"
+        },
+        {
+          "id": "bu-bat-4",
+          "text": "Charge profile (pre-charge, constant current, constant voltage, termination) matches the cell specification",
+          "hint": "Log charge current, voltage and temperature over a full charge cycle and compare to the cell datasheet.",
+          "tags": [
+            "battery"
+          ],
+          "severity": "critical"
+        },
+        {
+          "id": "bu-bat-5",
+          "text": "Charging stops or derates outside the cell's allowed temperature window",
+          "hint": "Test with the NTC simulated cold and hot. Charging a lithium cell out of its temperature range is a safety hazard.",
+          "tags": [
+            "battery"
+          ],
+          "severity": "critical"
+        },
+        {
+          "id": "bu-bat-6",
+          "text": "Battery protection trips correctly for over-charge, over-discharge and over-current",
+          "hint": "Test using a battery simulator or controlled source. Confirm recovery behavior after each trip.",
+          "tags": [
+            "battery"
+          ],
+          "severity": "critical"
+        },
+        {
+          "id": "bu-bat-7",
+          "text": "Fuel gauge or battery voltage reporting is accurate across the discharge curve",
+          "hint": "Compare reported state of charge against coulomb-counted reference during a full discharge.",
+          "tags": [
+            "battery"
+          ],
+          "severity": "major"
+        },
+        {
+          "id": "bu-bat-8",
+          "text": "Device behaves correctly at low battery: warnings, graceful shutdown, no brown-out loops",
+          "hint": "Discharge slowly to cutoff and confirm the system shuts down cleanly and does not repeatedly reboot.",
+          "tags": [
+            "battery"
+          ],
+          "severity": "major"
+        },
+        {
+          "id": "bu-bat-9",
+          "text": "Shipping or storage mode current meets the shelf-life requirement",
+          "hint": "Measure current in ship mode and confirm the device wakes only by the intended method.",
+          "tags": [
+            "battery"
+          ],
+          "severity": "major"
+        }
+      ]
+    },
+    {
+      "id": "b-production",
+      "title": "Production Test Readiness",
+      "tags": [
+        "production"
+      ],
+      "items": [
+        {
+          "id": "bu-prd-1",
+          "text": "Test points needed for production test are accessible on the assembled board",
+          "hint": "Check every test point in the test plan is reachable by pogo pins with parts fitted and not covered by coating or labels.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "bu-prd-2",
+          "text": "Production test procedure has been run on the bring-up boards",
+          "hint": "Run a draft of the test procedure on every unit to confirm pass limits and coverage.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "bu-prd-3",
+          "text": "Pass/fail limits for production tests are set from measured spread, not single units",
+          "hint": "Use the data from all bring-up boards plus design margin to set limits.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "bu-prd-4",
+          "text": "Test fixture design requirements (board outline, tooling holes, keep-outs) are confirmed",
+          "hint": "Share the confirmed requirements with the fixture vendor or contract manufacturer.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "bu-prd-5",
+          "text": "Serialization and traceability (labels, unique IDs, MAC addresses) work end to end",
+          "hint": "Program and read back a unique ID on test units and confirm it reaches the test log.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "bu-prd-6",
+          "text": "Functional test coverage catches the assembly defects seen during bring-up",
+          "hint": "Check each defect found in this build would be detected by the production test.",
+          "tags": [],
+          "severity": "major"
+        }
+      ]
+    },
+    {
+      "id": "b-nextrev",
+      "title": "Rework Log & Next-Revision Notes",
+      "tags": [],
+      "items": [
+        {
+          "id": "bu-rev-1",
+          "text": "Every rework, bodge wire and part change is logged with board serial, description and reason",
+          "hint": "Photograph bodges. Unlogged rework makes later measurements meaningless.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "bu-rev-2",
+          "text": "Each fix is captured as a schematic or layout change request for the next revision",
+          "hint": "Link each rework entry to an ECO or issue so it is not lost when the next revision is started.",
+          "tags": [],
+          "severity": "critical"
+        },
+        {
+          "id": "bu-rev-3",
+          "text": "Footprint, silkscreen and assembly drawing errors found during bring-up are recorded",
+          "hint": "Include wrong polarity marks, unclear reference designators and mis-sized pads.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "bu-rev-4",
+          "text": "BOM changes (value changes, substitutions, DNF changes) are recorded and fed back to the BOM owner",
+          "hint": "Update the BOM for the next build so rework does not need to be repeated.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "bu-rev-5",
+          "text": "Firmware workarounds for hardware issues are documented as errata",
+          "hint": "Note any hardware fault masked by firmware so the next revision fixes it or keeps the workaround.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "bu-rev-6",
+          "text": "Open issues are triaged by severity with an owner and a decision for the next revision",
+          "hint": "Decide fix-now, fix-later or accept for each issue before releasing the next revision.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "bu-rev-7",
+          "text": "Bring-up report summarizing results, deviations and open issues is written and reviewed",
+          "hint": "The report should include measured data against requirements and a recommendation on releasing the next revision.",
+          "tags": [],
+          "severity": "major"
+        }
+      ]
+    }
+  ]
+}

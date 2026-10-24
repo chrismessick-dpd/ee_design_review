@@ -1,0 +1,1489 @@
+{
+  "id": "schematic",
+  "title": "Schematic Review",
+  "short": "Schematic",
+  "version": 1,
+  "description": "Checks a schematic before layout or release: documentation, power, grounding, component ratings, connectivity, processors, interfaces, protection, safety, test and sourcing.",
+  "sections": [
+    {
+      "id": "s-gen",
+      "title": "General & Documentation",
+      "tags": [],
+      "items": [
+        {
+          "id": "sg1",
+          "text": "Title block is complete on every sheet (project name, revision, date, author, approver)",
+          "hint": "Check every sheet, not just the first; a missing revision on one sheet makes printed sets ambiguous.",
+          "tags": [],
+          "severity": "minor"
+        },
+        {
+          "id": "sg2",
+          "text": "Revision history is up to date with all changes since the last release documented",
+          "hint": "Compare against the previous released PDF or a schematic diff; every ECO should appear.",
+          "tags": [],
+          "severity": "minor"
+        },
+        {
+          "id": "sg3",
+          "text": "Sheet numbers and total sheet count are correct",
+          "hint": "Hierarchical designs often get renumbered on export; check the PDF, not just the CAD view.",
+          "tags": [],
+          "severity": "minor"
+        },
+        {
+          "id": "sg4",
+          "text": "All referenced documents and datasheets are at the correct revision",
+          "hint": "Silicon errata and datasheet revisions can change pinouts, strap values or absolute maximums. Check the revision you designed against is the current one.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "sg5",
+          "text": "Schematic follows the company drafting style guide",
+          "hint": "IPC-2612 is a useful baseline for diagramming documentation. Check symbol conventions, signal flow left to right, and readable net names.",
+          "tags": [],
+          "severity": "minor"
+        },
+        {
+          "id": "sch-gen-1",
+          "text": "A block diagram exists and matches the schematic hierarchy",
+          "hint": "Reviewers should be able to trace every block (power tree, interfaces, processors) from the block diagram to a sheet.",
+          "tags": [],
+          "severity": "minor"
+        },
+        {
+          "id": "sch-gen-2",
+          "text": "Design requirements (inputs, outputs, environment, interfaces) are written down and traceable to the schematic",
+          "hint": "Without a requirements list the review can only check internal consistency, not fitness for purpose.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "sch-gen-3",
+          "text": "Design notes explain non-obvious choices (strap values, deliberate DNPs, rework options, calculations)",
+          "hint": "Put the reason next to the part; a future engineer will otherwise 'fix' a deliberate choice.",
+          "tags": [],
+          "severity": "minor"
+        },
+        {
+          "id": "sch-gen-4",
+          "text": "Fitted / not-fitted (DNP) and assembly-variant parts are clearly marked and match the BOM variants",
+          "hint": "Check each variant BOM against the schematic annotation; DNP errors are a common first-build fault.",
+          "tags": [],
+          "severity": "major"
+        }
+      ]
+    },
+    {
+      "id": "s-pwr",
+      "title": "Power Architecture & Budget",
+      "tags": [],
+      "items": [
+        {
+          "id": "sp1",
+          "text": "All power nets are correctly named and consistent across sheets",
+          "hint": "Look for near-duplicates such as 3V3, +3V3 and VCC_3V3 that the tool treats as separate nets.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "sp2",
+          "text": "Every IC and polarised part is connected to a rail of the correct voltage and polarity",
+          "hint": "Walk each IC's supply pins against its datasheet recommended operating range, including I/O-bank and analog supplies.",
+          "tags": [],
+          "severity": "critical"
+        },
+        {
+          "id": "sp8",
+          "text": "Inrush current is limited on high-capacitance rails and hot-pluggable inputs",
+          "hint": "Estimate inrush from total downstream capacitance and source impedance; check it against fuse, connector and upstream supply limits.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "sch-pwr-1",
+          "text": "A power tree diagram exists showing every rail, its source, converter type and load",
+          "hint": "The power tree is the quickest way to spot missing rails, wrong sources and overloaded regulators.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "sch-pwr-2",
+          "text": "Power budget is calculated for each rail, with worst-case load below the regulator rating plus margin",
+          "hint": "Include start-up, peak and transient loads (radios transmitting, motors starting, FPGA configuration), not just typical current.",
+          "tags": [],
+          "severity": "critical"
+        },
+        {
+          "id": "sch-pwr-3",
+          "text": "Input supply range (min, nominal, max) is defined and every input-side part is rated for the maximum",
+          "hint": "Include tolerance of the source, cable drop and any transients the supply can produce, such as a hot-plugged adapter ringing.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "sch-pwr-4",
+          "text": "Total input power and efficiency estimate fits the source capability (adapter, USB contract, PoE class, battery)",
+          "hint": "Sum the rail budgets through each converter's efficiency at the expected load.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "sch-pwr-5",
+          "text": "Behaviour on power-up, brown-out and power loss is defined for every rail",
+          "hint": "Consider what happens when the input sags slowly: regulators dropping out of regulation, MCUs running out of spec, flash writes corrupting.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "sch-pwr-6",
+          "text": "No back-powering paths exist between rails or through I/O pins when a domain is off",
+          "hint": "Check for I/O pins driven into unpowered ICs, USB VBUS feeding back, and body diodes of load switches conducting in reverse.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "sch-pwr-7",
+          "text": "Sleep / standby current budget is calculated and met, including leakage of always-on parts",
+          "hint": "Include pull-up currents, divider currents, regulator quiescent current, LED indicators and leakage through ESD parts.",
+          "tags": [
+            "low-power",
+            "battery"
+          ],
+          "severity": "major"
+        }
+      ]
+    },
+    {
+      "id": "s-reg",
+      "title": "Regulators & Converters",
+      "tags": [],
+      "items": [
+        {
+          "id": "sch-reg-1",
+          "text": "Each regulator's output voltage set point is calculated and matches the intended rail",
+          "hint": "Recalculate from the feedback divider and the datasheet reference voltage, including resistor tolerance and reference accuracy.",
+          "tags": [],
+          "severity": "critical"
+        },
+        {
+          "id": "sch-reg-2",
+          "text": "Regulator input voltage range covers the full supply range, including transients and dropout at minimum input",
+          "hint": "Check LDO dropout and buck maximum duty cycle at minimum input and maximum load.",
+          "tags": [],
+          "severity": "critical"
+        },
+        {
+          "id": "sch-reg-3",
+          "text": "Switching regulator inductor value, saturation current and RMS current rating suit the worst-case load",
+          "hint": "Saturation current should exceed peak inductor current at current limit, not just at full load.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "sch-reg-4",
+          "text": "Converter input and output capacitors meet datasheet type, ESR and effective capacitance after DC bias",
+          "hint": "Ceramic capacitors can lose most of their capacitance at rated voltage; use the manufacturer's DC-bias curves.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "sch-reg-5",
+          "text": "Loop compensation network is calculated and stable across load, input and temperature range",
+          "hint": "Use the vendor design tool or datasheet procedure; check phase margin with real output capacitance after derating.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "sch-reg-6",
+          "text": "Soft-start time is set to limit inrush and meet any sequencing requirement",
+          "hint": "Too fast causes inrush trips; too slow can violate a processor's maximum ramp time.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "sch-reg-7",
+          "text": "Enable, power-good and mode pins are tied or driven to a defined state",
+          "hint": "Floating enable or mode pins can cause random start-up or unexpected light-load mode.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "sch-reg-8",
+          "text": "LDO power dissipation (Vin - Vout) x Iout is within the package's thermal capability",
+          "hint": "Check junction temperature at maximum ambient using the datasheet thermal resistance for the real copper area.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "sch-reg-9",
+          "text": "Switching frequency is chosen to avoid sensitive bands (radio channels, audio, ADC sampling)",
+          "hint": "Consider harmonics as well as the fundamental; spread-spectrum or synchronisation may help.",
+          "tags": [],
+          "severity": "minor"
+        }
+      ]
+    },
+    {
+      "id": "s-gnd",
+      "title": "Grounding",
+      "tags": [],
+      "items": [
+        {
+          "id": "sp5",
+          "text": "Ground nets are clearly defined (e.g. AGND, DGND, PGND, chassis) and separated only where there is a reason",
+          "hint": "Each separate ground net needs a documented purpose and a defined connection point.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "sp6",
+          "text": "Ground connections are present on all ICs and connectors",
+          "hint": "Include exposed pads and thermal pads that the datasheet requires to be grounded.",
+          "tags": [],
+          "severity": "critical"
+        },
+        {
+          "id": "sa5",
+          "text": "Where ground nets are split, they are joined at exactly one intended point",
+          "hint": "A single solid ground plane is often preferred over splits; if grounds are split, check there is one deliberate tie (net tie or 0 ohm) and no accidental second path.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "sch-gnd-1",
+          "text": "Return paths for high-current loads do not share a path with sensitive analog or sensing grounds",
+          "hint": "Annotate high-current returns so the layout engineer routes them separately (e.g. Kelvin connections).",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "sch-gnd-2",
+          "text": "Shield and cable-screen terminations are defined (chassis, ground, RC, or floating) with a reason",
+          "hint": "Decide this at schematic stage; changing it later usually needs a respin.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "sch-gnd-3",
+          "text": "Ground references across board-to-board and cable interfaces have enough ground pins for the return current",
+          "hint": "Count ground pins against the signal and power pins; too few causes ground bounce and EMC problems.",
+          "tags": [],
+          "severity": "major"
+        }
+      ]
+    },
+    {
+      "id": "s-dec",
+      "title": "Decoupling & Bulk Capacitance",
+      "tags": [],
+      "items": [
+        {
+          "id": "sp3",
+          "text": "Every supply pin has decoupling per the datasheet recommendation",
+          "hint": "Verify capacitor values and note any placement requirement for the layout engineer; a common rule of thumb is one small ceramic per supply pin.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "sp4",
+          "text": "Bulk capacitance is adequate for each power rail",
+          "hint": "Size it for load steps and source impedance; check effective capacitance after DC bias.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "sch-dec-1",
+          "text": "Decoupling capacitor voltage rating and dielectric are suitable after DC-bias derating",
+          "hint": "Small 0402/0201 high-value ceramics can lose most of their capacitance at rated voltage.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "sch-dec-2",
+          "text": "Total capacitance on each rail is within the regulator's stable range and the source's hot-plug limits",
+          "hint": "Excess capacitance can destabilise LDOs, upset soft-start, or exceed USB and hot-swap limits.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "sch-dec-3",
+          "text": "Analog, PLL and reference supply pins have filtering per datasheet (ferrite, RC or dedicated LDO)",
+          "hint": "Check the ferrite or resistor does not drop too much voltage at the pin's maximum current.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "sch-dec-4",
+          "text": "Ferrite-bead filters are checked for resonance with the downstream capacitance",
+          "hint": "An LC formed by a bead and ceramic capacitors can peak and amplify noise; add damping if needed.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "sch-dec-5",
+          "text": "Power distribution network target impedance is analysed for high-current, fast-transient rails",
+          "hint": "Large FPGAs and SoCs often need a PDN analysis or the vendor's decoupling calculator rather than rules of thumb.",
+          "tags": [
+            "fpga",
+            "ddr",
+            "high-speed"
+          ],
+          "severity": "major"
+        }
+      ]
+    },
+    {
+      "id": "s-cmp",
+      "title": "Component Selection, Ratings & Derating",
+      "tags": [],
+      "items": [
+        {
+          "id": "sc1",
+          "text": "All component values (R, L, C) are correct per design calculations",
+          "hint": "Spot-check calculated values against the parts in the BOM, including unit prefixes (k vs M, n vs u).",
+          "tags": [],
+          "severity": "critical"
+        },
+        {
+          "id": "sc2",
+          "text": "Capacitor and passive voltage ratings have adequate margin per the derating policy",
+          "hint": "Use the company derating policy; 2x working voltage for ceramics is a common rule of thumb. Tantalum and electrolytic types have their own derating rules.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "sc3",
+          "text": "Power ratings of resistors and inductors are sufficient with derating applied",
+          "hint": "Check pulse and surge ratings too, not only steady-state dissipation, for inrush, sense and snubber resistors.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "sc4",
+          "text": "Component tolerances are acceptable for the application",
+          "hint": "Do a worst-case or tolerance stack-up on dividers, references, filters and timing circuits.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "sc8",
+          "text": "Ferrite bead impedance and current ratings are verified for every use",
+          "hint": "Impedance drops with DC current; check the bead curve at the actual load current.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "sch-cmp-1",
+          "text": "No part is operated beyond its absolute maximum ratings in any operating mode",
+          "hint": "Include start-up, shutdown, fault and transient conditions as well as normal operation.",
+          "tags": [],
+          "severity": "critical"
+        },
+        {
+          "id": "sch-cmp-2",
+          "text": "Semiconductor current, voltage and power ratings have margin per the derating policy",
+          "hint": "MOSFETs, diodes and transistors should be checked at maximum junction temperature, not 25 °C.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "sch-cmp-3",
+          "text": "Every part's operating temperature range covers the product's environment",
+          "hint": "Commercial-grade parts may not cover outdoor, automotive or in-enclosure temperatures.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "sch-cmp-4",
+          "text": "Automotive-qualified (AEC-Q) parts are used where required",
+          "hint": "Check each part number's qualification, not just the family; suffixes often distinguish grades.",
+          "tags": [
+            "automotive"
+          ],
+          "severity": "major"
+        },
+        {
+          "id": "sch-cmp-5",
+          "text": "Capacitor dielectric suits the function (C0G/NP0 for timing and filters, X7R/X5R for decoupling)",
+          "hint": "Class II dielectrics drift with voltage, temperature and age; they are unsuitable for precision timing or filters.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "sch-cmp-6",
+          "text": "Capacitor ripple-current ratings are adequate in converters, motor drives and bulk positions",
+          "hint": "Calculate RMS ripple current and compare with the rating at operating temperature and frequency.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "sch-cmp-7",
+          "text": "Ceramic capacitors in high-flex or high-voltage positions use flex-term or suitable package choices",
+          "hint": "Large ceramics near board edges, connectors or mounting holes are prone to flex cracking that can short rails.",
+          "tags": [
+            "harsh-env",
+            "automotive",
+            "high-current"
+          ],
+          "severity": "major"
+        }
+      ]
+    },
+    {
+      "id": "s-net",
+      "title": "Connectivity & Net Integrity",
+      "tags": [],
+      "items": [
+        {
+          "id": "sn1",
+          "text": "ERC (Electrical Rules Check) has been run with zero errors",
+          "hint": "Run ERC on the final schematic, not an earlier save; errors waived in the tool still count until justified.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "sn2",
+          "text": "No pin is left unconnected unless the datasheet allows it and it is intentionally marked no-connect",
+          "hint": "Check unused inputs on logic, op-amps and comparators; floating CMOS inputs cause extra current and erratic behaviour.",
+          "tags": [],
+          "severity": "critical"
+        },
+        {
+          "id": "sn3",
+          "text": "No-connect markers are placed on all unused pins intended to be left open",
+          "hint": "Explicit markers show the omission was deliberate and keep ERC clean.",
+          "tags": [],
+          "severity": "minor"
+        },
+        {
+          "id": "sn4",
+          "text": "Power pins (VCC, GND) of all ICs are explicitly connected - none hidden or implicit",
+          "hint": "Hidden power pins in library symbols can connect to the wrong net name; show them on the symbol.",
+          "tags": [],
+          "severity": "critical"
+        },
+        {
+          "id": "sn5",
+          "text": "Differential pair nets are correctly paired and labelled (e.g. USB_D+/USB_D-)",
+          "hint": "Use consistent _P/_N or +/- suffixes so layout tools recognise the pairs.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "sn6",
+          "text": "Bus connections and wire junctions are unambiguous (no four-way junctions)",
+          "hint": "Use offset T-junctions so a dot is never missed or mis-printed.",
+          "tags": [],
+          "severity": "minor"
+        },
+        {
+          "id": "sn7",
+          "text": "Net labels are consistent and unique - no accidental shorts or opens from duplicate or misspelled labels",
+          "hint": "Review the netlist for nets with a single connection and for unexpectedly merged nets.",
+          "tags": [],
+          "severity": "critical"
+        },
+        {
+          "id": "sn8",
+          "text": "All connectors have correct pin count, pinout and mating connector called out",
+          "hint": "Check against the mating board or cable drawing, watching for pin-1 orientation and mirror-image errors.",
+          "tags": [],
+          "severity": "critical"
+        },
+        {
+          "id": "sch-net-1",
+          "text": "Every ERC warning is reviewed and either fixed or waived with a recorded reason",
+          "hint": "Unreviewed ERC warnings often hide single-pin nets and conflicting drivers.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "sch-net-2",
+          "text": "Symbol pin numbers match the footprint and the datasheet pinout for every part",
+          "hint": "Pay special attention to new or self-made library parts, multi-package parts and SOT-23 transistors whose pinouts vary by vendor.",
+          "tags": [],
+          "severity": "critical"
+        },
+        {
+          "id": "sch-net-3",
+          "text": "Multi-part symbols have every unit placed, including power units",
+          "hint": "An unplaced unit of a quad op-amp or a power-only section leaves pins unconnected without an ERC error in some tools.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "sch-net-4",
+          "text": "Signal direction (TX/RX, MOSI/MISO, CTS/RTS) is correct across every interface",
+          "hint": "Crossovers are a frequent first-build fault; label nets from the controller's point of view.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "sch-net-5",
+          "text": "Netlist has been compared against the previous revision and every difference is intended",
+          "hint": "A netlist diff catches accidental edits that a visual review misses.",
+          "tags": [],
+          "severity": "major"
+        }
+      ]
+    },
+    {
+      "id": "s-mcu",
+      "title": "Processor, MCU & FPGA",
+      "tags": [],
+      "items": [
+        {
+          "id": "sch-mcu-1",
+          "text": "All processor supply pins, including analog, I/O-bank, core and backup domains, are connected per datasheet",
+          "hint": "Check against the datasheet pin table, not the symbol; some packages bond out extra supply pins.",
+          "tags": [],
+          "severity": "critical"
+        },
+        {
+          "id": "sch-mcu-2",
+          "text": "Boot-mode and configuration straps are set to the intended state",
+          "hint": "Consider leaving a way to override straps for development (jumper or test pad). Check strap pins that double as GPIOs are not pulled the wrong way by external loads at reset.",
+          "tags": [],
+          "severity": "critical"
+        },
+        {
+          "id": "sch-mcu-3",
+          "text": "Pin multiplexing is validated in the vendor pin tool, with no function conflicts",
+          "hint": "Export the pin assignment from the vendor tool and compare against the schematic net names.",
+          "tags": [],
+          "severity": "critical"
+        },
+        {
+          "id": "sch-mcu-4",
+          "text": "Peripheral pin choices respect alternate-function, timer and ADC-channel limits",
+          "hint": "Check that ADC inputs are on ADC-capable pins, PWM outputs on suitable timer channels and that 5 V-tolerant pins are used where needed.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "sch-mcu-5",
+          "text": "Internal regulator pins (VCAP, VDDCORE etc.) have the capacitor value and type the datasheet specifies",
+          "hint": "Missing or wrong core regulator capacitors are a common cause of a board that will not start.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "sch-mcu-6",
+          "text": "GPIO current per pin and per port is within datasheet limits",
+          "hint": "Directly driven LEDs, buzzers and relays can exceed total port current.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "sch-mcu-7",
+          "text": "Pins that are high-impedance or toggling during reset do not cause unwanted actions on driven loads",
+          "hint": "Motor enables, heaters, relays and power switches need a defined safe state via pull resistors until firmware takes control.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "sch-mcu-8",
+          "text": "External memory (flash, EEPROM) interface, voltage and boot source are compatible with the processor",
+          "hint": "Check boot ROM support for the chosen flash type, interface width and voltage.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "sch-mcu-9",
+          "text": "FPGA configuration mode, configuration memory and done/init signals are connected per vendor guidance",
+          "hint": "Check mode pins, config memory size for the bitstream, and pull-ups on open-drain config signals.",
+          "tags": [
+            "fpga"
+          ],
+          "severity": "major"
+        },
+        {
+          "id": "sch-mcu-10",
+          "text": "FPGA I/O-bank voltages match the I/O standards assigned to each bank",
+          "hint": "Run the vendor pin planner with I/O standards set and check its report.",
+          "tags": [
+            "fpga"
+          ],
+          "severity": "major"
+        },
+        {
+          "id": "sch-mcu-11",
+          "text": "DDR memory interface pinout, termination and reference voltage follow the controller vendor's guidelines",
+          "hint": "Byte-lane swaps and bit swaps must follow the controller's rules; check VTT and VREF supplies.",
+          "tags": [
+            "ddr"
+          ],
+          "severity": "critical"
+        }
+      ]
+    },
+    {
+      "id": "s-clk",
+      "title": "Clocks, Reset & Power Sequencing",
+      "tags": [],
+      "items": [
+        {
+          "id": "sd4",
+          "text": "Clock sources and frequencies match MCU, FPGA and interface requirements",
+          "hint": "Check accuracy and jitter requirements of interfaces such as USB, Ethernet and radios, not just nominal frequency.",
+          "tags": [],
+          "severity": "critical"
+        },
+        {
+          "id": "sc7",
+          "text": "Crystal load capacitors are calculated from the crystal's specified load capacitance and stray capacitance",
+          "hint": "Use the crystal datasheet CL and an estimate of stray capacitance; check drive level and the oscillator's gain margin.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "sd3",
+          "text": "Reset circuitry (supervisor IC or RC) is appropriate and reset polarity is correct",
+          "hint": "Check threshold relative to the minimum operating voltage of every part held in reset.",
+          "tags": [],
+          "severity": "critical"
+        },
+        {
+          "id": "sp7",
+          "text": "Power sequencing requirements are met (where applicable)",
+          "hint": "Check order, ramp time and maximum delay between rails against each datasheet, including power-down sequencing.",
+          "tags": [],
+          "severity": "critical"
+        },
+        {
+          "id": "sch-clk-1",
+          "text": "Clock fan-out, termination and drive strength suit each load",
+          "hint": "Check that one oscillator output is not driving too many loads or a long run without termination.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "sch-clk-2",
+          "text": "Low-frequency (32.768 kHz) crystal is compatible with the oscillator's drive level and ESR limits",
+          "hint": "Low-power oscillators are very sensitive to crystal ESR and load capacitance; use the vendor's recommended crystal list.",
+          "tags": [
+            "low-power"
+          ],
+          "severity": "major"
+        },
+        {
+          "id": "sch-clk-3",
+          "text": "Reset is held until all supplies and clocks are stable",
+          "hint": "Check supervisor delay against the slowest rail and oscillator start-up time.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "sch-clk-4",
+          "text": "Watchdog configuration (internal or external) is defined, including how it is disabled for debug",
+          "hint": "External watchdogs that cannot be disabled make debugging with breakpoints difficult.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "sch-clk-5",
+          "text": "Enable and power-good chain implements the required sequence with no circular dependency",
+          "hint": "Trace each enable back to its source; a regulator enabled by a rail it powers will never start.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "sch-clk-6",
+          "text": "Jitter budget for high-speed SerDes and data-converter clocks is met by the chosen reference",
+          "hint": "Compare the oscillator phase-noise or jitter spec with the SerDes or ADC requirement over the specified integration band.",
+          "tags": [
+            "high-speed",
+            "precision-analog",
+            "rf"
+          ],
+          "severity": "major"
+        }
+      ]
+    },
+    {
+      "id": "s-ana",
+      "title": "Analog, Mixed-Signal & RF",
+      "tags": [],
+      "items": [
+        {
+          "id": "sa1",
+          "text": "Op-amp feedback network values are verified for gain, bandwidth and stability",
+          "hint": "Check gain-bandwidth product against the closed-loop gain and signal bandwidth.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "sa2",
+          "text": "Op-amp outputs do not drive an unsupported capacitive load directly",
+          "hint": "Use an isolation resistor or a part rated for the load; cable and ADC input capacitance count.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "sa3",
+          "text": "ADC/DAC reference voltage source is stable and low-noise",
+          "hint": "Check reference accuracy, drift and its ability to supply the ADC's dynamic reference current.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "sa4",
+          "text": "Anti-aliasing filters are present and correctly designed before ADC inputs",
+          "hint": "The filter should attenuate content above half the sample rate enough for the required accuracy.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "sa6",
+          "text": "Sensitive analog signals are marked for separation from noisy digital and power circuits",
+          "hint": "Mark sensitive nets and add layout notes so they are kept away from switch nodes and clocks.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "sch-ana-1",
+          "text": "Op-amp input and output common-mode ranges cover the actual signal swing on the chosen rails",
+          "hint": "Non rail-to-rail parts on single low supplies often clip near the rails.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "sch-ana-2",
+          "text": "ADC driver can settle the ADC sampling capacitor within the acquisition time",
+          "hint": "Check the driver's bandwidth and the RC between driver and ADC per the ADC datasheet.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "sch-ana-3",
+          "text": "Analog inputs are protected against overvoltage without degrading accuracy",
+          "hint": "Clamp diodes and series resistors add leakage and error; include them in the error budget.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "sch-ana-4",
+          "text": "Error budget (offset, gain, noise, drift, resistor tolerance) meets the measurement accuracy requirement",
+          "hint": "A worst-case or RSS budget should exist for each precision measurement chain.",
+          "tags": [
+            "precision-analog"
+          ],
+          "severity": "major"
+        },
+        {
+          "id": "sch-ana-5",
+          "text": "Sensor excitation, bias and ratiometric referencing are defined",
+          "hint": "Ratiometric measurement removes reference error; check the excitation source and the ADC reference share a source where intended.",
+          "tags": [
+            "precision-analog"
+          ],
+          "severity": "major"
+        },
+        {
+          "id": "sch-ana-6",
+          "text": "Current-sense resistor and amplifier are sized for range, resolution and Kelvin connection",
+          "hint": "Mark the Kelvin sense connections on the schematic so layout does not share them with the current path.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "sch-ana-7",
+          "text": "Audio path gain staging leaves headroom at every stage up to the codec or amplifier full-scale level",
+          "hint": "Check maximum signal at each stage against the supply and the codec full-scale level.",
+          "tags": [
+            "audio"
+          ],
+          "severity": "major"
+        },
+        {
+          "id": "sch-ana-8",
+          "text": "Audio outputs have DC blocking and pop/click suppression at power-up and power-down",
+          "hint": "Check coupling-capacitor charging behaviour and the codec or amplifier mute sequence.",
+          "tags": [
+            "audio"
+          ],
+          "severity": "major"
+        },
+        {
+          "id": "sch-ana-9",
+          "text": "RF matching networks and antenna feed follow the radio vendor's reference design",
+          "hint": "Include tuning component placeholders (pi network) so the match can be adjusted after layout.",
+          "tags": [
+            "rf"
+          ],
+          "severity": "major"
+        },
+        {
+          "id": "sch-ana-10",
+          "text": "Radio module or RF IC supply decoupling and filtering follow the reference design",
+          "hint": "Radios are sensitive to supply ripple; check transmit current peaks against the regulator and bulk capacitance.",
+          "tags": [
+            "rf"
+          ],
+          "severity": "major"
+        }
+      ]
+    },
+    {
+      "id": "s-dig",
+      "title": "Digital Interfaces & High-Speed",
+      "tags": [],
+      "items": [
+        {
+          "id": "sd1",
+          "text": "Pull-up or pull-down resistors are present on all open-drain / open-collector outputs",
+          "hint": "Check interrupt, alert, fault and power-good lines as well as the obvious buses.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "sd2",
+          "text": "Series termination resistors are included on high-speed lines where required",
+          "hint": "Typical candidates are clock lines, fast SPI and parallel buses with long runs.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "sd5",
+          "text": "Logic voltage levels are compatible between every driver and receiver",
+          "hint": "Check VOH/VOL against VIH/VIL at the actual supply voltages, including 5 V-tolerance of inputs.",
+          "tags": [],
+          "severity": "critical"
+        },
+        {
+          "id": "sd6",
+          "text": "Level translators are included wherever mixed-voltage interfaces need them",
+          "hint": "Auto-direction translators misbehave with strong pull-ups or with push-pull and open-drain on the same line; check the part suits the bus.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "sd8",
+          "text": "Each I2C bus has a single set of pull-ups sized for bus capacitance and speed",
+          "hint": "Pull-ups on modules and breakout boards add in parallel; size per the I2C specification's rise-time method.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "sd9",
+          "text": "SPI chip-select lines are correctly connected with the right polarity and no shared-CS conflicts",
+          "hint": "Add pull-ups on chip selects so devices stay deselected while the controller is in reset.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "sch-dig-1",
+          "text": "I2C addresses on each bus are unique, including address straps and module defaults",
+          "hint": "Make an address table per bus; address-select pins must not be left floating.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "sch-dig-2",
+          "text": "USB data lines, VBUS sensing and CC/ID pins are connected per the USB connector type and role",
+          "hint": "USB-C needs CC resistors or a controller per its role; check VBUS detection and the ID or CC configuration.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "sch-dig-3",
+          "text": "Ethernet PHY strapping, magnetics and termination follow the PHY reference design",
+          "hint": "Check centre-tap connection (voltage-mode vs current-mode PHY) and the Bob Smith termination network.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "sch-dig-4",
+          "text": "AC-coupling capacitors are present on high-speed serial links where the standard requires them, on the correct side",
+          "hint": "PCIe, SATA, DisplayPort and similar links specify which end the capacitors sit on.",
+          "tags": [
+            "high-speed"
+          ],
+          "severity": "major"
+        },
+        {
+          "id": "sch-dig-5",
+          "text": "High-speed differential pairs have impedance and length-matching requirements recorded for layout",
+          "hint": "Record target impedance and skew limits in schematic notes or net classes.",
+          "tags": [
+            "high-speed",
+            "ddr"
+          ],
+          "severity": "major"
+        },
+        {
+          "id": "sch-dig-6",
+          "text": "Polarity swaps and lane swaps on high-speed links are permitted by both ends",
+          "hint": "Some interfaces allow P/N inversion or lane reversal; others do not.",
+          "tags": [
+            "high-speed"
+          ],
+          "severity": "major"
+        },
+        {
+          "id": "sch-dig-7",
+          "text": "Display and touch interfaces (MIPI, LVDS, RGB, SPI) match the panel datasheet pinout and voltage",
+          "hint": "Check backlight driver current and voltage, panel power sequence and the FPC pinout orientation.",
+          "tags": [
+            "display"
+          ],
+          "severity": "major"
+        },
+        {
+          "id": "sch-dig-8",
+          "text": "Interrupt and wake-up lines are routed to wake-capable pins",
+          "hint": "Not all GPIOs can wake the processor from its deepest sleep mode.",
+          "tags": [
+            "low-power",
+            "battery"
+          ],
+          "severity": "major"
+        }
+      ]
+    },
+    {
+      "id": "s-pro",
+      "title": "Protection, ESD & EMC",
+      "tags": [],
+      "items": [
+        {
+          "id": "sp9",
+          "text": "ESD and transient protection is present at every external interface",
+          "hint": "List every connector, button and exposed conductive part and confirm each has protection.",
+          "tags": [],
+          "severity": "critical"
+        },
+        {
+          "id": "spr1",
+          "text": "Over-voltage protection is present on all external-facing inputs",
+          "hint": "Include miswiring to other supply voltages the product might plausibly see.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "spr2",
+          "text": "Over-current protection (fuse, PTC or current limiter) is present on power inputs and outputs",
+          "hint": "Check the fuse rating against normal load, inrush I2t and the wiring or connector it protects.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "spr3",
+          "text": "Reverse polarity protection is implemented where applicable",
+          "hint": "Check the protection device's loss at full load and its voltage rating.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "spr4",
+          "text": "TVS and clamp diode ratings (working voltage, clamping voltage, capacitance) suit each protected signal",
+          "hint": "Working voltage must exceed the normal signal level; clamping voltage must be below the protected IC's limits; capacitance must suit high-speed lines.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "spr5",
+          "text": "Chassis ground and protective earth connections are correctly handled for safety-critical designs",
+          "hint": "Check the earth bond path and how chassis is connected to circuit ground (direct, RC or isolated).",
+          "tags": [],
+          "severity": "critical"
+        },
+        {
+          "id": "sch-pro-1",
+          "text": "Outputs that drive off-board loads survive a short circuit to ground and to supply",
+          "hint": "Check output drivers, power outputs and sensor supplies for short-circuit protection.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "sch-pro-2",
+          "text": "Common-mode chokes or filters are provided on cables that may radiate or receive interference",
+          "hint": "Consider footprints for EMC fixes even if fitted as 0 ohm initially.",
+          "tags": [
+            "regulatory"
+          ],
+          "severity": "major"
+        },
+        {
+          "id": "sch-pro-3",
+          "text": "Input power filtering meets conducted-emissions targets for switching converters",
+          "hint": "Plan for an input pi filter with damping; include footprints for tuning during pre-compliance.",
+          "tags": [
+            "regulatory"
+          ],
+          "severity": "major"
+        },
+        {
+          "id": "sch-pro-4",
+          "text": "Automotive supply inputs withstand load dump, reverse battery and transient pulses for the required standard",
+          "hint": "Check the protection against the transient levels in the applicable automotive standard (ISO 7637 / ISO 16750 style).",
+          "tags": [
+            "automotive"
+          ],
+          "severity": "critical"
+        },
+        {
+          "id": "sch-pro-5",
+          "text": "Surge and EFT protection on long-cable industrial interfaces is rated for the required immunity levels",
+          "hint": "Industrial I/O, RS-485 and 24 V inputs typically need surge-rated TVS and series impedance.",
+          "tags": [
+            "harsh-env"
+          ],
+          "severity": "major"
+        },
+        {
+          "id": "sch-pro-6",
+          "text": "Inductive loads have flyback or clamp protection",
+          "hint": "Relays, solenoids and long cables need a clamp; check its effect on release time.",
+          "tags": [],
+          "severity": "major"
+        }
+      ]
+    },
+    {
+      "id": "s-bat",
+      "title": "Battery & Charging",
+      "tags": [
+        "battery"
+      ],
+      "items": [
+        {
+          "id": "sch-bat-1",
+          "text": "Battery protection (over-charge, over-discharge, over-current, short circuit) is provided in the pack or on the board",
+          "hint": "Confirm which protections the pack provides and which the board must add; do not assume.",
+          "tags": [],
+          "severity": "critical"
+        },
+        {
+          "id": "sch-bat-2",
+          "text": "Charge voltage and current settings match the cell chemistry and manufacturer limits",
+          "hint": "Check the charge termination voltage, charge current and pre-charge current against the cell datasheet.",
+          "tags": [],
+          "severity": "critical"
+        },
+        {
+          "id": "sch-bat-3",
+          "text": "Charging is inhibited outside the cell's allowed temperature range",
+          "hint": "Check the thermistor type and the charger's temperature thresholds match the cell datasheet.",
+          "tags": [],
+          "severity": "critical"
+        },
+        {
+          "id": "sch-bat-4",
+          "text": "Battery connector is keyed and polarity-protected against incorrect insertion",
+          "hint": "Consider what happens if a user forces a reversed connector or a wrong pack.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "sch-bat-5",
+          "text": "Fuel gauging or voltage monitoring is accurate enough for the state-of-charge requirement",
+          "hint": "Voltage-only estimates are poor for flat discharge curves; consider a fuel gauge IC.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "sch-bat-6",
+          "text": "Deep-discharge and shelf-life behaviour (ship mode, leakage) is defined",
+          "hint": "Leakage through dividers and always-on parts can flatten a battery in storage; consider ship mode.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "sch-bat-7",
+          "text": "Load sharing / power-path handles a dead or missing battery while external power is present",
+          "hint": "Check the system can boot from external power with a deeply discharged battery.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "sch-bat-8",
+          "text": "Coin cell or backup battery circuits prevent reverse charging of primary cells",
+          "hint": "Primary lithium cells must not be charged; check diode or series resistor protection per cell datasheet.",
+          "tags": [],
+          "severity": "major"
+        }
+      ]
+    },
+    {
+      "id": "s-mot",
+      "title": "Motor & Power Stages",
+      "tags": [
+        "motor",
+        "high-current"
+      ],
+      "items": [
+        {
+          "id": "sch-mot-1",
+          "text": "Power MOSFETs / IGBTs have voltage, current and SOA margin for the worst-case operating point",
+          "hint": "Check SOA for linear operation during switching, start-up and fault conditions.",
+          "tags": [],
+          "severity": "critical"
+        },
+        {
+          "id": "sch-mot-2",
+          "text": "Gate drive voltage, current and gate resistors suit the switches and the target switching speed",
+          "hint": "Check gate charge against driver capability and the bootstrap supply capacity at low duty cycle.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "sch-mot-3",
+          "text": "Dead time and shoot-through protection are defined for half-bridges",
+          "hint": "Set dead time in hardware or document the firmware requirement and the driver's minimum.",
+          "tags": [],
+          "severity": "critical"
+        },
+        {
+          "id": "sch-mot-4",
+          "text": "Regenerative energy from motor braking is handled (clamp, brake resistor, or supply absorption)",
+          "hint": "Regeneration can pump the DC bus above component ratings, especially when the supply cannot sink current.",
+          "tags": [
+            "motor"
+          ],
+          "severity": "major"
+        },
+        {
+          "id": "sch-mot-5",
+          "text": "Motor current sensing covers the full range with adequate bandwidth for control and protection",
+          "hint": "Check amplifier common-mode range for high-side or in-phase sensing and blanking at switching edges.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "sch-mot-6",
+          "text": "Hardware over-current or short-circuit shutdown responds faster than the switch can be damaged",
+          "hint": "Firmware-only protection is usually too slow for a shorted output.",
+          "tags": [],
+          "severity": "critical"
+        },
+        {
+          "id": "sch-mot-7",
+          "text": "DC-bus capacitance and ripple-current rating are adequate for the switching current",
+          "hint": "Check capacitor RMS ripple current at maximum load and temperature.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "sch-mot-8",
+          "text": "Snubbers or clamps limit switching overshoot to within device ratings",
+          "hint": "Leave footprints for RC snubbers if the layout parasitics are not yet known.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "sch-mot-9",
+          "text": "Motor outputs are in a safe state at power-up, reset and fault",
+          "hint": "Driver enables should be pulled to the disabled state independently of firmware.",
+          "tags": [
+            "motor"
+          ],
+          "severity": "major"
+        },
+        {
+          "id": "sch-mot-10",
+          "text": "Encoder, Hall and position-sensor inputs have filtering and protection suitable for motor noise",
+          "hint": "Motor cables carry large common-mode noise; check pull-ups, filtering and ESD on sensor inputs.",
+          "tags": [
+            "motor"
+          ],
+          "severity": "major"
+        }
+      ]
+    },
+    {
+      "id": "s-iso",
+      "title": "Mains, Isolation & Safety",
+      "tags": [
+        "mains",
+        "medical"
+      ],
+      "items": [
+        {
+          "id": "sch-iso-1",
+          "text": "Insulation class and isolation barriers are identified on the schematic",
+          "hint": "Mark the primary/secondary boundary and the required insulation level (basic, supplementary, reinforced) on each barrier.",
+          "tags": [],
+          "severity": "critical"
+        },
+        {
+          "id": "sch-iso-2",
+          "text": "Parts bridging the isolation barrier (transformers, optocouplers, Y-capacitors, isolators) carry the required safety ratings",
+          "hint": "Check each part's certification and rated insulation voltage against the applicable safety standard.",
+          "tags": [],
+          "severity": "critical"
+        },
+        {
+          "id": "sch-iso-3",
+          "text": "Creepage and clearance requirements are recorded for layout per the applicable safety standard",
+          "hint": "Write the required distances into layout notes or rules; the schematic is where the requirement originates.",
+          "tags": [],
+          "severity": "critical"
+        },
+        {
+          "id": "sch-iso-4",
+          "text": "Mains input has a correctly rated fuse in the line conductor",
+          "hint": "Check breaking capacity and voltage rating as well as current; position per the safety standard.",
+          "tags": [
+            "mains"
+          ],
+          "severity": "critical"
+        },
+        {
+          "id": "sch-iso-5",
+          "text": "Mains input has surge protection (MOV or similar) rated for the product's mains range",
+          "hint": "Check MOV rating for the highest mains voltage and its failure mode protection.",
+          "tags": [
+            "mains"
+          ],
+          "severity": "major"
+        },
+        {
+          "id": "sch-iso-6",
+          "text": "Mains inrush current is limited to suit the fuse, switch and upstream supply",
+          "hint": "Use an NTC, active inrush limiter or the converter's soft-start; check behaviour on a hot restart when an NTC is still warm.",
+          "tags": [
+            "mains"
+          ],
+          "severity": "major"
+        },
+        {
+          "id": "sch-iso-7",
+          "text": "X and Y capacitors are safety-rated parts of the correct class",
+          "hint": "Check the X/Y subclass and certification marks against the position and working voltage.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "sch-iso-8",
+          "text": "Total Y-capacitance and other leakage paths keep touch and patient leakage current within the allowed limit",
+          "hint": "Leakage limits for medical equipment are much stricter than for IT equipment; calculate at maximum mains voltage and frequency.",
+          "tags": [],
+          "severity": "critical"
+        },
+        {
+          "id": "sch-iso-9",
+          "text": "Bleed resistors discharge X capacitors and high-voltage bulk capacitors to a safe level in the required time",
+          "hint": "Check the resistor voltage rating; use series resistors to share voltage.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "sch-iso-10",
+          "text": "Medical applied parts have the required means of patient protection and isolation",
+          "hint": "Confirm the applied-part classification and the number of means of protection with the regulatory lead.",
+          "tags": [
+            "medical"
+          ],
+          "severity": "critical"
+        },
+        {
+          "id": "sch-iso-11",
+          "text": "Single-fault conditions have been considered for safety-critical circuits",
+          "hint": "Short or open each critical component in turn and confirm the product remains safe.",
+          "tags": [],
+          "severity": "major"
+        }
+      ]
+    },
+    {
+      "id": "s-therm",
+      "title": "Thermal",
+      "tags": [],
+      "items": [
+        {
+          "id": "sch-therm-1",
+          "text": "Power dissipation is estimated for every significant part at worst-case load and ambient",
+          "hint": "List each part over a few hundred milliwatts with its estimated junction temperature (rule of thumb threshold; adjust per project).",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "sch-therm-2",
+          "text": "Parts relying on copper area or heatsinks have thermal requirements noted for layout",
+          "hint": "Note the required copper area, thermal vias or heatsink so the assumption survives into layout.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "sch-therm-3",
+          "text": "Thermal shutdown or temperature monitoring is provided where overheating is possible",
+          "hint": "A thermistor or temperature sensor near hot parts allows firmware derating.",
+          "tags": [
+            "high-current",
+            "motor",
+            "battery"
+          ],
+          "severity": "major"
+        },
+        {
+          "id": "sch-therm-4",
+          "text": "Temperature-sensitive parts (references, crystals, sensors, electrolytics) are noted to be kept away from heat sources",
+          "hint": "Add placement notes so layout keeps them away from regulators and power stages.",
+          "tags": [],
+          "severity": "minor"
+        },
+        {
+          "id": "sch-therm-5",
+          "text": "Touch-temperature limits for accessible surfaces are considered in the dissipation budget",
+          "hint": "Enclosure surface temperature can limit allowable dissipation more than component ratings.",
+          "tags": [],
+          "severity": "major"
+        }
+      ]
+    },
+    {
+      "id": "s-fab",
+      "title": "Design for Test, Debug & Manufacture",
+      "tags": [],
+      "items": [
+        {
+          "id": "sf1",
+          "text": "Test points are provided on all critical nets (power rails, key signals)",
+          "hint": "Include every rail, reset, clocks, boot straps and key communication buses.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "sd7",
+          "text": "JTAG / SWD / debug header is present with the correct pinout",
+          "hint": "Check against the debug probe's pinout, including reference voltage and reset pins.",
+          "tags": [],
+          "severity": "critical"
+        },
+        {
+          "id": "sf2",
+          "text": "Reference designators are unique and follow the naming convention",
+          "hint": "Re-annotation after copy-paste often creates gaps or duplicates.",
+          "tags": [],
+          "severity": "minor"
+        },
+        {
+          "id": "sf3",
+          "text": "BOM is generated and cross-checked against the schematic",
+          "hint": "Check quantities, DNP fields and manufacturer part numbers against the schematic values.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "sf4",
+          "text": "Footprint assignments are reviewed for every component - correct package selected",
+          "hint": "Check package variants of the same part number (e.g. QFN vs SOIC) and pin-1 orientation.",
+          "tags": [],
+          "severity": "critical"
+        },
+        {
+          "id": "sf5",
+          "text": "Board-level notes and assembly instructions are included on the schematic",
+          "hint": "Include special processes such as selective solder, conformal coat masks or press-fit parts.",
+          "tags": [],
+          "severity": "minor"
+        },
+        {
+          "id": "sf6",
+          "text": "Schematic PDF and netlist are exported at the final revision, with file names reflecting the revision",
+          "hint": "Check the PDF is searchable and the revision in the file name matches the title block.",
+          "tags": [],
+          "severity": "minor"
+        },
+        {
+          "id": "sch-fab-1",
+          "text": "Programming and debug access works in production as well as development",
+          "hint": "Production programming may use pogo pins or a fixture rather than a header; check the access plan.",
+          "tags": [
+            "production"
+          ],
+          "severity": "major"
+        },
+        {
+          "id": "sch-fab-2",
+          "text": "A debug UART or log output is available",
+          "hint": "A spare UART on test pads is invaluable during bring-up and field returns.",
+          "tags": [],
+          "severity": "minor"
+        },
+        {
+          "id": "sch-fab-3",
+          "text": "Power rails can be isolated for bring-up (0 ohm links, jumpers or current-measure points)",
+          "hint": "Being able to bring up rails one at a time and measure current saves boards during first power-on.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "sch-fab-4",
+          "text": "Production test coverage is defined and test access exists for each tested function",
+          "hint": "Agree the test strategy (ICT, flying probe, functional test) with the manufacturer.",
+          "tags": [
+            "production"
+          ],
+          "severity": "major"
+        },
+        {
+          "id": "sch-fab-5",
+          "text": "Unique serialisation, calibration storage and MAC/ID provisioning are planned",
+          "hint": "Decide where calibration constants and unique IDs live and how production writes them.",
+          "tags": [
+            "production"
+          ],
+          "severity": "major"
+        }
+      ]
+    },
+    {
+      "id": "s-life",
+      "title": "Lifecycle & Sourcing",
+      "tags": [],
+      "items": [
+        {
+          "id": "sc5",
+          "text": "All components are from the approved vendor list or justified exceptions are documented",
+          "hint": "New vendors need a quality and supply review before production.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "sc6",
+          "text": "Obsolete or end-of-life parts are flagged and replaced",
+          "hint": "Check lifecycle status with the distributor or a lifecycle tool, including NRND (not recommended for new design) status.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "sch-life-1",
+          "text": "Single-source parts are identified and have a mitigation plan or approved alternative",
+          "hint": "List alternates for passives and common parts; flag single-source ICs to the project lead.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "sch-life-2",
+          "text": "Stock and lead time are checked for every part needed for the next build",
+          "hint": "Check availability at the build quantity, not just whether one is in stock.",
+          "tags": [],
+          "severity": "major"
+        },
+        {
+          "id": "sch-life-3",
+          "text": "Environmental compliance (RoHS, REACH and any customer-specific substance lists) is confirmed for all parts",
+          "hint": "Check part compliance data, not just the family claim.",
+          "tags": [
+            "production",
+            "regulatory"
+          ],
+          "severity": "major"
+        },
+        {
+          "id": "sch-life-4",
+          "text": "Parts with moisture sensitivity or special handling are identified for the assembler",
+          "hint": "MSL ratings and special handling notes help prevent assembly defects.",
+          "tags": [
+            "production"
+          ],
+          "severity": "major"
+        }
+      ]
+    }
+  ]
+}
