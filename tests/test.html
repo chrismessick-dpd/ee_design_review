@@ -328,8 +328,12 @@
   var cut = JSON.parse(JSON.stringify(annSt));
   cut.roster.shared[P.id] = Object.assign({}, cut.roster.shared[P.id], { repo: 'ann/review-gone' });
   cut.cache['ann/review-gone'] = { ['projects/' + P.id + '.json']: { sha: 'x' } };
-  var failed = await annWs.discard(cut, [P.id], false).then(function () { return false; }, function () { return true; });
-  ok(failed, 'discard fails safely when a synced project’s repo can’t be reached');
+  var partial = await annWs.discard(cut, [P.id, fresh.id], false);
+  ok(partial.failed.length === 1 && partial.failed[0].id === P.id && !(P.id in partial.projects) && partial.projects[fresh.id] === null,
+    'an unreachable repo is reported for that project only, which is left unchanged; the rest still discard');
+  var neverSyncedRoster = JSON.parse(JSON.stringify(dst)); neverSyncedRoster.cache = {};
+  var rs = await annWs.discard(neverSyncedRoster, [], true);
+  ok(rs.roster && !Object.keys(rs.roster.users).length && !rs.failed.length, 'a People list that was never synced resets without GitHub');
 
   // ── Fabcheck files: binary writes, dedupe, and moving with a shared project ──
   var F = M.newProject({ name: 'Fab Board', checklists: ['schematic'] }, 'ann', T);
