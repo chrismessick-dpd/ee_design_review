@@ -312,6 +312,33 @@
   var appErr = ''; try { new Function(appSrc); } catch (e) { appErr = e.message; }
   ok(!appErr, 'app.js parses', appErr);
 
+  // ── Requirements ──
+  var rp = M.newProject({ name: 'Req Board', checklists: ['schematic'] }, 'ann', T);
+  var q1 = M.newReq(rp, { text: 'Run from 24 V' }, 'ann'); rp.reqs[q1.id] = q1;
+  var q2 = M.newReq(rp, { text: 'Should be blue', kind: 'should' }, 'ann'); rp.reqs[q2.id] = q2;
+  eq([q1.ref, q2.ref], ['REQ-001', 'REQ-002'], 'requirements number themselves REQ-001, REQ-002…');
+  var other = JSON.parse(JSON.stringify(rp));
+  other.reqs[q1.id] = Object.assign({}, q1, { verify: 'pass', updatedAt: '2099-01-01T00:00:00Z' });
+  var q3 = M.newReq(other, { text: 'Added elsewhere' }, 'bob'); other.reqs[q3.id] = q3;
+  var mr = M.mergeProjects(rp, other);
+  ok(mr.reqs[q1.id].verify === 'pass' && mr.reqs[q2.id] && mr.reqs[q3.id], 'requirements merge record by record');
+  var oldDoc = JSON.parse(JSON.stringify(rp)); delete oldDoc.reqs;
+  ok(Object.keys(M.mergeProjects(oldDoc, rp).reqs).length === 2 && Object.keys(M.mergeProjects(rp, oldDoc).reqs).length === 2, 'projects saved before requirements existed still merge');
+  var idx = { a: { status: 'pass' }, b: { status: 'issue', resolution: '' }, c: { status: 'issue', resolution: 'fixed' }, d: { status: 'issue', resolution: 'waived' }, e: { status: 'open' } };
+  var tr = M.reqTrace({ links: ['a', 'b', 'c', 'd', 'e', 'gone'] }, idx);
+  eq([tr.linked, tr.pass, tr.issue, tr.open, tr.missing, tr.state], [5, 2, 1, 2, 1, 'issue'], 'trace: fixed issues need re-review, waived count as accepted, missing checks are counted');
+  eq(M.reqTrace({ links: [] }, idx).state, 'none', 'an untraced requirement says so');
+  eq(M.parseTable('ID,Requirement\nR1,"Says ""hi"", twice"\n'), [['ID', 'Requirement'], ['R1', 'Says "hi", twice']], 'CSV with quotes and commas');
+  eq(M.parseTable('a\tb\r\n1\t2'), [['a', 'b'], ['1', '2']], 'tab-separated rows pasted from Excel');
+  var imp = M.importReqs(rp, M.parseTable('Req ID\tDescription\tType\tVerification\nREQ-001\tRun from 24 V ±10%\tshall\tTest\n\tWeigh under 200 g\tShould\tanalysis\nREQ-009\t\t\t\n\t\t\t'), 'ann');
+  ok(imp.updated === 1 && imp.added === 1 && imp.skipped === 1 && imp.records[0].id === q1.id && imp.records[1].ref === 'REQ-003' &&
+    imp.records[1].kind === 'should' && imp.records[1].method === 'analysis', 'import maps headers, updates by ID and numbers new rows');
+  var appr = JSON.parse(JSON.stringify(rp)); appr.reqs[q1.id].status = 'approved';
+  eq(M.importReqs(appr, [['ID', 'Requirement'], ['REQ-001', 'Different wording']], 'ann').records[0].status, 'changed', 'rewording an approved requirement marks it changed');
+  var threw = false; try { M.importReqs(rp, [['Name', 'Value'], ['a', 'b']], 'ann'); } catch (e) { threw = true; }
+  ok(threw, 'import without a Requirement column explains itself');
+  ok(/^ID,Requirement,/.test(M.reqsCsv(rp, {})) && M.reqsCsv(rp, {}).split('\r\n').length === 4, 'compliance matrix exports as CSV');
+
   // ── Discard unsynced changes ──
   var dst = JSON.parse(JSON.stringify(annSt));
   dst.projects[Q.id].items.sg9 = { status: 'issue', updatedAt: '2026-10-24T09:00:00Z', updatedBy: 'ann' };   // edit to throw away
