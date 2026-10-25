@@ -338,6 +338,21 @@
   var threw = false; try { M.importReqs(rp, [['Name', 'Value'], ['a', 'b']], 'ann'); } catch (e) { threw = true; }
   ok(threw, 'import without a Requirement column explains itself');
   ok(/^ID,Requirement,/.test(M.reqsCsv(rp, {})) && M.reqsCsv(rp, {}).split('\r\n').length === 4, 'compliance matrix exports as CSV');
+  var dep = JSON.parse(JSON.stringify(rp)); dep.reqs[q2.id].status = 'deprecated'; dep.reqs[q2.id].verify = 'fail';
+  var dst0 = M.reqStats(dep);
+  ok(dst0.total === 1 && dst0.deprecated === 1 && !dst0.fail && M.liveReqs(dep).length === 2, 'a deprecated requirement is kept but left out of the counts');
+  // A customer sheet: a Name column, Priority as shall/should, Sub-System, Source / Rationale, and a Status.
+  var gp = M.newProject({ name: 'Gen', checklists: ['schematic'] }, 'ann', T);
+  var gi = M.importReqs(gp, M.parseTable('\tReq. ID\tName\tDescription\tSource / Rationale\tSub-System\tPriority\tType\tStatus\tVerification Method\n' +
+    '\tGEN-001\tSupply voltage\tShall accept 100-240 VAC\tMains worldwide\tPower Supply\tCritical (Must Have)\tInterface\tImplemented\tAnalysis, Test\n' +
+    '\tGEN-002\tStatus LED\tShall be off when idle\tProposed\tUser Interface\tLow (Won\'t Have)\tFunctional\tObsolete\t\n' +
+    '\tGEN-010\tBuzzer\tShall beep on fault\tNice\tUser Interface\tMedium (Could Have)\tFunctional\tIn Review\t'), 'ann');
+  var g = gi.records;
+  ok(g[0].ref === 'GEN-001' && g[0].text === 'Supply voltage: Shall accept 100-240 VAC' && g[0].category === 'Power Supply' && g[0].source === 'Mains worldwide' &&
+    g[0].kind === 'shall' && g[0].method === 'analysis' && g[0].status === 'approved', 'customer sheet: name leads the text, sub-system, rationale, priority and status map across');
+  eq([g[1].kind, g[1].status, g[2].kind, g[2].status], ['should', 'deprecated', 'should', 'draft'], 'won’t / could-have are should; obsolete comes in deprecated');
+  g.forEach(function (q) { gp.reqs[q.id] = q; });
+  eq(M.nextReqRef(gp), 'GEN-011', 'new requirements continue the project’s own numbering');
 
   // ── Discard unsynced changes ──
   var dst = JSON.parse(JSON.stringify(annSt));
