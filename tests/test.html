@@ -289,6 +289,17 @@
   r = await catWs.sync(catSt, {}); catSt = r.state;
   ok(JSON.parse(hub.files(sh.repo)['projects/' + P.id + '.json']).comments.k1, 'contractor changes reach the single source of truth');
 
+  // One browser, two tokens: Bob's copy (internal Q, the People list) meets Cat's token. The app
+  // forgets the login and role when the token changes (noticeToken), then syncs.
+  r = await bobWs.sync(bobSt, {}); bobSt = r.state;
+  ok(bobSt.projects[Q.id] && M.liveUsers(bobSt.roster).length, 'the FTE’s browser holds an internal project and the People list');
+  r = await catWs.sync(Object.assign({}, bobSt, { login: '', dataAccess: '' }), {});
+  ok(r.state.dataAccess === 'none', 'a contractor’s token in an FTE’s browser is a contractor', JSON.stringify(r.errors));
+  ok(!r.state.projects[Q.id] && r.state.projects[P.id] && r.dropped.indexOf(Q.id) >= 0, '…the internal project is dropped and the shared one kept');
+  ok(!M.liveUsers(r.state.roster).length, '…and the People list is cleared');
+  var bobTypo = await wsFor('bob', { dataRepo: 'typo' }).sync(bobSt, {});
+  ok(bobTypo.state.dataAccess === 'ok' && bobTypo.state.projects[Q.id], 'an FTE confirmed on this token who mistypes the data repo keeps everything');
+
   // Revoked: Cat's copy is dropped and nothing is pushed.
   await annWs.revokeFrom(sh.repo, ['cat']);
   catSt.projects[P.id].comments.k2 = { id: 'k2', item: 'sg1', author: 'Cat', text: 'late', at: 'x', updatedAt: '2026-10-23T17:00:00Z', updatedBy: 'cat' };

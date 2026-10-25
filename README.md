@@ -56,7 +56,15 @@ too). Everything else lives under this tool's own namespace, `signoff.v1.` (Sign
 
 Because the token is shared, it can change in another tool. Settings keeps a fingerprint of it
 (`tokenTag`, from `model.tokenTag`). When the token no longer matches, the tool forgets who was
-signed in and their role, and finds both again at the next sync.
+signed in and their role, and finds both again at the next sync. Until then it shows no
+projects ("Checking who's signed in").
+
+**One browser, two tokens.** A contractor's token in a browser that holds an FTE's copy is
+treated as a contractor: the projects the token can't reach are dropped from the browser, and so
+is the People list. Unsynced internal work (an FTE's edits that weren't pushed) is kept out of
+sight under `held`, and pushed the next time an FTE syncs in that browser. An FTE whose data
+repo can't be opened is still treated as a settings problem, but only if this token opened it
+before (or it's the owner); having local projects no longer counts.
 
 Edits are saved in your browser straight away. Projects with unsynced changes show an orange
 dot. **Sync** (or Ctrl+S) does three things: it pulls, merges, and pushes one commit. It also
