@@ -440,6 +440,8 @@
   ok(sum.pct === st1.pct && sum.checklists.schematic.reviewed === 3 && sum.checklists.schematic.issuesOpen === 1, 'summary progress matches projectStats');
   eq(sum.issues, { open: { critical: 1, major: 0, minor: 0 }, fixed: 1, waived: 0 }, 'summary counts open issues by severity and resolved ones');
   ok(sum.reqs && sum.reqs.total === 1 && sum.reqs.pass === 1, 'summary counts requirements');
+  ok(sum.open.length === 1 && sum.open[0].id === 'sg3' && sum.open[0].severity === 'critical' && sum.open[0].text === M.indexTemplates(T).items.sg3.item.text && sum.open[0].checklist,
+    'summary lists open issues with their check text', JSON.stringify(sum.open));
   ok(sum.at === '2026-10-24T10:00:00Z' && sum.by === 'bob', 'summary time is the latest edit, not the sync time');
   var S2 = JSON.parse(JSON.stringify(S1)); S2.meta.checklists = ['schematic']; S2.meta.reqsDecided = true;
   ok(M.projectSummary(S2, T).reqs === null, 'no requirement counts when requirements are off');
@@ -473,6 +475,15 @@
   await plain.sync(oneP, null, {}, {});
   var keptFile = JSON.parse(hub.files('ann/review-sum')['projects/' + S1.id + '.json']);
   ok(keptFile.items.sg6 && keptFile.summary && keptFile.summary.v === 1, 'a writer without checklists keeps the stored summary');
+
+  // A store given its own merge (Signoff PL) uses it instead of mergeProjects.
+  hub.makeRepo('ann/custom-merge', { 'projects/d1.json': M.stableStringify({ id: 'd1', meta: { name: 'Remote' }, n: 1 }) }, ['ann']);
+  var mergeCalls = 0;
+  var cmStore = new Signoff.GitHubStore({ owner: 'ann', repo: 'custom-merge', branch: 'main', dataPath: '', token: 'tok-ann',
+    merge: function (a, b) { mergeCalls++; return { id: 'd1', meta: { name: 'Merged' }, n: (a ? a.n : 0) + (b ? b.n : 0) }; } }, hub.fetchFor('tok-ann'));
+  await cmStore.sync({ d1: { id: 'd1', meta: { name: 'Local' }, n: 2 } }, null, {}, {});
+  var cm = JSON.parse(hub.files('ann/custom-merge')['projects/d1.json']);
+  ok(mergeCalls === 1 && cm.n === 3 && cm.meta.name === 'Merged' && !cm.summary, 'a store uses cfg.merge when given one');
 
   // ── Demo ──
   var demo = Signoff.demo.projects(T);

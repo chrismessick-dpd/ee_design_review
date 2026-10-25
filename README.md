@@ -105,7 +105,7 @@ GitHub grants access to whole repositories, so Signoff keeps each audience in it
 | `ee_design_review` (tool) | The tool and the checklists | FTEs |
 | `ee_design_review_data` (data) | Internal reviews (`projects/<id>.json`) and People (`users.json`) | FTEs |
 | `review-ee-<project>` (one per shared project) | That one review | FTEs and that project's contractors |
-| `me_design_review`, `me_design_review_data`, `signoff`, `pcb_dfm` | Signoff ME, the hub and Fabcheck | FTEs |
+| `me_design_review`, `me_design_review_data`, `signoff`, `pcb_dfm`, `signoff_pl`, `signoff_pl_data` | Signoff ME, the hub, Fabcheck and Signoff PL | FTEs |
 
 All of these are set in Settings, under **Repositories**. An FTE is anyone whose token can open
 the data repo. A contractor's token reaches only their projects' `review-…` repos, so their
@@ -121,7 +121,7 @@ copy of Signoff never sees anything else, and neither does GitHub.
 - **Removing a contractor** takes away their GitHub access, including an invitation they
   haven't accepted. Their copy of the project disappears at their next sync.
 - **Adding an FTE** invites them to this tool's repo, its data repo, every EE shared repo, and
-  the rest of the suite: Signoff ME's tool and data repos, the hub repo and Fabcheck (`pcb_dfm`). That list is
+  the rest of the suite: Signoff ME's tool and data repos, the hub repo, Fabcheck (`pcb_dfm`) and Signoff PL's tool and data repos. That list is
   `repos.suite` in `assets/config.js`. Signoff ME's shared `review-me-…` repos are granted from
   Signoff ME's own People page, so add FTEs there too (each tool keeps its own People list).
 - **A contractor** gets only their projects' `review-ee-…` repos. One working on an ME project
@@ -179,6 +179,7 @@ written, and is never merged.
   "total": 412, "reviewed": 260, "pct": 63,
   "checklists": { "pcb": { "name": "Layout", "total": 140, "reviewed": 87, "pct": 62, "issuesOpen": 2 } },
   "issues": { "open": { "critical": 1, "major": 2, "minor": 0 }, "fixed": 3, "waived": 1 },
+  "open": [ { "id": "pcb-hc-5", "severity": "major", "text": "…", "checklist": "Layout", "assignee": "J. Chen", "ref": "U2" } ],
   "reqs": { "total": 5, "approved": 3, "pass": 1, "fail": 0, "open": 4, "unlinked": 1 },
   "at": "2026-10-24T18:36:53Z", "by": "Sam Patel"
 }
@@ -200,7 +201,12 @@ written, and is never merged.
   is. Merges carry it along too.
 - **Checklist changes.** A checklist update changes the counts, so every project file gets a
   new summary at the next FTE sync. Expect one large but harmless commit.
-- **Readers** must treat a missing summary as "not summarized yet", never as 0%.
+- **`open`** lists the unresolved issues, worst first. The check text is cut to 160
+  characters.
+- **Readers** must treat a missing summary as "not summarized yet", never as 0%. They must also
+  cope with a summary that has no `open` list, because older engines didn't write one.
+- **Opening a project from another tool:** `index.html?project=<id>` opens that project. If it
+  isn't in this browser yet, it opens after the first sync.
 
 ## Layout
 
@@ -228,6 +234,13 @@ Both tools run the same engine. This repository is its source: `assets/model.js`
 stale, so fixes flow one way and nothing diverges silently. Fix the engine here, then sync
 ME. What differs between the tools lives in each one's `assets/config.js`, `index.html`,
 `templates/`, `tests/` and docs.
+
+Two other tools copy parts of the engine with their own `tools/sync_vendor.py`:
+- **Fabcheck** (`pcb_dfm`) copies `model.js`, `github.js` and `styles.css`.
+- **Signoff PL** (`signoff_pl`) copies the same three. PL passes its own merge to
+  `GitHubStore` (`cfg.merge`), because its documents aren't reviews.
+
+After an engine change, re-run `sync_vendor.py` in both.
 
 ## Changing the tool or the checklists
 
