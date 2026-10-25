@@ -1,5 +1,7 @@
 # Signoff EE — electrical design review
 
+**User guide:** [docs/guide.md](docs/guide.md), with a customer-shareable overview and an FTE section on architecture and use.
+
 Signoff EE is Dovetail's checklist tool for schematic, layout, assembly, fab and bring-up reviews.
 Its sibling [Signoff ME](https://github.com/chrismessick-dpd/me_design_review) does the same for
 mechanical design, on the same engine; both sit under the Dovetail Signoff hub.
