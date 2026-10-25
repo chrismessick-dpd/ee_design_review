@@ -88,8 +88,9 @@ people and access, tokens), see the hub's guide: `signoff/docs/guide.md`.
     invites only them.
   - The **GitHub access** column shows any gaps; **Give access** fixes them.
 - **Contractors** can simply be sent the hosted link (https://chrismessick-dpd.github.io/ee_design_review/). For offline use,
-  `python tools/package.py` builds `dist/Signoff-<build>.zip`. It holds the
-  tool only, with no data and no token. Never put your own token in a copy you send out.
+  `python tools/package.py` builds `dist/Signoff-EE-<build>.zip`. It holds the
+  tool only, with no data and no token; its links to the hub, Signoff ME and Fabcheck point at the
+  hosted site. Never put your own token in a copy you send out.
 - **Old checklist exports:** go to **⋯ → Import**.
 
 ### Changing the tool

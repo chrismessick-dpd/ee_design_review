@@ -16,6 +16,7 @@ window.SIGNOFF_CONFIG = {
   "discipline": "EE",
   "tagline": "Electrical design review",
   "storage": { "ns": "signoff.v1.", "demoNs": "signoff.demo." },
+  "hostedBase": "https://chrismessick-dpd.github.io",
   "repos": {
     "owner": "chrismessick-dpd",
     "toolRepo": "ee_design_review",

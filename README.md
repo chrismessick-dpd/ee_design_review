@@ -136,8 +136,8 @@ narrower roles. Change the account in Settings; the app handles organizations al
 2. Add them in People and pick their projects. Confirm, and Signoff shares the projects and
    GitHub emails the invitations.
 3. Send them the tool: `python tools/package.py` makes `dist/Signoff-EE-<build>.zip`. It holds
-   the tool and checklists only, with no data, no token and no links to the other internal
-   tools, plus a START HERE note.
+   the tool and checklists only, with no data and no token, plus a START HERE note. Its sidebar links to
+   the hub, the other Signoff tool and Fabcheck point at the hosted site (`hostedBase` in config).
 4. They open it, click the gear, follow *New to GitHub? Set up in four steps*, and click
    Save & sync. Signoff lists their invitations with an **Accept** button. From then on they
    just Sync.
