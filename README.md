@@ -20,6 +20,15 @@ Reviews sync through private GitHub repositories, so everyone works on the same 
   findings to CSV or print a signed-off review report (Print → Save as PDF).
 - **Demo mode:** open `index.html?demo` for a self-contained sample with no sync. Use it to
   show the tool to people outside the team.
+  - The whole suite's demo is one made-up product, a Smart Thermostat:
+    - two boards here
+    - the enclosure and wall bracket in Signoff ME
+    - the full product in Signoff PL
+  - Demo projects have fixed ids (`pdemo7`, and `mdemo5` in ME), so PL's demo links straight to
+    them and to their issues.
+  - Each demo project in `config.js` lists the findings and comments it gets.
+  - If you change a demo, bump `VERSION` in `demo.js` so browsers rebuild it. Then regenerate
+    PL's snapshot (`signoff_pl/tools/demo_designs.html`).
 
 ## Using it
 

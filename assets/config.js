@@ -72,8 +72,6 @@ window.SIGNOFF_CONFIG = {
       { "id": "sd8", "sev": "major", "who": "A. Rivera", "by": "Sam Patel", "ref": "I2C1: R12, R13", "notes": [
         "I2C1 pull-ups are 10 kΩ with ~180 pF of bus capacitance. Rise time is too slow for 400 kHz.",
         "Changed to 2.2 kΩ."], "res": "fixed" },
-      { "id": "pcb-hc-5", "sev": "major", "who": "J. Chen", "by": "Morgan Lee", "ref": "U2 buck", "notes": [
-        "U2 dissipates ~0.9 W at full load. Only 4 vias under the exposed pad."], "res": "" },
       { "id": "pt1", "sev": "minor", "who": "", "by": "Sam Patel", "ref": "", "notes": [
         "No test points on 3V3_AUX or 1V8. Bring-up will be awkward."], "res": "" },
       { "id": "pm6", "sev": "minor", "who": "", "by": "Morgan Lee", "ref": "Panel", "notes": [
@@ -82,26 +80,40 @@ window.SIGNOFF_CONFIG = {
         "Polarity marks for D3/D4 sit under the part bodies and won’t be visible after assembly."], "res": "" },
       { "id": "pcb-iso-1", "sev": "critical", "who": "J. Chen", "by": "Sam Patel", "ref": "K1 relay", "notes": [
         "Clearance between the K1 contact and the SELV ground pour is under the requirement for reinforced insulation.",
-        "Moved the pour back and added a slot. Please re-check."], "res": "fixed" }
+        "Moved the pour back and added a slot. Please re-check."], "res": "fixed" },
+      { "id": "disp8", "sev": "critical", "who": "J. Chen", "by": "Morgan Lee", "ref": "J2, touch keys", "notes": [
+        "The touch-key and display connector lines at J2 have no ESD protection, and the front face is touched every day.",
+        "Suggest a low-capacitance TVS array next to J2. Check the touch controller's input capacitance budget first."], "res": "" },
+      { "id": "ifc-touch-4", "sev": "major", "who": "J. Chen", "by": "Sam Patel", "ref": "U3 supply", "notes": [
+        "The touch controller's supply shares a ground return with the backlight boost. Expect false touches while the backlight dims."], "res": "" },
+      { "id": "disp6", "sev": "minor", "who": "A. Rivera", "by": "Morgan Lee", "ref": "Backlight PWM", "notes": [
+        "Backlight PWM at 200 Hz flickers on camera and at the edge of vision.",
+        "Raised to 20 kHz. The driver supports it."], "res": "fixed" },
+      { "id": "sch-therm-4", "sev": "major", "who": "A. Rivera", "by": "Sam Patel", "ref": "U5 temperature sensor", "notes": [
+        "The temperature and humidity sensor sits 6 mm (236 mil) from the backlight boost inductor. Self-heating will bias the room reading.",
+        "Moving U5 to the bottom edge, next to the enclosure's intake vents. Coordinating the vent position with ME."], "res": "" }
     ],
     "comments": [
       { "id": "sd3", "by": "Morgan Lee", "text": "Checked the supervisor threshold against the 3V3 rail tolerance. OK." },
       { "id": "sc7", "by": "Sam Patel", "text": "Load caps recalculated with 3 pF stray: 12 pF is right." },
-      { "id": "sp8", "by": "Morgan Lee", "text": "Is the soft-start time OK with the 470 µF bulk on the 5 V rail? Can we confirm with a sim?" }
+      { "id": "sp8", "by": "Morgan Lee", "text": "Is the soft-start time OK with the 470 µF bulk on the 5 V rail? Can we confirm with a sim?" },
+      { "id": "disp5", "by": "Sam Patel", "text": "Checked the power-up order against the panel datasheet: VDDIO, then VDD, then backlight enable 20 ms later. OK." }
     ],
     "projects": [
       { "seed": 7, "users": ["Sam Patel", "Morgan Lee"],
+        "findings": ["sp3", "usb2", "sd8", "pt1", "pm6", "pt4", "pcb-iso-1"], "comments": ["sd3", "sc7", "sp8"],
         "requirements": [{"ref": "REQ-001", "text": "The thermostat shall run from 100–240 V AC, 50/60 Hz mains.", "category": "Power", "source": "Acme DT-SPEC-12 §3.1", "method": "test", "status": "approved", "verify": "pass", "evidence": "Bring-up report BR-02: full function at 90 and 264 V AC, 47 and 63 Hz.", "links": ["sp2", "sp8"], "by": "Sam Patel"}, {"ref": "REQ-002", "text": "Mains circuits shall be separated from user-accessible low-voltage circuits by reinforced insulation.", "category": "Safety", "source": "Acme DT-SPEC-12 §5.2", "method": "inspection", "status": "approved", "verify": "open", "links": ["sch-iso-3", "pcb-iso-1"], "by": "Morgan Lee"}, {"ref": "REQ-003", "text": "The USB-C service port shall withstand ±8 kV contact and ±15 kV air ESD without damage.", "category": "Interfaces", "source": "Acme DT-SPEC-12 §6.4", "method": "test", "status": "approved", "verify": "open", "links": ["usb2", "spr4"], "by": "Morgan Lee"}, {"ref": "REQ-004", "text": "Wi-Fi shall use a pre-certified radio module so system-level certification needs only intentional-radiator spot checks.", "kind": "should", "category": "Regulatory", "source": "Kickoff notes 2026-09-02", "method": "inspection", "status": "draft", "verify": "open", "links": [], "by": "Sam Patel"}, {"ref": "REQ-005", "text": "Relay outputs shall switch 2 A at 250 V AC resistive for at least 100,000 cycles.", "category": "Outputs", "source": "Acme DT-SPEC-12 §4.3", "method": "analysis", "status": "changed", "verify": "open", "links": [], "by": "Sam Patel"}],
         "ratios": { "schematic": 0.95, "interfaces": 0.9, "pcb": 0.62, "assembly": 0.3, "fab": 0.1 },
         "fields": { "name": "Smart Thermostat — Main PCBA", "client": "Acme Climate", "board": "DT-1042", "revision": "B", "stage": "Layout",
           "description": "Rev B layout review before release to fab. Wi-Fi module, mains-powered via an isolated AC/DC, relay outputs.",
           "profile": ["mains", "rf", "regulatory", "production"], "checklists": ["schematic", "interfaces", "pcb", "assembly", "fab"] } },
       { "seed": 11, "users": ["Morgan Lee", "Sam Patel"],
-        "requirements": [{"ref": "REQ-001", "text": "The scanner shall run for at least 8 hours of typical use on one charge.", "category": "Battery", "source": "Northwind PRD v2 §2.1", "method": "test", "status": "approved", "verify": "open", "links": [], "by": "Morgan Lee"}, {"ref": "REQ-002", "text": "The battery connector shall make reverse insertion impossible.", "category": "Battery", "source": "Northwind PRD v2 §2.4", "method": "inspection", "status": "approved", "verify": "pass", "evidence": "Keyed JST-PH connector on J4; checked against the pack drawing.", "links": ["sch-bat-4"], "by": "Morgan Lee"}, {"ref": "REQ-003", "text": "The scan-head motor shall stop within 50 ms of a fault or loss of control.", "category": "Motor", "source": "Northwind PRD v2 §4.2", "method": "test", "status": "draft", "verify": "open", "links": ["sch-mot-9"], "by": "Sam Patel"}],
-        "ratios": { "schematic": 0.45, "interfaces": 0.3 },
-        "fields": { "name": "Handheld Scanner — Power Board", "client": "Northwind Instruments", "board": "DT-2210", "revision": "A", "stage": "Schematic",
-          "description": "First schematic review. Li-ion pack, USB-C PD charging, 2 A motor driver for the scan head.",
-          "profile": ["battery", "low-power", "motor", "high-current"], "checklists": ["schematic", "interfaces", "pcb"] } }
+        "findings": ["disp8", "ifc-touch-4", "disp6", "sch-therm-4"], "comments": ["disp5"],
+        "requirements": [{"ref": "REQ-001", "text": "The thermostat shall measure room temperature to within ±0.5 °C from 5 to 35 °C.", "category": "Sensing", "source": "Acme DT-SPEC-12 §2.3", "method": "test", "status": "approved", "verify": "open", "links": ["sch-therm-4", "pcb-pl-8"], "by": "Sam Patel"}, {"ref": "REQ-002", "text": "The touch keys shall withstand ±8 kV contact ESD without a reset or a false press.", "category": "Interfaces", "source": "Acme DT-SPEC-12 §6.4", "method": "test", "status": "approved", "verify": "open", "links": ["disp8", "ifc-gpio-5"], "by": "Morgan Lee"}, {"ref": "REQ-003", "text": "The board shall draw no more than 15 mA on average from the 3V3 rail with the backlight dimmed.", "category": "Power", "source": "Acme DT-SPEC-12 §3.4", "method": "analysis", "status": "approved", "verify": "pass", "evidence": "Power budget rev A: 11.8 mA average at 10% backlight.", "links": [], "by": "Sam Patel"}, {"ref": "REQ-004", "text": "The display should be readable from 2 m in 500 lux room lighting.", "kind": "should", "category": "Display", "source": "Kickoff notes 2026-09-02", "method": "demonstration", "status": "draft", "verify": "open", "links": [], "by": "Morgan Lee"}],
+        "ratios": { "schematic": 0.6, "interfaces": 0.45, "pcb": 0.2 },
+        "fields": { "name": "Smart Thermostat — Display & Sensor Board", "client": "Acme Climate", "board": "DT-1043", "revision": "A", "stage": "Schematic",
+          "description": "First schematic review of the front board: 2.8\" TFT display, capacitive touch keys, temperature and humidity sensor, ambient light sensor. Connects to the main PCBA over a 24-pin FFC.",
+          "profile": ["low-power", "display", "precision-analog"], "checklists": ["schematic", "interfaces", "pcb"] } }
     ]
   }
 };
