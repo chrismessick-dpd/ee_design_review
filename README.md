@@ -54,6 +54,10 @@ mode is shared the same way (`theme` in `signoff.v1.settings`, which Fabcheck an
 too). Everything else lives under this tool's own namespace, `signoff.v1.` (Signoff ME uses
 `signoff-me.v1.`).
 
+Because the token is shared, it can change in another tool. Settings keeps a fingerprint of it
+(`tokenTag`, from `model.tokenTag`). When the token no longer matches, the tool forgets who was
+signed in and their role, and finds both again at the next sync.
+
 Edits are saved in your browser straight away. Projects with unsynced changes show an orange
 dot. **Sync** (or Ctrl+S) does three things: it pulls, merges, and pushes one commit. It also
 runs automatically when the page opens and whenever you post a comment, so comments reach
@@ -139,6 +143,10 @@ copy of Signoff never sees anything else, and neither does GitHub.
 - The **GitHub access** column compares the list with the real collaborators on each repo,
   and **Give access** fixes any gaps.
 - Project file names are IDs, so they don't give project names away.
+- **Other tools link here.** Signoff PL, Fabcheck and the hub show a **People & access** link
+  for FTEs that opens `index.html?page=people`. PL shows it once its own sync confirms an FTE.
+  Fabcheck and the hub make no request: they show it when `signoff.v1.settings.tokenTag`
+  matches the current token and `signoff.v1.dataAccess` is `ok`, as this tool last found.
 
 On a personal account only the owner can create repositories and change access, and every
 collaborator can push to the repositories they're on. Other FTEs can edit People, but the

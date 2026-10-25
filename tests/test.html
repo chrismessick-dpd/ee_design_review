@@ -107,6 +107,11 @@
   ok(!M.mergeLocalCopies(ext.projects, { 'shared-tab': theirsDoc }).changed, 'nothing new from the other tab means no write back');
   eq(M.mergeProjects(got, theirsDoc).custom.xfab1.source.tool, 'fabcheck', 'mergeProjects passes the source field through');
 
+  // ── Token fingerprint (how each tool notices the shared token changed) ──
+  var tagA = M.tokenTag('ghp_example_token_a');
+  ok(/^[0-9a-f]{8}$/.test(tagA) && tagA === M.tokenTag('ghp_example_token_a') && tagA !== M.tokenTag('ghp_example_token_b') && tagA.indexOf('ghp') < 0,
+    'a token fingerprint is short, stable, differs between tokens and doesn’t contain the token');
+
   // ── Git blob sha ──
   eq(await Signoff.github.gitBlobSha('hello\n'), 'ce013625030ba8dba906f756967f9e9ca394464a', 'git blob sha matches git hash-object');
 
