@@ -165,6 +165,43 @@ Pull requests would only add friction to review data.
 
 Changes to the **tool or the checklists** should still go through pull requests.
 
+### The project summary
+
+Each project file also carries a `summary` block, so other tools can show where a review stands
+without loading this tool's checklists. Signoff PL is the planned reader. Sync writes the block;
+nothing edits it. It is rebuilt from the document and the checklists every time the file is
+written, and is never merged.
+
+```json
+"summary": {
+  "v": 1, "tool": "EE", "name": "…", "client": "…", "number": "DT-1042", "revision": "B",
+  "stage": "Layout", "archived": false,
+  "total": 412, "reviewed": 260, "pct": 63,
+  "checklists": { "pcb": { "name": "Layout", "total": 140, "reviewed": 87, "pct": 62, "issuesOpen": 2 } },
+  "issues": { "open": { "critical": 1, "major": 2, "minor": 0 }, "fixed": 3, "waived": 1 },
+  "reqs": { "total": 5, "approved": 3, "pass": 1, "fail": 0, "open": 4, "unlinked": 1 },
+  "at": "2026-10-24T18:36:53Z", "by": "Sam Patel"
+}
+```
+
+- **Counts.** They match the project overview. Checks set aside by the board profile aren't
+  counted.
+- **`reqs`.** It is `null` when Requirements is off for the project.
+- **`at` / `by`.** These are the project's latest edit, not the sync time. An unchanged
+  project therefore writes the same bytes and isn't committed again.
+- **Existing projects.** Projects synced before the summary existed get one at their next sync,
+  as a single commit.
+- **Contractor copies.** A contractor's copy computes the summary from the checklists bundled
+  with it. If those are older, the counts can differ slightly until the next FTE sync.
+- **Copies older than the summary** drop it when they sync. Review data is never affected,
+  and the next sync from a current copy puts the summary back. To stop the back and forth,
+  re-send contractor packages (`python tools/package.py` here and in Signoff ME).
+- **Writers without checklists** (Fabcheck's Send to Signoff) keep the stored summary as it
+  is. Merges carry it along too.
+- **Checklist changes.** A checklist update changes the counts, so every project file gets a
+  new summary at the next FTE sync. Expect one large but harmless commit.
+- **Readers** must treat a missing summary as "not summarized yet", never as 0%.
+
 ## Layout
 
 | Path | Contents |

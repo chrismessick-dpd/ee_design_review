@@ -428,6 +428,52 @@
   var noopCalls = hub.calls.slice(before);
   ok(noop.pushed === 0 && !noopCalls.some(function (c) { return /(POST|PATCH)/.test(c) || /blobs/.test(c); }), 'an unchanged repo is neither downloaded nor committed', noopCalls.join(', '));
 
+  // ── Summary (read by Signoff PL) ──
+  var S1 = M.newProject({ name: 'Summary board', board: 'PCB-9', revision: 'B', stage: 'Layout', checklists: ['schematic', 'reqs'] }, 'ann', T);
+  S1.items.sg3 = { status: 'issue', severity: 'critical', updatedAt: '2026-10-24T10:00:00Z', updatedBy: 'bob' };
+  S1.items.sg4 = { status: 'issue', severity: 'major', resolution: 'fixed', updatedAt: '2026-10-24T09:00:00Z', updatedBy: 'ann' };
+  S1.items.sg5 = { status: 'pass', updatedAt: '2026-10-24T08:00:00Z', updatedBy: 'ann' };
+  var q1 = M.newReq(S1, { text: 'Shall work.', status: 'approved', verify: 'pass' }, 'ann'); q1.updatedAt = '2026-10-24T07:00:00Z'; S1.reqs[q1.id] = q1;
+  S1.meta.updatedAt = '2026-10-24T06:00:00Z';
+  var sum = M.projectSummary(S1, T), st1 = M.projectStats(S1, T);
+  ok(sum.v === 1 && sum.tool === window.SIGNOFF_CONFIG.discipline && sum.number === 'PCB-9' && sum.stage === 'Layout', 'summary carries the project fields');
+  ok(sum.pct === st1.pct && sum.checklists.schematic.reviewed === 3 && sum.checklists.schematic.issuesOpen === 1, 'summary progress matches projectStats');
+  eq(sum.issues, { open: { critical: 1, major: 0, minor: 0 }, fixed: 1, waived: 0 }, 'summary counts open issues by severity and resolved ones');
+  ok(sum.reqs && sum.reqs.total === 1 && sum.reqs.pass === 1, 'summary counts requirements');
+  ok(sum.at === '2026-10-24T10:00:00Z' && sum.by === 'bob', 'summary time is the latest edit, not the sync time');
+  var S2 = JSON.parse(JSON.stringify(S1)); S2.meta.checklists = ['schematic']; S2.meta.reqsDecided = true;
+  ok(M.projectSummary(S2, T).reqs === null, 'no requirement counts when requirements are off');
+
+  hub.makeRepo('ann/review-sum', { 'README.md': '#' }, ['ann']);
+  var sumWs = new Signoff.Workspace(SET, 'tok-ann', hub.fetchFor('tok-ann'), function (d) { return M.projectSummary(d, T); });
+  var sumStore = sumWs.store('ann/review-sum');
+  var stale = JSON.parse(JSON.stringify(S1)); stale.summary = { v: 1, pct: 99 };
+  var oneS = {}; oneS[S1.id] = stale;
+  var rs = await sumStore.sync(oneS, null, {}, {});
+  var written = JSON.parse(hub.files('ann/review-sum')['projects/' + S1.id + '.json']);
+  ok(M.stableStringify(written.summary) === M.stableStringify(sum), 'sync writes a fresh summary into the project file');
+  var beforeS = hub.calls.length;
+  var rs2 = await sumStore.sync(rs.projects, null, rs.cache, {});
+  ok(rs2.pushed === 0 && !hub.calls.slice(beforeS).some(function (c) { return /(POST|PATCH)/.test(c); }), 'an unchanged project isn’t committed again for its summary');
+  var other = JSON.parse(JSON.stringify(written)); other.items.sg5 = { status: 'issue', severity: 'minor', updatedAt: '2026-10-25T10:00:00Z', updatedBy: 'bob' };
+  var f2 = hub.files('ann/review-sum'); f2['projects/' + S1.id + '.json'] = M.stableStringify(other); hub.push('ann/review-sum', f2);
+  await sumStore.sync(rs2.projects, null, rs2.cache, {});
+  var written2 = JSON.parse(hub.files('ann/review-sum')['projects/' + S1.id + '.json']);
+  ok(written2.summary.issues.open.minor === 1 && written2.summary.by === 'bob', 'a pulled edit is reflected in the summary at the next push');
+  var rs3 = await sumStore.sync({}, null, {}, {});
+  var bare = JSON.parse(JSON.stringify(written2)); delete bare.summary;
+  var f3 = hub.files('ann/review-sum'); f3['projects/' + S1.id + '.json'] = M.stableStringify(bare); hub.push('ann/review-sum', f3);
+  await sumStore.sync(rs3.projects, null, rs3.cache, {});
+  ok(JSON.parse(hub.files('ann/review-sum')['projects/' + S1.id + '.json']).summary, 'a file written by an older copy without a summary gets it back');
+  // A writer without checklists (Fabcheck) keeps the stored summary through its merge.
+  var plain = annWs.store('ann/review-sum'), rp = await plain.sync({}, null, {}, {});
+  var edited = JSON.parse(JSON.stringify(rp.projects[S1.id])); delete edited.summary;
+  edited.items.sg6 = { status: 'pass', updatedAt: '2026-10-25T12:00:00Z', updatedBy: 'fab' };
+  var oneP = {}; oneP[S1.id] = edited;
+  await plain.sync(oneP, null, {}, {});
+  var keptFile = JSON.parse(hub.files('ann/review-sum')['projects/' + S1.id + '.json']);
+  ok(keptFile.items.sg6 && keptFile.summary && keptFile.summary.v === 1, 'a writer without checklists keeps the stored summary');
+
   // ── Demo ──
   var demo = Signoff.demo.projects(T);
   ok(demo.length === 2 && demo.every(function (d) { return Object.keys(d.items).length > 10; }), 'demo projects build');

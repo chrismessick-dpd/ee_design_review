@@ -67,6 +67,9 @@ people and access, tokens), see the hub's guide: `signoff/docs/guide.md`.
   `comments`, `custom` (project checks) and `reqs` (requirements).
   - Every record carries `updatedAt` / `updatedBy`, and the newer one wins key by key. Deletes are
     tombstones.
+  - `summary` is a digest of the document for other tools (stage, progress, open issues by
+    severity, requirement counts). Sync rebuilds it on every write, and it is never merged. The
+    format is in the README under *The project summary*.
   - Sync is pull → merge → one commit per repo (`force: false`), retried if someone pushed first.
     Review data commits straight to `main`. That is deliberate; don't "fix" it with pull requests.
 - **Checklists.** They are JSON in `templates/` (schema and tag list in `docs/templates.md`).
