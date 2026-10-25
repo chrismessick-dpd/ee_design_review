@@ -80,7 +80,8 @@ people and access, tokens), see the hub's guide: `signoff/docs/guide.md`.
 
 ### Everyday use
 
-- **Sync** pushes your changes and pulls everyone else's; it also runs when the page opens.
+- **Sync** pushes your changes and pulls everyone else's; it also runs when the page opens and
+  whenever you post a comment.
   **Discard** throws away unsynced changes and restores what's on GitHub.
 - **People & access:**
   - Adding an **FTE** invites them to every suite repo.

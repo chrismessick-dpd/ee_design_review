@@ -47,7 +47,8 @@ too). Everything else lives under this tool's own namespace, `signoff.v1.` (Sign
 
 Edits are saved in your browser straight away. Projects with unsynced changes show an orange
 dot. **Sync** (or Ctrl+S) does three things: it pulls, merges, and pushes one commit. It also
-pulls automatically when the page opens.
+runs automatically when the page opens and whenever you post a comment, so comments reach
+everyone straight away.
 
 ### Keyboard
 
