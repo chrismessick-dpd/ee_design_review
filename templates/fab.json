@@ -2,7 +2,7 @@
   "id": "fab",
   "title": "Fabrication & Release Review",
   "short": "Fab & Release",
-  "version": 2,
+  "version": 3,
   "description": "Checks that the fabrication package, drawing, stackup, panel and release records are complete and match the fabricator's capability before the board is ordered.",
   "sections": [
     {
@@ -412,7 +412,7 @@
         {
           "id": "fab-msk-6",
           "text": "Silkscreen text height and line width meet the fab's minimum",
-          "hint": "Rule of thumb: around 0.15 mm (6 mil) line width and 0.8–1.0 mm text height for legibility.",
+          "hint": "Rule of thumb: around 0.15 mm (6 mil) line width and 0.8–1.0 mm (31–39 mil) text height for legibility.",
           "tags": [],
           "severity": "minor"
         },

@@ -2,7 +2,7 @@
   "id": "assembly",
   "title": "Assembly & BOM Review",
   "short": "Assembly",
-  "version": 2,
+  "version": 3,
   "description": "Checks that the BOM, footprints, placement data, stencil, soldering process and assembly documentation let an assembler build the board right first time.",
   "sections": [
     {
@@ -355,7 +355,7 @@
         {
           "id": "asm-stn-6",
           "text": "Parts needing extra paste (large connectors, shields) are covered by a step stencil or overprint",
-          "hint": "A single thickness rarely suits both 0.4 mm pitch parts and large connector tabs.",
+          "hint": "A single thickness rarely suits both 0.4 mm (15.7 mil) pitch parts and large connector tabs.",
           "tags": [],
           "severity": "minor"
         },
