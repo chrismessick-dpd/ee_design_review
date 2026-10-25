@@ -41,7 +41,7 @@ Which token you need:
 - **The account owner** (today `chrismessick-dpd`): a fine-grained token with Repository
   access set to **All repositories**, and **Contents** and **Administration** both set to read
   and write. Sharing a project creates a new repository, and a token limited to *selected*
-  repositories can't reach it. The same token works in Signoff ME, and Add FTE invites people
+  repositories can't reach it. The same token works in Signoff ME and Signoff PL, and Add FTE invites people
   across the suite, so it must reach every repository in the table below.
 - **Everyone else** (the other FTEs and contractors): a *classic* token with the **repo** scope.
   A fine-grained token can only target repositories owned by its holder or by an organization
@@ -49,7 +49,7 @@ Which token you need:
 
 The token is kept in your browser (for the session only, unless you tick *Remember*) and is
 sent only to `api.github.com`. It is stored under `signoff.token`, which every Signoff tool
-shares, so signing in once covers Signoff EE and Signoff ME on the same origin. Light/dark
+shares, so signing in once covers every Signoff tool on the same origin. Light/dark
 mode is shared the same way (`theme` in `signoff.v1.settings`, which Fabcheck and the hub read
 too). Everything else lives under this tool's own namespace, `signoff.v1.` (Signoff ME uses
 `signoff-me.v1.`).

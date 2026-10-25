@@ -38,7 +38,8 @@ issue. At the end it produces a signed-off review report.
 merge record by record, so no one overwrites anyone. Reviews are kept in private, access-controlled
 storage. Each person sees only the projects they've been given.
 
-**Try it:** the demo (`?demo`) has two sample reviews and stays entirely in your browser.
+**Try it:** the demo (`?demo`) stays entirely in your browser. It reviews the two boards of a
+made-up Smart Thermostat, the same product the Signoff ME and PL demos show.
 
 ---
 
@@ -59,10 +60,13 @@ people and access, tokens), see the hub's guide: `signoff/docs/guide.md`.
 
 - **Static web app.** It has no server and no dependencies. Open `index.html` from disk or host the
   folder. All GitHub traffic goes from the browser to `api.github.com`, with the user's own token.
-- **One engine, two tools.** `assets/model.js`, `github.js`, `workspace.js`, `app.js`, `demo.js`,
+- **One engine.** `assets/model.js`, `github.js`, `workspace.js`, `app.js`, `demo.js`,
   `styles.css` and the `tools/*.py` scripts are shared with Signoff ME. **Edit them here**, then run
-  `python tools/sync_engine.py` in `me_design_review`. Everything EE-specific is in
+  `python tools/sync_engine.py` in `me_design_review`. Fabcheck and Signoff PL copy `model.js`,
+  `github.js` and `styles.css` with their own `tools/sync_vendor.py`. Everything EE-specific is in
   `assets/config.js`: names, repos, tags, stages and demo data.
+- **Links in.** `index.html?project=<id>` opens a project, and `&item=<check id>` opens that check.
+  Signoff PL links here this way; a project not in the browser yet opens after the first sync.
 - **Data.** Each project is one JSON document: `meta`, `items` (check states), `sections`,
   `comments`, `custom` (project checks) and `reqs` (requirements).
   - Every record carries `updatedAt` / `updatedBy`, and the newer one wins key by key. Deletes are
@@ -102,7 +106,10 @@ people and access, tokens), see the hub's guide: `signoff/docs/guide.md`.
 1. Edit `templates/`, `index.html` or `assets/`.
 2. Run `python tools/build.py`. It validates the templates, bundles them and stamps the version.
 3. Open `tests/test.html` over http. It should say PASS.
-4. Sync the engine into Signoff ME, then commit both.
+4. Sync the engine into Signoff ME (`tools/sync_engine.py`), and into Fabcheck and Signoff PL
+   (`tools/sync_vendor.py` in each) if `model.js`, `github.js` or `styles.css` changed. Commit each.
+5. If you changed the demo, bump `VERSION` in `assets/demo.js` and regenerate Signoff PL's demo
+   snapshot (`signoff_pl/tools/demo_designs.html`).
 
 ### Troubleshooting
 

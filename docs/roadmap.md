@@ -11,9 +11,11 @@
 - **Auto-sync:** sync on a timer and when the tab regains focus. Show other reviewers'
   presence.
 
-## 2. DFM / fab package analyser (separate tool, own session)
+## 2. DFM / fab package analyser — built as Fabcheck
 
-The goal is to load a complete Altium fab package (.zip) in the browser and check it:
+This is now Fabcheck (`pcb_dfm`, https://chrismessick-dpd.github.io/pcb_dfm/); its own docs and
+`CLAUDE.md` hold the current state. The original goal, kept for reference: load a complete Altium
+fab package (.zip) in the browser and check it:
 
 1. **Package audit:** classify every file (Gerber X2/RS-274X layers, Excellon drill,
    pick-and-place, BOM, IPC-356, drawings) and flag anything missing or inconsistent (units,
@@ -30,8 +32,14 @@ The goal is to load a complete Altium fab package (.zip) in the browser and chec
 
 Everything runs client-side, so customer files never leave the machine. The
 earlier by-hand BOM and fab package audits are the starting point.
-DFM findings could later be pushed into a Signoff review as issues on the Fab & Release
-checklist.
+DFM findings are pushed into a Signoff review as issues (Fabcheck's Send to Signoff;
+`docs/fabcheck-link.md`).
+
+## 2b. Signoff PL and Signoff FW
+
+Signoff PL (`signoff_pl`) is the product-level tool built on the project summaries this engine
+writes; its roadmap is in `signoff_pl/docs/roadmap.md`. Signoff FW, for firmware reviews, is
+planned as a third tool on this engine, configured like Signoff ME (`review-fw-` prefix).
 
 ## 3. Customer-facing tools
 
