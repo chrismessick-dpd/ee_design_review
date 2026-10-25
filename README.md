@@ -11,7 +11,7 @@ Each project is a review of one board. Reviewers mark checks Pass / Issue / N/A,
 in comment threads, track issues to Fixed or Waived, and print a review report.
 Reviews sync through private GitHub repositories, so everyone works on the same copy.
 
-- **931 checks in 6 checklists:** Schematic, Interfaces, PCB Layout, Assembly & BOM,
+- **930 checks in 6 checklists:** Schematic, Interfaces, PCB Layout, Assembly & BOM,
   Fabrication & Release, and Bring-up & Validation.
 - **Board profile:** tag a project as battery, mains, RF, high-speed, BGA, flex, medical and
   so on. Checks for features the board doesn't have are set aside as N/A. You can still bring

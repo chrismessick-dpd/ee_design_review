@@ -2,7 +2,7 @@
   "id": "schematic",
   "title": "Schematic Review",
   "short": "Schematic",
-  "version": 3,
+  "version": 4,
   "description": "Checks a schematic before layout or release: documentation, power, grounding, component ratings, connectivity, processors, interfaces, protection, safety, test and sourcing.",
   "sections": [
     {
@@ -1373,13 +1373,6 @@
           "hint": "Check package variants of the same part number (e.g. QFN vs SOIC) and pin-1 orientation.",
           "tags": [],
           "severity": "critical"
-        },
-        {
-          "id": "sf5",
-          "text": "Board-level notes and assembly instructions are included on the schematic",
-          "hint": "Include special processes such as selective solder, conformal coat masks or press-fit parts.",
-          "tags": [],
-          "severity": "minor"
         },
         {
           "id": "sf6",

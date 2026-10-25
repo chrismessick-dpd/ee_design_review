@@ -7,7 +7,7 @@
 ## Part 1: Signoff EE at a glance
 
 Signoff EE is Dovetail's electrical design review tool. A project is a review of one board. It
-walks reviewers through 931 checks in six checklists and records every decision, comment and
+walks reviewers through 930 checks in six checklists and records every decision, comment and
 issue. At the end it produces a signed-off review report.
 
 | Checklist | Covers |
