@@ -107,6 +107,29 @@ How Send behaves:
   A later revision of the same board adds between a few tens of kB (once GitHub repacks the
   repo and stores the changed files as deltas) and the same 1.6 MB again.
 
+## Board previews
+
+Storing a run also writes pictures of the board, for Signoff PL's tiles. They show the latest
+stored run, and each store replaces them:
+
+```
+fabcheck/<projectId>/preview/index.json
+fabcheck/<projectId>/preview/top.webp       (or .png where the browser can't write WebP)
+fabcheck/<projectId>/preview/bottom.webp
+```
+
+- The images are Fabcheck's realistic look of each outer side: 640 px wide, the board's own aspect
+  (160 to 640 px high), transparent around the board, no scale bar. Each is about 10–40 kB.
+- `index.json`: `{ "v": 1, "tool": "fabcheck", "runId", "at", "hero": "top", "images": [{ "key",
+  "file", "type", "w", "h" }] }`. Readers take the file names from `images`, not from this list.
+- Send's confirm mentions the pictures along with the package files.
+- Only a run open in the tab can be drawn. **Store in project** for a kept run leaves the previews
+  as they were.
+- The layout is meant for any tool that stores runs next to a review: a mechanical checker would
+  write `<its folder>/<projectId>/preview/` the same way, with one image per part. Image keys and
+  file names are lowercase slugs (`a-z`, `0-9`, `-`, up to 32 characters); readers drop others.
+- Readers must cope when `preview/` is missing (no run stored yet).
+
 ## In the Signoff issue
 
 Send to Signoff puts the run on each Fabcheck custom check:
