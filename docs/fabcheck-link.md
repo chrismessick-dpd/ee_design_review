@@ -50,8 +50,9 @@ blank page.
 
 ## Stage 2: in the project's repository
 
-When a run is sent to a Signoff EE project, Fabcheck also stores it in that project's **home
-repository**, the same private repo that holds the project:
+Sending a run to a Signoff EE project stores it in that project's **home repository** first,
+then writes the issues, so every issue's `source.run.stored` is already set. The home repo is
+the same private repo that holds the project:
 
 - the shared repo from People & access (`users.json` → `shared[projectId].repo`) if the
   project is shared;
@@ -87,6 +88,25 @@ fabcheck/<projectId>/runs/<runId>.json          { "run": {…}, "findings": [ �
 Writing goes through `GitHubStore.putFiles(files, opts)`: binary blobs first, then one commit
 with `force: false`, retried on a non-fast-forward like sync.
 
+How Send behaves:
+
+- **Asks first.** Before anything leaves the browser, Fabcheck names the private repo, the files
+  and their size. Cancel keeps everything in the browser: nothing is stored or sent.
+- **Says where, up front.** The Send panel shows the repo it will store in, or why it can't (no
+  token in this tab, no write access). EE keeps its token in its own tab unless "Remember the
+  token" is ticked, so a Fabcheck tab opened on its own may have none.
+- **Stores first.** If storing fails, no issues are written. The user can try again, or pick
+  **Send without storing**: the issues then carry `stored: null`, and Signoff's links ask for the
+  package to be dropped in.
+- **Store later.** Fabcheck's Recent runs offers **Store in project** on a sent run that isn't
+  stored. It stores the run and sets `stored` on the issues in this browser that carry it
+  (`markStored`); Signoff's next sync pushes them.
+- **Every revision.** The Send panel lists the runs stored with the project (`runs/*.json`,
+  newest first), and each one opens through the same deep link.
+- **Size.** About 0.2–1.6 MB per board for the first send (the slimmed files, compressed by git).
+  A later revision of the same board adds between a few tens of kB (once GitHub repacks the
+  repo and stores the changed files as deltas) and the same 1.6 MB again.
+
 ## In the Signoff issue
 
 Send to Signoff puts the run on each Fabcheck custom check:
@@ -113,6 +133,9 @@ Every parameter after `run` is optional. `repo` is the project's home repo **now
 Signoff works out when it builds the link. A run stored before the project was shared still
 says the old repo in `run.stored`; Signoff moves the files when it shares the project, so
 always try `repo` first and `run.stored.repo` only as a fallback.
+
+"Open in Fabcheck" shows for everyone, not only FTEs. A contractor on a shared board can open
+its stored runs, because they're in that board's `review-ee-…` repo.
 
 Fabcheck reads a run only from a repo it trusts: the project's home as Signoff records it, the
 EE data repo, or a `review-ee-…` repo of the same owner (`repo.js` `trusted`). A link naming any
