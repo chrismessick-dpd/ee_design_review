@@ -175,6 +175,28 @@ narrower roles. Change the account in Settings; the app handles organizations al
 Never put your own token in a copy you send out. Anyone holding the file would get full
 access to every review.
 
+### Security
+
+GitHub does all the access control; the pages are a front end. Two things keep that true:
+
+- **Review files are untrusted data.** A contractor can push any JSON to their `review-…` repo,
+  with or without Signoff, and an FTE's browser then reads it. So:
+  - Status, severity and resolution are taken only from their fixed lists (`model.oneOf`), so
+    nothing in a file can reach the page as markup, and every other field is escaped.
+  - A project file counts only for the id in its name. An FTE's sync takes from a shared repo
+    only the projects the data repo's shared map puts there, so a file planted in one repo
+    can't stand in for another project.
+  - New `review-…` repos are created with GitHub Actions turned off.
+- **The token lives on one origin with every tool**, so each page sends a Content-Security-Policy:
+  scripts only from the site itself, data only from `api.github.com`.
+- **Without a token nothing real is shown.** Copies stay in the browser until a token comes back.
+  **Settings → Sign out** removes the token and every Signoff and Fabcheck copy in this browser
+  (it warns first if anything is unsynced). Use it on shared computers.
+
+Owner token: give it an expiry. Contractors need a classic token with the `repo` scope (GitHub's
+fine-grained tokens can't reach repos they're only a collaborator on), and that reaches all of
+their repos, so ask them to set an expiry too.
+
 ## How sync works
 
 Sync commits **directly to `main`, without pull requests.** This is deliberate.

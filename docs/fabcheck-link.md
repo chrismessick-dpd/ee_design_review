@@ -114,6 +114,11 @@ Signoff works out when it builds the link. A run stored before the project was s
 says the old repo in `run.stored`; Signoff moves the files when it shares the project, so
 always try `repo` first and `run.stored.repo` only as a fallback.
 
+Fabcheck reads a run only from a repo it trusts: the project's home as Signoff records it, the
+EE data repo, or a `review-ee-…` repo of the same owner (`repo.js` `trusted`). A link naming any
+other repo opens nothing from GitHub. Stored findings are cleaned before they're shown
+(`cleanFinding` in `app.js`): known severities and categories, numbers as numbers.
+
 Both tools open each other in a named window, so
 switching reuses one tab per tool: Fabcheck as `dovetail-fabcheck`, Signoff EE as
 `dovetail-signoff-ee`.

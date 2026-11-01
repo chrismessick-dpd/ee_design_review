@@ -323,6 +323,32 @@
   hub.makeRepo('ann/review-me-housing', { 'README.md': '#' }, ['ann', 'dan']);
   eq(await wsFor('dan', { prefix: 'review-ee-' }).account.listRepos('ann', 'review-ee-'), ['review-ee-board'], 'a discipline prefix keeps the other tool’s shared repos out');
 
+  // ── Hostile review files: a contractor can push any JSON to their project's repo ──
+  var BAD = '"><img src=x onerror=alert(1)>';
+  var hp = M.newProject({ name: 'Hostile', checklists: [T[0].id] }, 'ann', T);
+  var hid = T[0].sections[0].items.map(function (it) { return it.id; });
+  hp.items[hid[0]] = { status: 'issue', severity: BAD, resolution: BAD, updatedAt: now, updatedBy: 'x' };
+  hp.items[hid[1]] = { status: BAD, updatedAt: now, updatedBy: 'x' };
+  var hrows = {}; M.checklistRows(hp, T[0]).forEach(function (g) { g.rows.forEach(function (x) { hrows[x.id] = x; }); });
+  ok(M.SEVERITIES.indexOf(hrows[hid[0]].severity) >= 0 && hrows[hid[0]].resolution === '' && M.STATUSES.indexOf(hrows[hid[1]].status) >= 0,
+    'a review file’s severity, resolution and status come out as known values only');
+  var hsum = M.projectSummary(hp, T);
+  ok(Object.keys(hsum.issues).join() === 'open,fixed,waived' && Object.keys(hsum.issues.open).every(function (k) { return M.SEVERITIES.indexOf(k) >= 0; }) &&
+    hsum.open.every(function (o) { return M.SEVERITIES.indexOf(o.severity) >= 0; }), 'the summary carries only known severities');
+
+  // A file planted in one shared repo with another project's id doesn't stand in for it.
+  var planted = JSON.parse(JSON.stringify(annSt.projects[Q.id]));
+  planted.meta = Object.assign({}, planted.meta, { name: 'Planted', updatedAt: '2030-01-01T00:00:00Z', updatedBy: 'cat' });
+  var renamed = JSON.parse(JSON.stringify(annSt.projects[P.id]));
+  renamed.meta = Object.assign({}, renamed.meta, { name: 'Renamed by file', updatedAt: '2030-01-01T00:00:00Z', updatedBy: 'cat' });
+  var pf = hub.files(sh.repo); pf['projects/' + Q.id + '.json'] = M.stableStringify(planted); pf['projects/zz-other.json'] = M.stableStringify(renamed);
+  hub.push(sh.repo, pf);
+  r = await annWs.sync(annSt, {});
+  ok(r.state.projects[Q.id].meta.name === 'Secret Internal' && r.state.homes[Q.id] === 'ann/data' && !/Planted/.test(dataFile(Q.id)),
+    'an FTE ignores a shared repo’s file for a project the shared map puts elsewhere');
+  ok(r.state.projects[P.id].meta.name !== 'Renamed by file' && !r.state.projects['zz-other'] && !/Renamed by file/.test(hub.files(sh.repo)['projects/' + P.id + '.json']),
+    'a file whose name and id disagree is left alone');
+
   // The UI script isn't loaded here, so at least make sure it parses.
   var appSrc = await (await fetch('../assets/app.js?t=' + Date.now())).text();
   var appErr = ''; try { new Function(appSrc); } catch (e) { appErr = e.message; }

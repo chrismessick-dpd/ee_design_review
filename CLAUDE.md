@@ -59,7 +59,7 @@ Read next:
 
 1. Run `python tools/build.py`. It validates the templates and stamps the version and `?v=`.
    `--check` verifies the stamp.
-2. Open `tests/test.html` over http. It should show PASS (114 tests as of 2026-10-25).
+2. Open `tests/test.html` over http. It should show PASS (118 tests as of 2026-11-01).
 3. Sync the engine into ME, and vendor it into Fabcheck and PL where needed, then run their
    checks and tests.
 
@@ -75,3 +75,6 @@ Read next:
 - The two real review repos (`review-ee-*`) have summaries. Their `open` lists appear after the
   next EE sync.
 - The backlog is in `docs/roadmap.md`.
+- Security (2026-11-01): review files are untrusted. Enum fields go through `model.oneOf`, sync
+  checks file ids and the shared map, no token shows nothing real, Settings has Sign out, and every
+  page sends a CSP. See README *Security*. Keep new fields escaped or allowlisted.
