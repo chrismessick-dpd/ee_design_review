@@ -12,7 +12,10 @@
    ids:            prefixes for new project, comment and custom-check IDs.
    templatePrefixes: checklist id -> required prefix of its section and item IDs.
    words.unit(s):  what one review is called on screen (board / part). "Project" is the
-                   client project several reviews belong to (meta.project). */
+                   client project several reviews belong to (meta.project).
+   previews.dir:   the folder a checker stores pictures in next to a review (Fabcheck's board
+                   previews, docs/fabcheck-link.md); the overview shows one beside the ring.
+                   demo.pictures names the demo reviews' pictures in assets/demo-previews/. */
 window.SIGNOFF_CONFIG = {
   "product": "Signoff EE",
   "discipline": "EE",
@@ -27,6 +30,7 @@ window.SIGNOFF_CONFIG = {
     "suite": ["me_design_review", "me_design_review_data", "signoff", "pcb_dfm", "signoff_pl", "signoff_pl_data"]
   },
   "ids": { "project": "p", "comment": "c", "custom": "x" },
+  "previews": { "dir": "fabcheck/" },
   "templateOrder": ["schematic", "interfaces", "pcb", "assembly", "fab", "bringup"],
   "templatePrefixes": {},
   "defaultChecklists": ["schematic", "interfaces", "pcb", "assembly", "fab"],
@@ -66,6 +70,7 @@ window.SIGNOFF_CONFIG = {
     { "id": "production", "label": "Volume production", "desc": "Test fixtures, cost, panels" }
   ],
   "demo": {
+    "pictures": { "pdemo7": ["top", "bottom"], "pdemo11": ["top", "bottom"] },
     "findings": [
       { "id": "sp3", "sev": "major", "who": "A. Rivera", "by": "Sam Patel", "ref": "U4, U7", "notes": [
         "U4 VDDA has only 100 nF. The datasheet asks for 1 µF + 100 nF per supply pin pair.",

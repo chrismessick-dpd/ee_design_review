@@ -109,7 +109,9 @@ How Send behaves:
 
 ## Board previews
 
-Storing a run also writes pictures of the board, for Signoff PL's tiles. They show the latest
+Storing a run also writes pictures of the board. Signoff PL shows them on its tiles, and Signoff
+EE's overview shows one beside the progress ring (`config.previews.dir`; clicking it opens the run
+in Fabcheck). They show the latest
 stored run, and each store replaces them:
 
 ```
