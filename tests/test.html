@@ -539,6 +539,16 @@
   ok(sum.at === '2026-10-24T10:00:00Z' && sum.by === 'bob', 'summary time is the latest edit, not the sync time');
   var S2 = JSON.parse(JSON.stringify(S1)); S2.meta.checklists = ['schematic']; S2.meta.reqsDecided = true;
   ok(M.projectSummary(S2, T).reqs === null, 'no requirement counts when requirements are off');
+  ok(sum.project === '' && M.projectSummary(M.newProject({ name: 'B', project: 'Atlas', checklists: ['schematic'] }, 'ann', T), T).project === 'Atlas',
+    'a review belongs to a client project, carried in the summary');
+
+  // ── The sidebar groups reviews by client project ──
+  function groupDoc(name, project) { var d = M.newProject({ name: name, project: project, checklists: ['schematic'] }, 'ann', T); if (project === undefined) delete d.meta.project; return d; }
+  var groups = M.projectGroups([groupDoc('b1', 'Zephyr'), groupDoc('b2', ''), groupDoc('b3', 'atlas'), groupDoc('b4', ' Atlas '), groupDoc('b5'), groupDoc('b6', 'Zephyr')]);
+  eq(groups.map(function (g) { return [g.name, g.docs.map(function (d) { return d.meta.name; })]; }),
+    [['atlas', ['b3', 'b4']], ['Zephyr', ['b1', 'b6']], ['', ['b2', 'b5']]],
+    'groups sort A–Z ignoring case and spaces, keep their order, and reviews with no project come last');
+  eq(M.projectGroups([]), [], 'no reviews, no groups');
 
   hub.makeRepo('ann/review-sum', { 'README.md': '#' }, ['ann']);
   var sumWs = new Signoff.Workspace(SET, 'tok-ann', hub.fetchFor('tok-ann'), function (d) { return M.projectSummary(d, T); });

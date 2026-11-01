@@ -66,7 +66,14 @@ sight under `held`, and pushed the next time an FTE syncs in that browser. An FT
 repo can't be opened is still treated as a settings problem, but only if this token opened it
 before (or it's the owner); having local projects no longer counts.
 
-Edits are saved in your browser straight away. Projects with unsynced changes show an orange
+**Boards and projects.** Each review is one **board** (one **part** in Signoff ME). A board
+belongs to a client **project**, such as one product's boards, set in the board's details with
+suggestions from the projects already in use. The sidebar groups boards by project, A–Z, with
+boards that have no project last. A group can be folded; the one holding the open board stays
+open. In the data the board is still a project document (`projects/<id>.json`), and the
+project is `meta.project`.
+
+Edits are saved in your browser straight away. Boards with unsynced changes show an orange
 dot. **Sync** (or Ctrl+S) does three things: it pulls, merges, and pushes one commit. It also
 runs automatically when the page opens and whenever you post a comment, so comments reach
 everyone straight away.
@@ -233,7 +240,7 @@ written, and is never merged.
 
 ```json
 "summary": {
-  "v": 1, "tool": "EE", "name": "…", "client": "…", "number": "DT-1042", "revision": "B",
+  "v": 1, "tool": "EE", "name": "…", "project": "Smart Thermostat", "client": "…", "number": "DT-1042", "revision": "B",
   "stage": "Layout", "archived": false,
   "total": 412, "reviewed": 260, "pct": 63,
   "checklists": { "pcb": { "name": "Layout", "total": 140, "reviewed": 87, "pct": 62, "issuesOpen": 2 } },
@@ -246,6 +253,8 @@ written, and is never merged.
 
 - **Counts.** They match the project overview. Checks set aside by the board profile aren't
   counted.
+- **`project`.** The client project the board belongs to (`meta.project`), or `''`. Signoff PL
+  can group or match designs by it.
 - **`reqs`.** It is `null` when Requirements is off for the project.
 - **`at` / `by`.** These are the project's latest edit, not the sync time. An unchanged
   project therefore writes the same bytes and isn't committed again.

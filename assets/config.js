@@ -10,7 +10,9 @@
    repos.suite:    other repositories every FTE is invited to, next to this tool's own:
                    the other discipline's tool and data repos, and the hub.
    ids:            prefixes for new project, comment and custom-check IDs.
-   templatePrefixes: checklist id -> required prefix of its section and item IDs. */
+   templatePrefixes: checklist id -> required prefix of its section and item IDs.
+   words.unit(s):  what one review is called on screen (board / part). "Project" is the
+                   client project several reviews belong to (meta.project). */
 window.SIGNOFF_CONFIG = {
   "product": "Signoff EE",
   "discipline": "EE",
@@ -32,6 +34,8 @@ window.SIGNOFF_CONFIG = {
   "defaultStage": "Schematic",
   "legacyTabs": ["schematic", "interfaces", "pcb", "assembly", "fab"],
   "words": {
+    "unit": "board",
+    "units": "boards",
     "thing": "board",
     "general": "General board",
     "profile": "Board profile",
@@ -104,14 +108,14 @@ window.SIGNOFF_CONFIG = {
         "findings": ["sp3", "usb2", "sd8", "pt1", "pm6", "pt4", "pcb-iso-1"], "comments": ["sd3", "sc7", "sp8"],
         "requirements": [{"ref": "REQ-001", "text": "The thermostat shall run from 100–240 V AC, 50/60 Hz mains.", "category": "Power", "source": "Acme DT-SPEC-12 §3.1", "method": "test", "status": "approved", "verify": "pass", "evidence": "Bring-up report BR-02: full function at 90 and 264 V AC, 47 and 63 Hz.", "links": ["sp2", "sp8"], "by": "Sam Patel"}, {"ref": "REQ-002", "text": "Mains circuits shall be separated from user-accessible low-voltage circuits by reinforced insulation.", "category": "Safety", "source": "Acme DT-SPEC-12 §5.2", "method": "inspection", "status": "approved", "verify": "open", "links": ["sch-iso-3", "pcb-iso-1"], "by": "Morgan Lee"}, {"ref": "REQ-003", "text": "The USB-C service port shall withstand ±8 kV contact and ±15 kV air ESD without damage.", "category": "Interfaces", "source": "Acme DT-SPEC-12 §6.4", "method": "test", "status": "approved", "verify": "open", "links": ["usb2", "spr4"], "by": "Morgan Lee"}, {"ref": "REQ-004", "text": "Wi-Fi shall use a pre-certified radio module so system-level certification needs only intentional-radiator spot checks.", "kind": "should", "category": "Regulatory", "source": "Kickoff notes 2026-09-02", "method": "inspection", "status": "draft", "verify": "open", "links": [], "by": "Sam Patel"}, {"ref": "REQ-005", "text": "Relay outputs shall switch 2 A at 250 V AC resistive for at least 100,000 cycles.", "category": "Outputs", "source": "Acme DT-SPEC-12 §4.3", "method": "analysis", "status": "changed", "verify": "open", "links": [], "by": "Sam Patel"}],
         "ratios": { "schematic": 0.95, "interfaces": 0.9, "pcb": 0.62, "assembly": 0.3, "fab": 0.1 },
-        "fields": { "name": "Smart Thermostat — Main PCBA", "client": "Acme Climate", "board": "DT-1042", "revision": "B", "stage": "Layout",
+        "fields": { "name": "Main PCBA", "project": "Smart Thermostat", "client": "Acme Climate", "board": "DT-1042", "revision": "B", "stage": "Layout",
           "description": "Rev B layout review before release to fab. Wi-Fi module, mains-powered via an isolated AC/DC, relay outputs.",
           "profile": ["mains", "rf", "regulatory", "production"], "checklists": ["schematic", "interfaces", "pcb", "assembly", "fab"] } },
       { "seed": 11, "users": ["Morgan Lee", "Sam Patel"],
         "findings": ["disp8", "ifc-touch-4", "disp6", "sch-therm-4"], "comments": ["disp5"],
         "requirements": [{"ref": "REQ-001", "text": "The thermostat shall measure room temperature to within ±0.5 °C from 5 to 35 °C.", "category": "Sensing", "source": "Acme DT-SPEC-12 §2.3", "method": "test", "status": "approved", "verify": "open", "links": ["sch-therm-4", "pcb-pl-8"], "by": "Sam Patel"}, {"ref": "REQ-002", "text": "The touch keys shall withstand ±8 kV contact ESD without a reset or a false press.", "category": "Interfaces", "source": "Acme DT-SPEC-12 §6.4", "method": "test", "status": "approved", "verify": "open", "links": ["disp8", "ifc-gpio-5"], "by": "Morgan Lee"}, {"ref": "REQ-003", "text": "The board shall draw no more than 15 mA on average from the 3V3 rail with the backlight dimmed.", "category": "Power", "source": "Acme DT-SPEC-12 §3.4", "method": "analysis", "status": "approved", "verify": "pass", "evidence": "Power budget rev A: 11.8 mA average at 10% backlight.", "links": [], "by": "Sam Patel"}, {"ref": "REQ-004", "text": "The display should be readable from 2 m in 500 lux room lighting.", "kind": "should", "category": "Display", "source": "Kickoff notes 2026-09-02", "method": "demonstration", "status": "draft", "verify": "open", "links": [], "by": "Morgan Lee"}],
         "ratios": { "schematic": 0.6, "interfaces": 0.45, "pcb": 0.2 },
-        "fields": { "name": "Smart Thermostat — Display & Sensor Board", "client": "Acme Climate", "board": "DT-1043", "revision": "A", "stage": "Schematic",
+        "fields": { "name": "Display & Sensor Board", "project": "Smart Thermostat", "client": "Acme Climate", "board": "DT-1043", "revision": "A", "stage": "Schematic",
           "description": "First schematic review of the front board: 2.8\" TFT display, capacitive touch keys, temperature and humidity sensor, ambient light sensor. Connects to the main PCBA over a 24-pin FFC.",
           "profile": ["low-power", "display", "precision-analog"], "checklists": ["schematic", "interfaces", "pcb"] } }
     ]
