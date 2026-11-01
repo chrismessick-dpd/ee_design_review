@@ -419,6 +419,58 @@
   var rs = await annWs.discard(neverSyncedRoster, [], true);
   ok(rs.roster && !Object.keys(rs.roster.users).length && !rs.failed.length, 'a People list that was never synced resets without GitHub');
 
+  // ── Projects deleted on GitHub leave every browser ──
+  var G1 = M.newProject({ name: 'Gone Board', checklists: ['schematic'] }, 'ann', T);
+  var G2 = M.newProject({ name: 'Edited Gone Board', checklists: ['schematic'] }, 'ann', T);
+  var gst = JSON.parse(JSON.stringify(annSt)); gst.projects[G1.id] = G1; gst.projects[G2.id] = G2;
+  gst = (await annWs.sync(gst, {})).state;
+  var bobGone = (await bobWs.sync(bobSt, {})).state;
+  ok(bobGone.projects[G1.id] && dataFile(G1.id) && dataFile(G2.id), 'both projects are synced to the data repo and to Bob');
+  var gf = hub.files('ann/data'); delete gf['projects/' + G1.id + '.json']; delete gf['projects/' + G2.id + '.json']; hub.push('ann/data', gf);
+  bobGone.projects[G2.id] = JSON.parse(JSON.stringify(bobGone.projects[G2.id]));
+  bobGone.projects[G2.id].items.sg1 = { status: 'pass', updatedAt: '2026-10-24T10:00:00Z', updatedBy: 'bob' };
+  var fresh2 = M.newProject({ name: 'Brand New', checklists: ['schematic'] }, 'bob', T);
+  bobGone.projects[fresh2.id] = fresh2;
+  r = await bobWs.sync(bobGone, { keepLocal: function (id) { return id === G2.id || id === fresh2.id; } });
+  ok(!r.state.projects[G1.id] && r.gone.indexOf(G1.id) >= 0 && !dataFile(G1.id), 'a project deleted on GitHub is dropped from a browser that synced it, not pushed back');
+  ok(r.state.projects[G2.id] && dataFile(G2.id) && r.gone.indexOf(G2.id) < 0, 'a deleted project with unsynced edits is kept and pushed back');
+  ok(dataFile(fresh2.id) && r.gone.indexOf(fresh2.id) < 0, 'a project that was never synced is still pushed');
+  r = await annWs.sync(gst, {});
+  ok(!r.state.projects[G1.id] && r.gone.indexOf(G1.id) >= 0 && r.state.projects[G2.id], 'without unsynced edits the owner’s copy goes too, and the restored one comes back');
+
+  // A shared project removed from the shared map (its repo deleted): FTE copies go, and so does
+  // what was cached about the repo.
+  var S2 = M.newProject({ name: 'Shared Then Removed', checklists: ['schematic'] }, 'ann', T);
+  var sst = JSON.parse(JSON.stringify(annSt)); sst.projects[S2.id] = S2;
+  sst = (await annWs.sync(sst, {})).state;
+  var sh2 = await annWs.share(sst, S2.id, []); sst = sh2.state;
+  sst = (await annWs.sync(sst, {})).state;
+  ok(sst.homes[S2.id] === sh2.repo && sst.cache[sh2.repo], 'the project lives in its own repo');
+  var removedRoster = JSON.parse(hub.files('ann/data')['users.json']);
+  removedRoster.shared[S2.id] = Object.assign({}, removedRoster.shared[S2.id], { deleted: true, updatedAt: '2099-01-01T00:00:00Z', updatedBy: 'ann' });
+  var rf = hub.files('ann/data'); rf['users.json'] = M.stableStringify(removedRoster); hub.push('ann/data', rf);
+  delete hub.repos[sh2.repo];
+  r = await annWs.sync(sst, {});
+  ok(!r.state.projects[S2.id] && r.gone.indexOf(S2.id) >= 0 && !r.state.homes[S2.id] && !r.state.cache[sh2.repo] && !dataFile(S2.id),
+    'a project whose repo left the shared map is dropped, its cached repo state is forgotten, and it isn’t pushed to the data repo');
+  var keptEdit = JSON.parse(JSON.stringify(sst));
+  r = await annWs.sync(keptEdit, { keepLocal: function (id) { return id === S2.id; } });
+  ok(r.state.projects[S2.id] && r.gone.indexOf(S2.id) < 0, '…unless it has unsynced edits');
+
+  // A contractor whose project file is deleted from their repo loses the copy at the next sync.
+  var C3 = M.newProject({ name: 'Contractor Gone', checklists: ['schematic'] }, 'ann', T);
+  var cst = JSON.parse(JSON.stringify(annSt)); cst.projects[C3.id] = C3;
+  cst = (await annWs.sync(cst, {})).state;
+  var sh3 = await annWs.share(cst, C3.id, ['dan']);
+  var danWs = wsFor('dan');
+  var danInv = (await danWs.account.invitations()).filter(function (i) { return i.repo === sh3.repo; })[0];
+  await danWs.account.acceptInvitation(danInv.id);
+  var danSt = (await danWs.sync(blank(), {})).state;
+  ok(danSt.projects[C3.id], 'the contractor has the shared project');
+  var cf = hub.files(sh3.repo); delete cf['projects/' + C3.id + '.json']; hub.push(sh3.repo, cf);
+  r = await danWs.sync(danSt, {});
+  ok(!r.state.projects[C3.id] && r.gone.indexOf(C3.id) >= 0 && !hub.files(sh3.repo)['projects/' + C3.id + '.json'], 'a contractor’s copy of a deleted project goes and isn’t pushed back');
+
   // ── Fabcheck files: binary writes, dedupe, and moving with a shared project ──
   var F = M.newProject({ name: 'Fab Board', checklists: ['schematic'] }, 'ann', T);
   var fst = JSON.parse(JSON.stringify(annSt)); fst.projects[F.id] = F;

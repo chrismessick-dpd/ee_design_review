@@ -139,8 +139,9 @@ copy of Signoff never sees anything else, and neither does GitHub.
   - The move is safe to repeat. If it's interrupted, running it again picks up where it
     stopped.
   - An FTE's unsynced edits follow the project to its new repo.
-- **Removing a contractor** takes away their GitHub access, including an invitation they
-  haven't accepted. Their copy of the project disappears at their next sync.
+- **Removing a contractor** from a project, or from People, always takes away their GitHub
+  access to it, including an invitation they haven't accepted; only invitations ask first. Their
+  copy of the project disappears at their next sync.
 - **Adding an FTE** invites them to this tool's repo, its data repo, every EE shared repo, and
   the rest of the suite: Signoff ME's tool and data repos, the hub repo, Fabcheck (`pcb_dfm`) and Signoff PL's tool and data repos. That list is
   `repos.suite` in `assets/config.js`. Signoff ME's shared `review-me-…` repos are granted from
@@ -148,8 +149,9 @@ copy of Signoff never sees anything else, and neither does GitHub.
 - **A contractor** gets only their projects' `review-ee-…` repos. One working on an ME project
   is added in Signoff ME and gets only that `review-me-…` repo. The prefixes keep the two apart:
   a contractor's copy of each tool lists only repos with its own prefix.
-- The **GitHub access** column compares the list with the real collaborators on each repo,
-  and **Give access** fixes any gaps.
+- The **GitHub access** column compares the list with the real collaborators on each repo.
+  **Give access** fixes any gaps, and **Remove access** takes a contractor off repos they're
+  still on but shouldn't be ("Still on …").
 - Project file names are IDs, so they don't give project names away.
 - **Other tools link here.** Signoff PL, Fabcheck and the hub show a **People & access** link
   for FTEs that opens `index.html?page=people`. PL shows it once its own sync confirms an FTE.
@@ -209,6 +211,16 @@ Sync commits **directly to `main`, without pull requests.** This is deliberate.
 
 So two reviewers working on the same project at the same time don't lose each other's work.
 Pull requests would only add friction to review data.
+
+**Projects deleted on GitHub leave every browser.** A browser drops its copy of a project at
+sync when the project no longer exists:
+- its file was deleted from a repo where the last sync saw it, or
+- its shared repo left the shared map in People (the project was removed and its repo deleted).
+
+The browser also forgets what it cached about repos it no longer uses. A copy with unsynced
+edits is never dropped this way, so no work is lost: a deleted file is pushed back, and a copy
+whose repo left the shared map stays in the browser. A project that was never synced is pushed
+as usual.
 
 Changes to the **tool or the checklists** should still go through pull requests.
 
