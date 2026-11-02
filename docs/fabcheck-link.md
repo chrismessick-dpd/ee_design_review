@@ -123,7 +123,11 @@ fabcheck/<projectId>/preview/bottom.webp
 - The images are Fabcheck's realistic look of each outer side: 640 px wide, the board's own aspect
   (160 to 640 px high), transparent around the board, no scale bar. Each is about 10–40 kB.
 - `index.json`: `{ "v": 1, "tool": "fabcheck", "runId", "at", "hero": "top", "images": [{ "key",
-  "file", "type", "w", "h" }] }`. Readers take the file names from `images`, not from this list.
+  "file", "type", "w", "h" }], "board": { "w", "h", "t" } }`. Readers take the file names from
+  `images`, not from this list.
+- `board` (since 2026-11-01) is the board's size in mm: the outline's width and height, and the
+  run's board thickness. Signoff PL uses it to draw the board to scale in its 3D Exploded view,
+  cropping each picture to its opaque area. Older stores don't have it; readers must cope.
 - Send's confirm mentions the pictures along with the package files.
 - Only a run open in the tab can be drawn. **Store in project** for a kept run leaves the previews
   as they were.
