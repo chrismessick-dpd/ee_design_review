@@ -264,6 +264,7 @@ written, and is never merged.
   "reqList": [ { "id": "q…", "ref": "REQ-003", "text": "…", "discipline": "ee", "kind": "shall", "category": "Interfaces",
     "method": "test", "status": "approved", "verify": "open", "state": "risk", "links": 2, "issues": ["usb2"],
     "parent": { "tool": "pl", "project": "pl…", "id": "q…", "ref": "REQ-002" }, "at": "…", "by": "…" } ],
+  "recent": [ { "id": "c…", "item": "usb2", "check": "…", "author": "Morgan Lee", "at": "…", "text": "…" } ],
   "at": "2026-10-24T18:36:53Z", "by": "Sam Patel"
 }
 ```
@@ -281,6 +282,9 @@ written, and is never merged.
   - Text is cut to 500 characters.
   - It's missing when Requirements is off, and in files written by older engines.
   - Signoff PL's Requirements tab reads it.
+- **`recent`.** The six latest comments, newest first, as the overview's *Recent discussion*
+  shows them: `check` is the commented check's text (cut to 160 characters), `text` is cut to 400.
+  Signoff PL's *Recent discussion* reads it. Missing in files written by older engines.
 - **`at` / `by`.** These are the project's latest edit, not the sync time. An unchanged
   project therefore writes the same bytes and isn't committed again.
 - **Existing projects.** Projects synced before the summary existed get one at their next sync,
