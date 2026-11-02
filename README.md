@@ -108,12 +108,16 @@ section, but keeps the requirements, the same way a checklist's review state is 
     it *changed* so it gets approved again. A *deprecated* requirement stays in the list and
     the report, lined out for reference, but is left out of the counts and failing flags.
   - a verification result (not verified, pass, fail) with evidence
+  - a discipline: system, EE, ME, FW or other. It shows only when it isn't this tool's own.
   - a discussion thread
 - **Traceability:** link a requirement to the checks that show it's met. The requirement shows
   how they stand:
-  - an open issue on a linked check makes it *failing*;
+  - an open issue on a linked check puts it *at risk*, even if it was verified;
+  - a failed verification makes it *failing*;
   - a fixed issue needs re-review;
   - a waived one counts as accepted.
+
+  These are `model.reqState`. Signoff PL uses the same two states.
   Each check's panel shows **Traces to** for the requirements it supports.
 - **Import / export:** paste rows from Excel or import a CSV with a *Requirement* (or
   *Description*) column, plus optional ID, Name, Type or Priority, Category or Sub-System,
@@ -123,6 +127,16 @@ section, but keeps the requirements, the same way a checklist's review state is 
   update that requirement. **Export CSV** gives the compliance matrix, which the review report also prints.
 - Requirements live in the project document (`reqs`), so they sync, merge and discard like
   everything else.
+- **From the project plan.** Signoff PL (FTEs) can allocate its System requirements to a board and
+  write a derived requirement into the review, or trace one written here up to a System
+  requirement. Such a requirement carries `parent: { tool: 'pl', project, id, ref, text }`.
+  - The inspector shows the parent's ref and text read-only, so contractors see where it comes
+    from.
+  - Rewording it here marks it *changed*, and PL asks the project lead to approve it again.
+  - PL writes only requirement records, through `GitHubStore.patchRecords`: the file must
+    re-serialize to the original apart from those records, it uses `force: false`, and a record
+    changed since PL read it is returned as a conflict, not overwritten.
+- **Deep link:** `index.html?project=<id>&req=<requirement id>` opens the requirement.
 
 ## Repositories, people and access
 
@@ -246,7 +260,10 @@ written, and is never merged.
   "checklists": { "pcb": { "name": "Layout", "total": 140, "reviewed": 87, "pct": 62, "issuesOpen": 2 } },
   "issues": { "open": { "critical": 1, "major": 2, "minor": 0 }, "fixed": 3, "waived": 1 },
   "open": [ { "id": "pcb-hc-5", "severity": "major", "text": "…", "checklist": "Layout", "assignee": "J. Chen", "ref": "U2" } ],
-  "reqs": { "total": 5, "approved": 3, "pass": 1, "fail": 0, "open": 4, "unlinked": 1 },
+  "reqs": { "total": 5, "approved": 3, "pass": 1, "fail": 0, "risk": 1, "open": 4, "unlinked": 1 },
+  "reqList": [ { "id": "q…", "ref": "REQ-003", "text": "…", "discipline": "ee", "kind": "shall", "category": "Interfaces",
+    "method": "test", "status": "approved", "verify": "open", "state": "risk", "links": 2, "issues": ["usb2"],
+    "parent": { "tool": "pl", "project": "pl…", "id": "q…", "ref": "REQ-002" }, "at": "…", "by": "…" } ],
   "at": "2026-10-24T18:36:53Z", "by": "Sam Patel"
 }
 ```
@@ -255,7 +272,15 @@ written, and is never merged.
   counted.
 - **`project`.** The client project the board belongs to (`meta.project`), or `''`. Signoff PL
   can group or match designs by it.
-- **`reqs`.** It is `null` when Requirements is off for the project.
+- **`reqs`.** It is `null` when Requirements is off for the project. `risk` counts the
+  requirements at risk.
+- **`reqList`.** Every requirement that isn't deleted, with deprecated ones flagged by `status`.
+  - `state` is `model.reqState`: deprecated, fail, risk, pass or open.
+  - `issues` are the linked checks with an open issue, whose detail is in `open`.
+  - `parent` is there only for a Signoff PL link.
+  - Text is cut to 500 characters.
+  - It's missing when Requirements is off, and in files written by older engines.
+  - Signoff PL's Requirements tab reads it.
 - **`at` / `by`.** These are the project's latest edit, not the sync time. An unchanged
   project therefore writes the same bytes and isn't committed again.
 - **Existing projects.** Projects synced before the summary existed get one at their next sync,

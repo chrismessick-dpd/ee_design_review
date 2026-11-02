@@ -40,7 +40,12 @@ Read next:
   - Signoff PL depends on its fields. If you change the format, update the README section and
     PL's reader and tests.
 - **Deep links.** `?project=<id>&item=<check id>` is handled by `openWanted` / `openWantedItem` /
-  `gotoItem` in `app.js`. PL's demo and live links rely on it.
+  `gotoItem` in `app.js`, and `&req=<requirement id>` by `openWantedItem` / `openReq`. PL's demo and
+  live links rely on them.
+- **PL writes requirements here (2026-11-01).** Signoff PL writes only `reqs` records into review
+  files, with `GitHubStore.patchRecords` (additive proof, `force: false`, conflicts returned). Keep
+  `reqParent`, `reqState`, `reqDiscipline` and `summary.reqList` in step with PL's `plreqs.js` and
+  `reader.js`. See README *Requirements*.
 - **Demo.**
   - Demo projects come from `config.demo`, with fixed ids from `S.demo.id(seed)`.
   - Each project lists its own `findings` and `comments`.
@@ -59,7 +64,7 @@ Read next:
 
 1. Run `python tools/build.py`. It validates the templates and stamps the version and `?v=`.
    `--check` verifies the stamp.
-2. Open `tests/test.html` over http. It should show PASS (118 tests as of 2026-11-01).
+2. Open `tests/test.html` over http. It should show PASS (142 tests as of 2026-11-01).
 3. Sync the engine into ME, and vendor it into Fabcheck and PL where needed, then run their
    checks and tests.
 

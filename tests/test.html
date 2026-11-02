@@ -539,6 +539,24 @@
   ok(sum.at === '2026-10-24T10:00:00Z' && sum.by === 'bob', 'summary time is the latest edit, not the sync time');
   var S2 = JSON.parse(JSON.stringify(S1)); S2.meta.checklists = ['schematic']; S2.meta.reqsDecided = true;
   ok(M.projectSummary(S2, T).reqs === null, 'no requirement counts when requirements are off');
+  // Requirement states and the list Signoff PL reads.
+  var R1 = JSON.parse(JSON.stringify(S1));
+  var rRisk = M.newReq(R1, { text: 'Traced to an open issue', verify: 'pass', links: ['sg3'] }, 'ann'); R1.reqs[rRisk.id] = rRisk;
+  var rFail = M.newReq(R1, { text: 'Failed its test', verify: 'fail', links: ['sg3'] }, 'ann'); R1.reqs[rFail.id] = rFail;
+  var rKid = M.newReq(R1, { text: 'Flows down', discipline: 'fw', parent: { tool: 'pl', project: 'pl9', id: 'qP', ref: 'REQ-004', text: 'Parent text', evil: '<x>' } }, 'ann'); R1.reqs[rKid.id] = rKid;
+  var R1idx = M.checkIndex(R1, T);
+  eq([M.reqState(rRisk, R1idx), M.reqState(rFail, R1idx), M.reqState(q1, R1idx), M.reqState(rKid, R1idx)], ['risk', 'fail', 'pass', 'open'],
+    'at risk (an open issue on a linked check) and failing (verification failed) are separate states');
+  var rsum = M.projectSummary(R1, T), byId = {};
+  rsum.reqList.forEach(function (r) { byId[r.id] = r; });
+  ok(rsum.reqs.risk === 1 && rsum.reqs.fail === 1 && rsum.reqList.length === 4, 'summary counts requirements at risk and lists them');
+  ok(byId[rRisk.id].state === 'risk' && byId[rRisk.id].issues[0] === 'sg3' && byId[q1.id].discipline === M.ownDiscipline() &&
+    byId[rKid.id].discipline === 'fw' && M.stableStringify(byId[rKid.id].parent) === M.stableStringify({ tool: 'pl', project: 'pl9', id: 'qP', ref: 'REQ-004' }),
+    'reqList carries state, linked open issues, discipline and the PL parent (known fields only)');
+  ok(M.reqParent({ parent: { tool: 'ee', id: 'x', project: 'y' } }) === null && M.reqParent({ parent: 'REQ-1' }) === null, 'a parent that isn’t a Signoff PL link is ignored');
+  var di = M.importReqs(R1, [['Requirement', 'Discipline'], ['A', 'System'], ['B', 'Firmware'], ['C', 'Mechanical'], ['D', 'Packaging']], 'ann').records;
+  eq(di.map(function (r) { return r.discipline; }), ['sys', 'fw', 'me', 'other'], 'import reads a Discipline column');
+  ok(/^ID,Requirement,Type,Discipline,Category,Source,Parent,/.test(M.reqsCsv(R1, R1idx)) && M.reqsCsv(R1, R1idx).indexOf('REQ-004 (Signoff PL)') > 0, 'the compliance matrix shows discipline and parent');
   ok(sum.project === '' && M.projectSummary(M.newProject({ name: 'B', project: 'Atlas', checklists: ['schematic'] }, 'ann', T), T).project === 'Atlas',
     'a review belongs to a client project, carried in the summary');
 
@@ -588,6 +606,39 @@
   await cmStore.sync({ d1: { id: 'd1', meta: { name: 'Local' }, n: 2 } }, null, {}, {});
   var cm = JSON.parse(hub.files('ann/custom-merge')['projects/d1.json']);
   ok(mergeCalls === 1 && cm.n === 3 && cm.meta.name === 'Merged' && !cm.summary, 'a store uses cfg.merge when given one');
+
+  // patchRecords (Signoff PL writing requirements into a review): only those records change.
+  var pdoc = JSON.parse(JSON.stringify(written2)); pdoc.futureKey = { kept: true };
+  var pq = M.newReq(pdoc, { text: 'From PL', discipline: 'sys' }, 'pl'); pq.updatedAt = '2026-10-26T10:00:00Z'; pdoc.reqs[pq.id] = pq;
+  var pPath = 'projects/' + S1.id + '.json';
+  hub.makeRepo('ann/patch', (function () { var f = {}; f[pPath] = M.stableStringify(pdoc); return f; })(), ['ann']);
+  var raceDone = false, annFetch = hub.fetchFor('tok-ann');
+  var racy = async function (url, opts) {
+    // Someone else pushes an unrelated edit just before our first ref update.
+    if (!raceDone && opts && opts.method === 'PATCH' && /\/git\/refs\//.test(url)) {
+      raceDone = true;
+      var fr = hub.files('ann/patch'), od = JSON.parse(fr[pPath]); od.items.sg7 = { status: 'pass', updatedAt: '2026-10-26T11:00:00Z', updatedBy: 'bob' };
+      fr[pPath] = M.stableStringify(od); hub.push('ann/patch', fr);
+    }
+    return annFetch(url, opts);
+  };
+  var pStore = new Signoff.GitHubStore({ owner: 'ann', repo: 'patch', branch: 'main', dataPath: '', token: 'tok-ann' }, racy);
+  var child = M.newReq(pdoc, { text: 'Derived in PL', parent: { tool: 'pl', project: 'pl1', id: 'q1', ref: 'REQ-001', text: 'Parent' } }, 'pl');
+  var pr = await pStore.patchRecords(pPath, 'reqs', [child], { bases: {} });
+  var after = JSON.parse(hub.files('ann/patch')[pPath]);
+  ok(pr.written.length === 1 && after.reqs[child.id] && after.items.sg7 && after.futureKey && after.futureKey.kept && after.summary.v === 1,
+    'patchRecords writes one record, keeps unknown keys and the summary, and redoes the patch after someone else pushed');
+  var aDel = JSON.parse(JSON.stringify(after)); delete aDel.reqs[child.id]; delete aDel.items.sg7;
+  ok(M.stableStringify(aDel) === M.stableStringify(pdoc), 'patchRecords changes nothing but the record it was given');
+  var stalePq = Object.assign({}, pq, { text: 'Older', updatedAt: '2026-10-01T00:00:00Z' });
+  var pr2 = await pStore.patchRecords(pPath, 'reqs', [stalePq], {});
+  ok(pr2.skipped[0] === pq.id && !pr2.written.length && JSON.parse(hub.files('ann/patch')[pPath]).reqs[pq.id].text === 'From PL', 'an older record isn’t written over a newer one');
+  var mine = Object.assign({}, pq, { text: 'Reworded in PL', updatedAt: '2026-10-27T00:00:00Z' });
+  var pr3 = await pStore.patchRecords(pPath, 'reqs', [mine], { bases: (function () { var b = {}; b[pq.id] = '2026-10-20T00:00:00Z'; return b; })() });
+  ok(pr3.conflicts.length === 1 && pr3.conflicts[0].theirs.text === 'From PL' && !pr3.written.length, 'a record changed since the writer read it is a conflict, not written');
+  var fo = hub.files('ann/patch'); fo[pPath] = JSON.stringify(JSON.parse(fo[pPath])); hub.push('ann/patch', fo);
+  var threwP = false; try { await pStore.patchRecords(pPath, 'reqs', [mine], {}); } catch (e) { threwP = /wasn’t written by Signoff/.test(e.message); }
+  ok(threwP, 'a file that doesn’t round-trip through stableStringify isn’t touched');
 
   // ── Demo ──
   var demo = Signoff.demo.projects(T);
