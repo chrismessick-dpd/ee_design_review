@@ -147,7 +147,7 @@ GitHub grants access to whole repositories, so Signoff keeps each audience in it
 | `ee_design_review` (tool) | The tool and the checklists | FTEs |
 | `ee_design_review_data` (data) | Internal reviews (`projects/<id>.json`) and People (`users.json`) | FTEs |
 | `review-ee-<project>` (one per shared project) | That one review | FTEs and that project's contractors |
-| `me_design_review`, `me_design_review_data`, `signoff`, `pcb_dfm`, `signoff_pl`, `signoff_pl_data` | Signoff ME, the hub, Fabcheck and Signoff PL | FTEs |
+| `me_design_review`, `me_design_review_data`, `fw_design_review`, `fw_design_review_data`, `signoff`, `pcb_dfm`, `signoff_pl`, `signoff_pl_data` | Signoff ME, Signoff FW, the hub, Fabcheck and Signoff PL | FTEs |
 
 All of these are set in Settings, under **Repositories**. An FTE is anyone whose token can open
 the data repo. A contractor's token reaches only their projects' `review-…` repos, so their
@@ -164,7 +164,7 @@ copy of Signoff never sees anything else, and neither does GitHub.
   access to it, including an invitation they haven't accepted; only invitations ask first. Their
   copy of the project disappears at their next sync.
 - **Adding an FTE** invites them to this tool's repo, its data repo, every EE shared repo, and
-  the rest of the suite: Signoff ME's tool and data repos, the hub repo, Fabcheck (`pcb_dfm`) and Signoff PL's tool and data repos. That list is
+  the rest of the suite: Signoff ME's and Signoff FW's tool and data repos, the hub repo, Fabcheck (`pcb_dfm`) and Signoff PL's tool and data repos. That list is
   `repos.suite` in `assets/config.js`. Signoff ME's shared `review-me-…` repos are granted from
   Signoff ME's own People page, so add FTEs there too (each tool keeps its own People list).
 - **A contractor** gets only their projects' `review-ee-…` repos. One working on an ME project
