@@ -138,6 +138,54 @@ section, but keeps the requirements, the same way a checklist's review state is 
     changed since PL read it is returned as a conflict, not overwritten.
 - **Deep link:** `index.html?project=<id>&req=<requirement id>` opens the requirement.
 
+## Revisions
+
+The **Revisions** tab (after Findings) lists the Fabcheck runs stored with the board, and tags some
+of them as revisions: "3.1 · sent for quote", "3.2 · DFM updates, used for builds". The design is in
+`pcb_dfm/docs/signoff-revisions.md`; the files Fabcheck stores are in `docs/fabcheck-link.md`.
+
+- **The list** reads `fabcheck/<id>/runs/*.json` from the board's home repo, once per page load
+  (**Refresh** reads again). One row per package, newest first, with older runs of the same
+  package folded under it. A row shows the date, who sent it, the package and the findings
+  counts, and its tag.
+- **Expanding a row** shows the files of the run's fab package zip, grouped as in the zip
+  (`Fabrication/`, `Assembly/`), the Fabcheck issues the run raised or last updated, and:
+  - **Download**: reads the zip with your token, checks it against the run's SHA-256, and saves
+    it. A zip that doesn't match is never saved.
+  - **Open in Fabcheck**: the hand-off below.
+  - **Tag as revision** / **Edit revision**: label (the next one is suggested: 3.1 → 3.2, or the
+    board's revision with .1), title, status (**Sent to fab**, **Used for builds**,
+    **Withdrawn**), fab house, date sent, order ref and notes. "Superseded by" follows the order of
+    the runs; withdrawn revisions supersede nothing.
+- **The Overview** shows the latest revision and its status under the progress ring, and a
+  Fabcheck issue whose run is tagged says so beside *From Fabcheck* ("from 3.2 · DFM updates").
+- **The record** is `revisions` in the project document, merged like everything else
+  (`updatedAt` / `updatedBy`, tombstones), so two people tagging at once don't clash:
+
+  ```json
+  "revisions": { "v…": { "id": "v…", "label": "3.2", "title": "DFM updates", "status": "built",
+    "source": { "tool": "fabcheck", "run": "r…", "at": "<run time>", "package": { "key", "sha256", "name" },
+                "zip": { "path", "sha256", "size" } },
+    "fab": { "house": "", "sentAt": "2026-10-29", "ref": "" }, "notes": "",
+    "createdAt": "…", "updatedAt": "…", "updatedBy": "…", "deleted": false } }
+  ```
+
+  `source` is generic (`tool` plus that tool's fields), so Signoff ME and FW can tag their own
+  sources later; a review round will add `round` beside these fields. Status goes through
+  `model.oneOf`, dates must be dates, and text is cut to size and escaped. Run files are checked
+  the same way (`model.cleanRun`): ids, hashes, and a zip path of `packages/<key>/<name>.zip`
+  under the board's own folder.
+- **Open in Fabcheck** never asks Fabcheck to read a repo. Signoff reads the run and its zip with
+  your token, leaves them in IndexedDB `dovetail-handoff` (`S.handoff`), and then opens Fabcheck's
+  link. This goes for every Open in Fabcheck: on runs, on issues, their locations, and the board
+  picture. In the demo, and without a token, the link opens on its own.
+- **Which tools show it:** `config.runs` (`{ tool, dir }`) names the checker whose runs are listed.
+  Signoff EE sets it; Signoff ME and FW don't yet, so the tab is hidden there.
+- **Older copies of Signoff drop `revisions`** when they merge a board (their `mergeProjects`
+  doesn't know it). Re-send contractor packages (`python tools/package.py`) before tagging
+  revisions on shared boards. Fabcheck's Send edits the stored copy in place, and Signoff PL
+  writes only through `patchRecords`, so neither drops them.
+
 ## Repositories, people and access
 
 GitHub grants access to whole repositories, so Signoff keeps each audience in its own:
@@ -265,6 +313,7 @@ written, and is never merged.
     "method": "test", "status": "approved", "verify": "open", "state": "risk", "links": 2, "issues": ["usb2"],
     "parent": { "tool": "pl", "project": "pl…", "id": "q…", "ref": "REQ-002" }, "at": "…", "by": "…" } ],
   "recent": [ { "id": "c…", "item": "usb2", "check": "…", "author": "Morgan Lee", "at": "…", "text": "…" } ],
+  "revisions": [ { "label": "3.1", "status": "sent", "sentAt": "2026-10-21" }, { "label": "3.2", "status": "built", "sentAt": "" } ],
   "at": "2026-10-24T18:36:53Z", "by": "Sam Patel"
 }
 ```
@@ -285,6 +334,10 @@ written, and is never merged.
 - **`recent`.** The six latest comments, newest first, as the overview's *Recent discussion*
   shows them: `check` is the commented check's text (cut to 160 characters), `text` is cut to 400.
   Signoff PL's *Recent discussion* reads it. Missing in files written by older engines.
+- **`revisions`.** The board's revisions in order (see *Revisions*): label, status (`sent`,
+  `built` or `withdrawn`) and the date sent (`''` if not given). It's left out when there are none,
+  so boards without revisions keep their bytes. Signoff PL can show what was built for each
+  EVT, DVT or PVT build.
 - **`at` / `by`.** These are the project's latest edit, not the sync time. An unchanged
   project therefore writes the same bytes and isn't committed again.
 - **Existing projects.** Projects synced before the summary existed get one at their next sync,

@@ -17,6 +17,9 @@
                    previews, docs/fabcheck-link.md); the overview shows one beside the ring.
                    demo.pictures names the demo reviews' pictures in assets/demo-previews/
                    (<id>-<key>.<ext>) and the Fabcheck demo run they open.
+   runs:           the checker whose runs are stored next to a review (Fabcheck for Signoff EE):
+                   { tool, dir }. The Revisions tab lists them and tags some as revisions;
+                   without it the tab is hidden.
    demo.projects[].fabcheck: the Fabcheck run on a demo board and the issues it raised, as
                    Fabcheck's Send to Signoff writes them (made from the run of the board in
                    pcb_dfm/demo; see ../CLAUDE.md, Demo suite). run.at is a fraction of the demo's
@@ -36,6 +39,7 @@ window.SIGNOFF_CONFIG = {
   },
   "ids": { "project": "p", "comment": "c", "custom": "x" },
   "previews": { "dir": "fabcheck/" },
+  "runs": { "tool": "fabcheck", "dir": "fabcheck/" },
   "templateOrder": ["schematic", "interfaces", "pcb", "assembly", "fab", "bringup"],
   "templatePrefixes": {},
   "defaultChecklists": ["schematic", "interfaces", "pcb", "assembly", "fab"],

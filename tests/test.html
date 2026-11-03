@@ -640,6 +640,103 @@
   var threwP = false; try { await pStore.patchRecords(pPath, 'reqs', [mine], {}); } catch (e) { threwP = /wasn’t written by Signoff/.test(e.message); }
   ok(threwP, 'a file that doesn’t round-trip through stableStringify isn’t touched');
 
+  // ── Revisions: runs stored with a review, tagged as revisions ──
+  var rvKey = '0123456789abcdef', rvSha = 'a'.repeat(64);
+  function rvRun(id, at, key, zip) {
+    var run = { id: id, at: at, by: 'Ann', tool: { name: 'Fabcheck', version: 'x' },
+      package: { key: key || rvKey, sha256: rvSha, name: 'DT-1042-B_fabrication.zip', size: 1000 },
+      settings: { profile: 'standard', profileName: 'Standard (quick-turn)' }, summary: { error: 4, warn: 13, info: 37 }, stored: { repo: 'ann/rv', dir: 'fabcheck/prv/' } };
+    if (zip) run.package.zip = zip;
+    return { run: run, findings: [{ check: 'spacing', severity: 'error' }] };
+  }
+  var rvZipBytes = new TextEncoder().encode('PK fake zip bytes for the test');
+  var rvZipSha = await Signoff.github.sha256Hex(rvZipBytes);
+  var rvZip = { path: 'data/fabcheck/prv/packages/' + rvKey + '/DT-1042-B_manufacturing.zip', name: 'DT-1042-B_manufacturing.zip', sha256: rvZipSha, size: rvZipBytes.length,
+    root: 'DT-1042-B_manufacturing', files: [
+      { path: 'gerber/top.gtl', to: 'DT-1042-B_manufacturing/Fabrication/DT-1042-B_top.gtl', size: 10, sha256: rvSha },
+      { path: 'bom.csv', to: 'DT-1042-B_manufacturing/Assembly/DT-1042-B_bom.csv', size: 5, sha256: rvSha },
+      { path: 'drill.drl', to: 'DT-1042-B_manufacturing/Fabrication/DT-1042-B_drill.drl', size: 7, sha256: rvSha }] };
+  var cr = M.cleanRun(rvRun('r1', '2026-10-29T10:00:00.000Z', null, rvZip));
+  ok(cr && cr.zip && cr.zip.rel === 'packages/' + rvKey + '/DT-1042-B_manufacturing.zip', 'cleanRun keeps the zip relative to the run folder');
+  eq(M.zipFolders(cr.zip).map(function (g) { return g.folder + ':' + g.files.map(function (f) { return f.name; }).join(','); }),
+    ['Fabrication:DT-1042-B_drill.drl,DT-1042-B_top.gtl', 'Assembly:DT-1042-B_bom.csv'], 'zip files group by folder, Fabrication first');
+  ok(!M.cleanRun(rvRun('../evil', '2026-10-29T10:00:00.000Z')), 'a run id that isn’t an id is rejected');
+  ['fabcheck/prv/packages/' + rvKey + '/../../x.zip', '/etc/x.zip', 'fabcheck/prv/packages/nothex/x.zip', 'fabcheck/prv/packages/' + rvKey + '/x.exe'].forEach(function (bad) {
+    var z = Object.assign({}, rvZip, { path: bad });
+    ok(M.cleanRun(rvRun('r9', '2026-10-29T10:00:00.000Z', null, z)).zip === null, 'an unsafe zip path is dropped: ' + bad);
+  });
+  ok(M.cleanRun(rvRun('r9', '2026-10-29T10:00:00.000Z', null, Object.assign({}, rvZip, { sha256: 'nope' }))).zip === null, 'a zip without a SHA-256 is dropped');
+  var groups = M.groupRuns([
+    M.cleanRun(rvRun('r1', '2026-10-20T10:00:00.000Z')), M.cleanRun(rvRun('r2', '2026-10-29T10:00:00.000Z', 'fedcba9876543210')),
+    M.cleanRun(rvRun('r3', '2026-10-25T10:00:00.000Z'))]);
+  eq(groups.map(function (g) { return g.runs.map(function (r) { return r.id; }).join(','); }), ['r2', 'r3,r1'], 'runs group by package, newest first, older runs folded under');
+
+  var rp = M.newProject({ name: 'Rev board', revision: '3', checklists: ['fab'] }, 'Ann', T);
+  eq(M.nextRevLabel(rp), '3.1', 'first label suggested from the review’s revision');
+  ok(!('revisions' in rp), 'a new review has no revisions key (files without revisions keep their bytes)');
+  var plain = M.mergeProjects(JSON.parse(JSON.stringify(rp)), JSON.parse(JSON.stringify(rp)));
+  eq(M.stableStringify(plain), M.stableStringify(rp), 'merging reviews without revisions adds nothing');
+  ok(!('revisions' in M.projectSummary(rp, T)), 'no revisions: the summary has no revisions field');
+  var v1 = M.newRevision(M.cleanRun(rvRun('r0', '2026-10-20T10:00:00.000Z')), { label: '3.1', title: 'Sent for quote', status: 'sent', sentAt: '2026-10-21', house: 'FabCo' }, 'Ann');
+  var v2 = M.newRevision(cr, { label: '3.2', title: 'DFM updates', status: 'built', sentAt: '2026-10-30', notes: '<b>x</b>' }, 'Bob');
+  var ra = JSON.parse(JSON.stringify(rp)), rb = JSON.parse(JSON.stringify(rp));
+  ra.revisions = {}; ra.revisions[v1.id] = v1;
+  rb.revisions = {}; rb.revisions[v2.id] = v2;
+  var rm1 = M.mergeProjects(ra, rb), rm2 = M.mergeProjects(rb, ra);
+  ok(rm1.revisions[v1.id] && rm1.revisions[v2.id], 'two people tagging at once: both revisions kept');
+  eq(M.stableStringify(rm1), M.stableStringify(rm2), 'revision merge is order independent');
+  eq(M.latestRevision(rm1).label, '3.2', 'latest revision follows the run order');
+  eq((M.supersededBy(rm1, v1.id) || {}).label, '3.2', '3.1 is superseded by 3.2');
+  eq(M.nextRevLabel(rm1), '3.3', 'next label after 3.2 is 3.3');
+  eq((M.revisionForRun(rm1, 'r0') || {}).label, '3.1', 'a run finds the revision it is tagged as');
+  eq(M.projectSummary(rm1, T).revisions, [{ label: '3.1', status: 'sent', sentAt: '2026-10-21' }, { label: '3.2', status: 'built', sentAt: '2026-10-30' }], 'summary.revisions lists the revisions in order');
+  eq(M.stableStringify(M.projectSummary(rm1, T)), M.stableStringify(M.projectSummary(JSON.parse(JSON.stringify(rm1)), T)), 'summary.revisions is deterministic');
+  var tomb = JSON.parse(JSON.stringify(rm1)); tomb.revisions[v2.id] = Object.assign({}, tomb.revisions[v2.id], { deleted: true, updatedAt: '2999-01-01T00:00:00Z' });
+  var rm3 = M.mergeProjects(rm1, tomb);
+  ok(rm3.revisions[v2.id].deleted && M.latestRevision(rm3).label === '3.1', 'a removed tag stays removed through a merge');
+  var wd = JSON.parse(JSON.stringify(rm1)); wd.revisions[v2.id].status = 'withdrawn';
+  ok(M.latestRevision(wd).label === '3.1' && !M.supersededBy(wd, v1.id), 'a withdrawn revision supersedes nothing');
+  var evil = JSON.parse(JSON.stringify(rm1)); evil.revisions[v1.id].status = '"><script>'; evil.revisions[v1.id].fab.sentAt = 'soon';
+  var ec = M.liveRevisions(evil)[0];
+  ok(ec.status === 'sent' && ec.fab.sentAt === '', 'revision enums and dates from a file are allowlisted');
+
+  // Reading runs and zips from a review's repo, and the hand-off to Fabcheck.
+  var rvFiles = { 'projects/prv.json': M.stableStringify(rp) };
+  rvFiles['data/fabcheck/prv/runs/r1.json'] = JSON.stringify(rvRun('r1', '2026-10-29T10:00:00.000Z', null, rvZip));
+  rvFiles['data/fabcheck/prv/runs/r2.json'] = JSON.stringify(rvRun('r2', '2026-10-20T10:00:00.000Z'));
+  rvFiles['data/fabcheck/prv/runs/broken.json'] = '{ not json';
+  rvFiles['data/fabcheck/prv/runs/nested/r3.json'] = JSON.stringify(rvRun('r3', '2026-10-20T10:00:00.000Z'));
+  rvFiles['data/fabcheck/prv/packages/' + rvKey + '/DT-1042-B_manufacturing.zip'] = rvZipBytes;
+  rvFiles['data/fabcheck/prv/packages/' + rvKey + '/bad.zip'] = new TextEncoder().encode('changed');
+  hub.makeRepo('ann/rv', rvFiles, ['ann']);
+  var rvStore = new Signoff.GitHubStore({ owner: 'ann', repo: 'rv', branch: 'main', dataPath: 'data', token: 'tok-ann' }, hub.fetchFor('tok-ann'));
+  var listed = await rvStore.listRuns('data/fabcheck/prv/');
+  eq(listed.runs.map(function (r) { return r.data.run.id; }).sort(), ['r1', 'r2'], 'listRuns reads runs/*.json, skipping broken and nested files');
+  var got = M.cleanRun(listed.runs.filter(function (r) { return r.data.run.id === 'r1'; })[0].data);
+  var zbytes = await rvStore.readVerified('data/fabcheck/prv/' + got.zip.rel, got.zip.sha256, listed.entries);
+  eq(new TextDecoder().decode(zbytes), 'PK fake zip bytes for the test', 'Download reads the zip and checks its SHA-256');
+  var why = '';
+  try { await rvStore.readVerified('data/fabcheck/prv/packages/' + rvKey + '/bad.zip', got.zip.sha256, listed.entries); } catch (e) { why = e.code; }
+  eq(why, 'mismatch', 'a zip whose SHA-256 differs is refused');
+  why = '';
+  try { await rvStore.readVerified('data/fabcheck/prv/packages/' + rvKey + '/gone.zip', got.zip.sha256); } catch (e) { why = e.code; }
+  eq(why, 'missing', 'a missing zip is reported as missing');
+
+  // The hand-off entry, read back the way Fabcheck's takeHandoff reads it (same database, store, keyPath).
+  await Signoff.handoff.put({ id: 'rtest-handoff', run: got.raw, findings: got.findings, zip: zbytes, at: M.now() }, true);
+  var hoBack = await new Promise(function (res, rej) {
+    var r = indexedDB.open('dovetail-handoff-demo', 1);
+    r.onsuccess = function () {
+      var d = r.result, t = d.transaction('runs', 'readonly'), q = t.objectStore('runs').get('rtest-handoff');
+      t.oncomplete = function () { d.close(); res(q.result); }; t.onerror = function () { d.close(); rej(t.error); };
+    };
+    r.onerror = function () { rej(r.error); };
+  });
+  ok(hoBack && hoBack.run.id === 'r1' && hoBack.run.package.zip.name === 'DT-1042-B_manufacturing.zip' && hoBack.zip.length === rvZipBytes.length && hoBack.findings.length === 1,
+    'the hand-off entry is in IndexedDB as Fabcheck reads it: { id, run, findings, zip, at }');
+  await Signoff.handoff.remove('rtest-handoff', true);
+  ok(!(await Signoff.handoff.get('rtest-handoff', true)), 'the test hand-off entry is cleaned up');
+
   // ── Demo ──
   var demo = Signoff.demo.projects(T);
   ok(demo.length === 2 && demo.every(function (d) { return Object.keys(d.items).length > 10; }), 'demo projects build');

@@ -64,7 +64,7 @@ Read next:
 
 1. Run `python tools/build.py`. It validates the templates and stamps the version and `?v=`.
    `--check` verifies the stamp.
-2. Open `tests/test.html` over http. It should show PASS (144 tests as of 2026-11-02).
+2. Open `tests/test.html` over http. It should show PASS (174 tests as of 2026-11-03).
 3. Sync the engine into ME, and vendor it into Fabcheck and PL where needed, then run their
    checks and tests.
 
@@ -83,3 +83,9 @@ Read next:
 - Security (2026-11-01): review files are untrusted. Enum fields go through `model.oneOf`, sync
   checks file ids and the shared map, no token shows nothing real, Settings has Sign out, and every
   page sends a CSP. See README *Security*. Keep new fields escaped or allowlisted.
+- Revisions (2026-11-03, branch `revisions`, not merged): the Revisions tab lists Fabcheck runs
+  stored with the board (`config.runs`; hidden in ME and FW), downloads their package zip
+  (SHA-256 checked) and tags revisions (`project.revisions`, `summary.revisions`). Every Open in
+  Fabcheck is a hand-off through IndexedDB `dovetail-handoff`; links carry no `repo`. See README
+  *Revisions* and `docs/fabcheck-link.md`. Not done: the demo's runs and revision, Signoff PL's
+  reader for `summary.revisions`, and re-vendoring into Fabcheck and PL.

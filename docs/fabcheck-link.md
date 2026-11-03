@@ -1,7 +1,11 @@
 # Fabcheck ↔ Signoff EE link
 
-How a Fabcheck run is kept, stored and reopened from a Signoff EE issue. Fabcheck
+How a Fabcheck run is kept, stored, listed and reopened from Signoff EE. Fabcheck
 (`pcb_dfm`) and Signoff EE (`ee_design_review`) both follow this; change it here first.
+
+Since 2026-11-03 **Fabcheck only writes** to a review's repo, once, at Send. Signoff reads
+everything back: it lists the runs, tags revisions, downloads packages, and hands a run to Fabcheck
+in the browser. The design and Chris's decisions are in `pcb_dfm/docs/signoff-revisions.md`.
 
 A run is reproducible: the same package, fab profile, board thickness (and variant) and
 Fabcheck version always give the same findings. So a run is identified by a small record,
@@ -19,7 +23,15 @@ and the package is what's worth keeping.
     "key": "<first 16 hex digits of sha256>",
     "sha256": "<sha256 of the original upload: the zip's bytes, or for a dropped folder the sorted 'path\\tsha256' lines>",
     "name": "PCB-1042-04_fabrication.zip",
-    "size": 1671680
+    "size": 1671680,
+    "zip": {
+      "path": "fabcheck/<projectId>/packages/<key>/PCB-1042-04_manufacturing.zip",
+      "name": "PCB-1042-04_manufacturing.zip",
+      "sha256": "<sha256 of the stored zip>",
+      "size": 412160,
+      "root": "PCB-1042-04_manufacturing",
+      "files": [ { "path": "<path in the original upload>", "to": "PCB-1042-04_manufacturing/Fabrication/…", "sha256": "…", "size": 0 } ]
+    }
   },
   "settings": {
     "profile": "standard",
@@ -34,6 +46,12 @@ and the package is what's worth keeping.
 ```
 
 `stored` is `null` while the run only exists in the browser that made it.
+
+`package.zip` is on runs stored since 2026-11-03: the one fab package zip Send stored with the run
+(below). `path` is the full path in the repo at the time; `files` lists every file in the zip
+except the README, with its original path and its path in the zip. Signoff needs nothing else to
+list a run's contents or to check a download. Runs stored earlier, and runs kept only in the
+browser, have no `zip`.
 
 `settings.rules` is a full copy of the fab rules the run used. Profiles can be edited (a
 fab house's capabilities change, or someone tweaks a limit), so re-running or reopening a
@@ -66,23 +84,28 @@ localStorage) and the shared engine's `assets/github.js`, vendored from `ee_desi
 Layout inside the home repo (on `main`, under the data path):
 
 ```
-fabcheck/<projectId>/packages/<key>/manifest.json
-fabcheck/<projectId>/packages/<key>/files/<path inside the package>
-fabcheck/<projectId>/runs/<runId>.json          { "run": {…}, "findings": [ … compact … ] }
+fabcheck/<projectId>/runs/<runId>.json             { "run": {…, "package": {…, "zip"}}, "findings": [ … compact … ] }
+fabcheck/<projectId>/packages/<key>/<root>.zip     the fab package (package.zip.path)
+fabcheck/<projectId>/preview/…                     board pictures (below)
 ```
 
-- **Slimmed:** only the files Fabcheck reads are stored (Gerbers, drill, pick-and-place, BOM,
-  IPC-356, ODB++ data it uses). PDFs and duplicate nested archives are listed in the manifest
-  with `stored: false`, name, size and sha256, so a re-run from stored files still knows they
-  were in the package and gives the same findings.
-- **Unzipped**, so git stores later revisions of the text files as deltas.
-- **By key:** re-sending the same package uploads nothing new; files whose blob sha already
-  matches are skipped.
-- `manifest.json`: `{ "key", "sha256", "name", "size", "files": [{ "path", "size", "sha256", "stored", "reason" }] }`.
-  Nested archives that are stored expanded use `<archive path>.d/<inner path>`.
-- Signoff's sync never reads `fabcheck/`, so packages never slow down syncing.
+- **One commit per Send** holds exactly these files: the run record, the zip and the pictures.
+- **The zip** is the structured fab package, as Fabcheck's Files tab exports it: `<PN>-<REV>_manufacturing/`
+  with `Fabrication/` (Gerber, NC drill, netlist, fab drawing) and `Assembly/` (BOM, pick and place,
+  assembly drawing), and one `README.txt` listing each file's SHA-256 (`pcb_dfm/docs/fab-package.md`).
+  Part number, revision and the files to keep are picked under Send's Details.
+- **By key:** the zip sits under the package's key, so re-sending the same package with the same
+  picks writes nothing new.
+- **Gone:** the per-file storage (`packages/<key>/manifest.json` and `files/…`) stops for new runs;
+  runs stored before keep theirs, and Signoff offers them as Open in Fabcheck only. Fabcheck's
+  `releases/<id>.json` records and `source.release` on issues (briefly on its `release-tags`
+  branch) are gone too: revisions are Signoff's (below).
+- Signoff's sync never reads `fabcheck/`, so packages never slow down syncing. The Revisions tab
+  reads it on its own.
 - **Sharing moves them too:** when a project moves from the data repo to its own repo, Signoff
-  copies `fabcheck/<projectId>/` across and then deletes it from the data repo.
+  copies `fabcheck/<projectId>/` across and then deletes it from the data repo. So a stored
+  `package.zip.path` (or `stored.dir`) can name the old place: readers take the zip's place
+  relative to the run's folder, as `packages/<key>/<name>.zip`, and reject any other path.
 - Git keeps history, so deleting a package stops growth but doesn't shrink the repo.
 
 Writing goes through `GitHubStore.putFiles(files, opts)`: binary blobs first, then one commit
@@ -93,19 +116,13 @@ How Send behaves:
 - **Asks first.** Before anything leaves the browser, Fabcheck names the private repo, the files
   and their size. Cancel keeps everything in the browser: nothing is stored or sent.
 - **Says where, up front.** The Send panel shows the repo it will store in, or why it can't (no
-  token in this tab, no write access). EE keeps its token in its own tab unless "Remember the
-  token" is ticked, so a Fabcheck tab opened on its own may have none.
+  token in this tab, no write access), and asks for GitHub sign-in on first use.
 - **Stores first.** If storing fails, no issues are written. The user can try again, or pick
   **Send without storing**: the issues then carry `stored: null`, and Signoff's links ask for the
   package to be dropped in.
-- **Store later.** Fabcheck's Recent runs offers **Store in project** on a sent run that isn't
-  stored. It stores the run and sets `stored` on the issues in this browser that carry it
-  (`markStored`); Signoff's next sync pushes them.
-- **Every revision.** The Send panel lists the runs stored with the project (`runs/*.json`,
-  newest first), and each one opens through the same deep link.
-- **Size.** About 0.2–1.6 MB per board for the first send (the slimmed files, compressed by git).
-  A later revision of the same board adds between a few tens of kB (once GitHub repacks the
-  repo and stores the changed files as deltas) and the same 1.6 MB again.
+- **Writes only.** Fabcheck no longer reads runs or packages back from a review's repo. The
+  commit reads the branch's tree and the access check asks GitHub whether the token can push;
+  both are part of writing. Team fab profiles are the one read left.
 
 ## Board previews
 
@@ -129,8 +146,7 @@ fabcheck/<projectId>/preview/bottom.webp
   run's board thickness. Signoff PL uses it to draw the board to scale in its 3D Exploded view,
   cropping each picture to its opaque area. Older stores don't have it; readers must cope.
 - Send's confirm mentions the pictures along with the package files.
-- Only a run open in the tab can be drawn. **Store in project** for a kept run leaves the previews
-  as they were.
+- Only a run open in the tab can be drawn.
 - The layout is meant for any tool that stores runs next to a review: a mechanical checker would
   write `<its folder>/<projectId>/preview/` the same way, with one image per part. Image keys and
   file names are lowercase slugs (`a-z`, `0-9`, `-`, up to 32 characters); readers drop others.
@@ -150,39 +166,64 @@ Send to Signoff puts the run on each Fabcheck custom check:
 
 At most 50 locations per check; the rest stay in the comment text.
 
+## Revisions (Signoff)
+
+Signoff EE's **Revisions** tab lists the runs stored with the board and tags some as revisions.
+The records and the UI are described in the README (*Revisions*); in short:
+
+- **Reading:** `GitHubStore.listRuns('<dir>fabcheck/<projectId>/')` reads `runs/*.json` (direct
+  children only), and `model.cleanRun` checks each: the run id, hashes, and the zip's place.
+  A file counts only for the run its name says. `model.groupRuns` makes one row per package key.
+- **Download:** `GitHubStore.readVerified(path, package.zip.sha256)` reads the zip and refuses it
+  unless its SHA-256 matches; then it's saved as `package.zip.name`.
+- **Tags** are `revisions` records in the project document (`source: { tool: 'fabcheck', run, at,
+  package, zip }`), merged like every other record. Fabcheck doesn't know a run's tag when it
+  sends, so its comments name the package; Signoff shows the tag beside *From Fabcheck* on an
+  issue whose `source.run.id` is a tagged run.
+- **Summary:** `project.summary.revisions` (`[{ label, status, sentAt }]`) for Signoff PL.
+
 ## Opening a run from Signoff
 
 Signoff EE links to (relative to its own `index.html`):
 
 ```
-../pcb_dfm/index.html#/board?run=<runId>&project=<projectId>&repo=<owner/repo>&check=<check>&x=<mm>&y=<mm>&layer=<layer name>
+../pcb_dfm/index.html#/board?run=<runId>&project=<projectId>&check=<check>&x=<mm>&y=<mm>&layer=<layer name>
 ```
 
-Every parameter after `run` is optional. `repo` is the project's home repo **now**, which
-Signoff works out when it builds the link. A run stored before the project was shared still
-says the old repo in `run.stored`; Signoff moves the files when it shares the project, so
-always try `repo` first and `run.stored.repo` only as a fallback.
+Every parameter after `run` is optional. There is no `repo` parameter any more: Fabcheck never
+reads a review's repo. Instead Signoff hands the run over in the browser. Both tools are served
+from one origin, so they share IndexedDB:
 
-"Open in Fabcheck" shows for everyone, not only FTEs. A contractor on a shared board can open
-its stored runs, because they're in that board's `review-ee-…` repo.
+1. Signoff opens Fabcheck's named window at once (a window opened after an `await` would be
+   blocked).
+2. It reads `fabcheck/<projectId>/runs/<runId>.json` and the run's zip with its own token, and
+   checks the zip's SHA-256.
+3. It writes `{ id, run, findings, zip: Uint8Array, at }` to IndexedDB database
+   `dovetail-handoff` (`dovetail-handoff-demo` in demo mode), store `runs`, keyPath `id`
+   (`S.handoff.put` in `github.js`).
+4. It sends the window to the link.
 
-Fabcheck reads a run only from a repo it trusts: the project's home as Signoff records it, the
-EE data repo, or a `review-ee-…` repo of the same owner (`repo.js` `trusted`). A link naming any
-other repo opens nothing from GitHub. Stored findings are cleaned before they're shown
-(`cleanFinding` in `app.js`): known severities and categories, numbers as numbers.
-
-Both tools open each other in a named window, so
-switching reuses one tab per tool: Fabcheck as `dovetail-fabcheck`, Signoff EE as
-`dovetail-signoff-ee`.
+Every Open in Fabcheck goes this way: on a run in Revisions, on an issue, on its locations, and
+on the board picture. When there's nothing to hand over (no token, the demo, a run stored without
+a zip, or a read that failed) Signoff opens the link anyway and says why.
 
 Fabcheck resolves `run` in this order:
 
-1. IndexedDB on this computer.
-2. `<repo>`/`fabcheck/<project>/runs/<run>.json` and its package files, with the Signoff
-   token. Then cached in IndexedDB.
-3. Otherwise it says which package made the run (name, sha256) and asks for it to be dropped
+1. Its own runs kept in IndexedDB on this computer.
+2. The demo boards' fixed runs (demo mode).
+3. The hand-off: it opens the zip, shows the stored findings and places the parts, then deletes
+   the entry (`store.js` `takeHandoff`). An entry is taken when it's read, so a failed open needs
+   another click in Signoff. Entries older than a day are cleared whenever Fabcheck starts.
+4. Otherwise it says which package made the run (name, sha256) and asks for it to be dropped
    in. It checks the fingerprint, re-runs with the run's settings, and notes it if the
    current Fabcheck version finds anything different.
 
 Then it opens the Board view zoomed to `x`, `y` on `layer`, with that check's findings
-highlighted.
+highlighted. Stored findings are cleaned before they're shown (`cleanFinding` in Fabcheck's
+`app.js`): known severities and categories, numbers as numbers.
+
+"Open in Fabcheck" shows for everyone, not only FTEs. A contractor on a shared board reads the
+run with their own token from that board's `review-ee-…` repo.
+
+Both tools open each other in a named window, so switching reuses one tab per tool: Fabcheck as
+`dovetail-fabcheck`, Signoff EE as `dovetail-signoff-ee`.
