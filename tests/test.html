@@ -661,6 +661,12 @@
   eq(M.zipFolders(cr.zip).map(function (g) { return g.folder + ':' + g.files.map(function (f) { return f.name; }).join(','); }),
     ['Fabrication:DT-1042-B_drill.drl,DT-1042-B_top.gtl', 'Assembly:DT-1042-B_bom.csv'], 'zip files group by folder, Fabrication first');
   ok(!M.cleanRun(rvRun('../evil', '2026-10-29T10:00:00.000Z')), 'a run id that isn’t an id is rejected');
+  ['_PCB+2.1-A_manufacturing.zip', 'X.Y-B_manufacturing.zip'].forEach(function (nm) {
+    var z = Object.assign({}, rvZip, { path: 'fabcheck/prv/packages/' + rvKey + '/' + nm });
+    eq((M.cleanRun(rvRun('r8', '2026-10-29T10:00:00.000Z', null, z)).zip || {}).name, nm, 'a zip name Fabcheck can make is kept: ' + nm);
+  });
+  eq(M.zipFolders({ root: 'R', files: [{ to: 'R/Fabrication/Gerber/top.gbr', size: 1 }, { to: 'R/Assembly/BOM/bom.csv', size: 1 }, { to: 'R/Fabrication/FAB.pdf', size: 1 }, { to: 'R/notes.txt', size: 1 }] })
+    .map(function (g) { return g.folder; }), ['Fabrication', 'Fabrication/Gerber', 'Assembly/BOM', ''], 'nested folders keep their path, Fabrication’s first');
   ['fabcheck/prv/packages/' + rvKey + '/../../x.zip', '/etc/x.zip', 'fabcheck/prv/packages/nothex/x.zip', 'fabcheck/prv/packages/' + rvKey + '/x.exe'].forEach(function (bad) {
     var z = Object.assign({}, rvZip, { path: bad });
     ok(M.cleanRun(rvRun('r9', '2026-10-29T10:00:00.000Z', null, z)).zip === null, 'an unsafe zip path is dropped: ' + bad);
@@ -699,6 +705,8 @@
   var evil = JSON.parse(JSON.stringify(rm1)); evil.revisions[v1.id].status = '"><script>'; evil.revisions[v1.id].fab.sentAt = 'soon';
   var ec = M.liveRevisions(evil)[0];
   ok(ec.status === 'sent' && ec.fab.sentAt === '', 'revision enums and dates from a file are allowlisted');
+  var odd = JSON.parse(JSON.stringify(rm1)); odd.revisions[v1.id].id = 'someone-else';
+  ok(M.liveRevisions(odd).some(function (r) { return r.id === v1.id; }) && !M.liveRevisions(odd).some(function (r) { return r.id === 'someone-else'; }), 'a revision’s id is its key, so edits land on the record they came from');
 
   // Reading runs and zips from a review's repo, and the hand-off to Fabcheck.
   var rvFiles = { 'projects/prv.json': M.stableStringify(rp) };
