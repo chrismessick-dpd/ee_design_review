@@ -89,7 +89,7 @@ Read next:
   Fabcheck is a hand-off through IndexedDB `dovetail-handoff`; links carry no `repo`. See README
   *Revisions* and `docs/fabcheck-link.md`. Not done: the demo's runs and revision, Signoff PL's
   reader for `summary.revisions`, and re-vendoring into Fabcheck and PL.
-- Unsynced list (2026-11-03, branch `unsynced-details`): a list button beside the sync pill
+- Unsynced list (2026-11-03, merged to `main` and pushed): a list button beside the sync pill
   (`syncDetails` in `app.js`) itemizes the dirty projects with `model.changesSince(project,
   cutoff)`. The cutoff is `lastSync.startedAt` (new, written at sync) or `lastSync.at`; a project
   without `homes[id]` lists everything. Read-only: it never touches `dirty`.
