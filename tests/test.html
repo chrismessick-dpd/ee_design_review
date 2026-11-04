@@ -767,6 +767,39 @@
   var nowIso = new Date().toISOString();
   ok(demo.every(function (d) { return M.projectSummary(d, T).at <= nowIso; }), 'demo edits are all in the past');
 
+  // The unsynced-changes list (model.changesSince): records edited after the cutoff, newest first.
+  (function () {
+    var cp = M.newProject({ name: 'Changes', checklists: ['schematic'], profile: [] }, 'Ann', T);
+    cp.meta.updatedAt = '2026-01-01T00:00:00.000Z';
+    var rows = []; M.checklistRows(cp, T[0]).forEach(function (g) { rows = rows.concat(g.rows); });
+    var c1 = rows[0], c2 = rows[1], sec = rows[0].section || null;
+    cp.items[c1.id] = { status: 'issue', resolution: 'fixed', updatedAt: '2026-01-02T00:00:00.000Z', updatedBy: 'Ann' };
+    cp.items[c2.id] = { status: 'pass', updatedAt: '2026-01-05T00:00:00.000Z', updatedBy: 'Bob' };
+    cp.items.zz_gone = { status: 'pass', updatedAt: '2026-01-06T00:00:00.000Z', updatedBy: 'Bob' };
+    cp.comments.c1 = { id: 'c1', item: c1.id, author: 'Bob', text: 'Check the pull-up', at: '2026-01-04T00:00:00.000Z', updatedAt: '2026-01-04T00:00:00.000Z', updatedBy: 'Bob' };
+    cp.comments.c2 = { id: 'c2', item: null, author: 'Bob', text: '<img src=x onerror=alert(1)>', at: '2026-01-07T00:00:00.000Z', updatedAt: '2026-01-07T00:00:00.000Z', updatedBy: 'Bob' };
+    cp.comments.c3 = { id: 'c3', item: c1.id, deleted: true, updatedAt: '2026-01-08T00:00:00.000Z', updatedBy: 'Ann' };
+    cp.reqs.q1 = { id: 'q1', ref: 'REQ-001', text: 'Runs from 24 V', verify: 'bogus', updatedAt: '2026-01-09T00:00:00.000Z', updatedBy: 'Ann' };
+    cp.revisions = { r1: { id: 'r1', label: 'A', status: 'sent', updatedAt: '2026-01-03T00:00:00.000Z', updatedBy: 'Ann' } };
+    var all = M.changesSince(cp, '', T);
+    eq(all.length, 9, 'changesSince with no cutoff lists every record (a never-synced review)');
+    var since = M.changesSince(cp, '2026-01-04T00:00:00.000Z', T);
+    eq(since.map(function (c) { return c.kind + ':' + c.id; }), ['req:q1', 'comment:c3', 'comment:c2', 'check:zz_gone', 'check:' + c2.id],
+      'changesSince keeps only records edited after the cutoff, newest first');
+    var byId = {}; all.forEach(function (c) { byId[c.kind + ':' + c.id] = c; });
+    eq([byId['check:' + c1.id].label, byId['check:' + c1.id].detail, byId['check:' + c1.id].by], [String(c1.def.text).length > 120 ? String(c1.def.text).slice(0, 119) + '…' : String(c1.def.text), 'issue, fixed', 'Ann'], 'a check change names the check, its status and who');
+    eq(byId['check:zz_gone'].label, 'zz_gone', 'a check not in the checklists falls back to its id');
+    eq([byId['comment:c1'].item, byId['comment:c1'].label === byId['check:' + c1.id].label, byId['comment:c1'].detail], [c1.id, true, 'Check the pull-up'], 'a comment change names the check it is on');
+    eq([byId['comment:c2'].label, byId['comment:c2'].detail], ['Comment on the whole review', '<img src=x onerror=alert(1)>'], 'a review comment comes back raw (the app escapes it)');
+    ok(byId['comment:c3'].deleted && !byId['comment:c1'].deleted, 'a tombstone is flagged deleted');
+    eq([byId['req:q1'].label, byId['req:q1'].detail], ['REQ-001 Runs from 24 V', 'open'], 'a requirement change shows its ref, text and an allowlisted state');
+    eq([byId['revision:r1'].label, byId['revision:r1'].detail, byId['meta:' + cp.id].kind], ['Revision A', 'sent', 'meta'], 'revisions and the review details are listed');
+    var before = JSON.stringify(cp);
+    M.changesSince(cp, '2026-01-01T00:00:00.000Z', T);
+    eq(JSON.stringify(cp), before, 'changesSince does not change the project');
+    eq(M.changesSince({ id: 'x', meta: { name: 'Bare', checklists: [] } }, '', T).length, 1, 'changesSince copes with a document missing record maps');
+  })();
+
   var failed = results.filter(function (r) { return !r.ok; });
   document.getElementById('out').innerHTML = results.map(function (r) {
     return '<div class="' + (r.ok ? 'pass' : 'fail') + '">' + (r.ok ? '✓ ' : '✗ ') + r.name + '</div>' + (r.ok ? '' : '<pre>' + (r.detail || '') + '</pre>');

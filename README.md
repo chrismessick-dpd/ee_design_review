@@ -74,7 +74,10 @@ open. In the data the board is still a project document (`projects/<id>.json`), 
 project is `meta.project`.
 
 Edits are saved in your browser straight away. Boards with unsynced changes show an orange
-dot. **Sync** (or Ctrl+S) does three things: it pulls, merges, and pushes one commit. It also
+dot. Hovering the sync indicator names them, and the list button beside it shows what changed
+in each (checks, comments, requirements, revisions, with who and when, newest first; records
+edited since the last sync started, or everything for a board not on GitHub yet). Click a line
+to jump to it. The list only reads; it doesn't change what Sync does. **Sync** (or Ctrl+S) does three things: it pulls, merges, and pushes one commit. It also
 runs automatically when the page opens and whenever you post a comment, so comments reach
 everyone straight away.
 

@@ -64,7 +64,7 @@ Read next:
 
 1. Run `python tools/build.py`. It validates the templates and stamps the version and `?v=`.
    `--check` verifies the stamp.
-2. Open `tests/test.html` over http. It should show PASS (178 tests as of 2026-11-03).
+2. Open `tests/test.html` over http. It should show PASS (189 tests as of 2026-11-03).
 3. Sync the engine into ME, and vendor it into Fabcheck and PL where needed, then run their
    checks and tests.
 
@@ -89,3 +89,7 @@ Read next:
   Fabcheck is a hand-off through IndexedDB `dovetail-handoff`; links carry no `repo`. See README
   *Revisions* and `docs/fabcheck-link.md`. Not done: the demo's runs and revision, Signoff PL's
   reader for `summary.revisions`, and re-vendoring into Fabcheck and PL.
+- Unsynced list (2026-11-03, branch `unsynced-details`): a list button beside the sync pill
+  (`syncDetails` in `app.js`) itemizes the dirty projects with `model.changesSince(project,
+  cutoff)`. The cutoff is `lastSync.startedAt` (new, written at sync) or `lastSync.at`; a project
+  without `homes[id]` lists everything. Read-only: it never touches `dirty`.
