@@ -813,8 +813,8 @@
     cm('g', null, 'Board-wide: @revnotes bump the rev letter on silk', '2026-01-06T00:00:00.000Z');
     rp.custom.k1 = { id: 'k1', checklist: 'schematic', section: 's', text: 'Missing TVS on USB @revnotes', createdAt: '2026-01-02T12:00:00.000Z' };
     var g = M.revNotes(rp);
-    eq(g.map(function (x) { return x.item + ':' + x.comments.map(function (c) { return c.id; }).join(''); }), ['x2:b', 'k1:', 'x1:ad', ':g'],
-      'revNotes groups tagged comments by check, in order of the first tag, skipping untagged, deleted and look-alike text');
+    eq(g.map(function (x) { return x.item + ':' + x.comments.map(function (c) { return c.id; }).join(''); }), [':g', 'x1:da', 'k1:', 'x2:b'],
+      'revNotes groups tagged comments by check, newest first, skipping untagged, deleted and look-alike text');
     eq([M.stripRevNote('@RevNotes: move J3 to the edge'), M.stripRevNote('Swap R12 to 4.7k @revnotes'), M.stripRevNote('Board-wide: @revnotes bump it')],
       ['move J3 to the edge', 'Swap R12 to 4.7k', 'Board-wide: bump it'], 'stripRevNote takes the tag out of the shown text');
     eq(M.revNotes({ meta: { name: 'Bare' }, comments: {} }).length, 0, 'revNotes copes with a review without custom items');
