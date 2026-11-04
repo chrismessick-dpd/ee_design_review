@@ -800,6 +800,26 @@
     eq(M.changesSince({ id: 'x', meta: { name: 'Bare', checklists: [] } }, '', T).length, 1, 'changesSince copes with a document missing record maps');
   })();
 
+  // Next revision updates (model.revNotes): comments tagged @revnotes, grouped by check.
+  (function () {
+    var rp = M.newProject({ name: 'Notes', checklists: ['schematic'], profile: [] }, 'Ann', T);
+    var cm = function (id, item, text, at, del) { rp.comments[id] = { id: id, item: item, author: 'Ann', text: text, at: at, deleted: !!del }; };
+    cm('a', 'x1', 'Swap R12 to 4.7k @revnotes', '2026-01-03T00:00:00.000Z');
+    cm('b', 'x2', '@RevNotes: move J3 to the edge', '2026-01-02T00:00:00.000Z');
+    cm('c', 'x1', 'Fine for this build', '2026-01-04T00:00:00.000Z');
+    cm('d', 'x1', 'Also add a test point. @revnotes', '2026-01-05T00:00:00.000Z');
+    cm('e', 'x3', 'mail me@revnotes.com or @revnotesX', '2026-01-01T00:00:00.000Z');
+    cm('f', 'x4', 'gone @revnotes', '2026-01-01T00:00:00.000Z', true);
+    cm('g', null, 'Board-wide: @revnotes bump the rev letter on silk', '2026-01-06T00:00:00.000Z');
+    rp.custom.k1 = { id: 'k1', checklist: 'schematic', section: 's', text: 'Missing TVS on USB @revnotes', createdAt: '2026-01-02T12:00:00.000Z' };
+    var g = M.revNotes(rp);
+    eq(g.map(function (x) { return x.item + ':' + x.comments.map(function (c) { return c.id; }).join(''); }), ['x2:b', 'k1:', 'x1:ad', ':g'],
+      'revNotes groups tagged comments by check, in order of the first tag, skipping untagged, deleted and look-alike text');
+    eq([M.stripRevNote('@RevNotes: move J3 to the edge'), M.stripRevNote('Swap R12 to 4.7k @revnotes'), M.stripRevNote('Board-wide: @revnotes bump it')],
+      ['move J3 to the edge', 'Swap R12 to 4.7k', 'Board-wide: bump it'], 'stripRevNote takes the tag out of the shown text');
+    eq(M.revNotes({ meta: { name: 'Bare' }, comments: {} }).length, 0, 'revNotes copes with a review without custom items');
+  })();
+
   var failed = results.filter(function (r) { return !r.ok; });
   document.getElementById('out').innerHTML = results.map(function (r) {
     return '<div class="' + (r.ok ? 'pass' : 'fail') + '">' + (r.ok ? '✓ ' : '✗ ') + r.name + '</div>' + (r.ok ? '' : '<pre>' + (r.detail || '') + '</pre>');
