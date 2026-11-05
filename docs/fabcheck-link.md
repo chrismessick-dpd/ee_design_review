@@ -225,5 +225,8 @@ highlighted. Stored findings are cleaned before they're shown (`cleanFinding` in
 "Open in Fabcheck" shows for everyone, not only FTEs. A contractor on a shared board reads the
 run with their own token from that board's `review-ee-…` repo.
 
-Both tools open each other in a named window, so switching reuses one tab per tool: Fabcheck as
-`dovetail-fabcheck`, Signoff EE as `dovetail-signoff-ee`.
+The suite's tools open each other in the same tab (2026-11-04). Open in Fabcheck shows a card
+with what Signoff is reading (the run, then the package zip) while it hands the run off, then the
+tab goes to Fabcheck; if the run can't be handed over, the card says why and offers to stay.
+Fabcheck's "Back to Signoff EE" and Send's "Open in Signoff EE" go back the same way, and the
+browser's Back button works both ways. Signoff PL's and Partcheck's links to reviews do too.
