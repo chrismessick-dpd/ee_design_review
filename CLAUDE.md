@@ -83,12 +83,13 @@ Read next:
 - Security (2026-11-01): review files are untrusted. Enum fields go through `model.oneOf`, sync
   checks file ids and the shared map, no token shows nothing real, Settings has Sign out, and every
   page sends a CSP. See README *Security*. Keep new fields escaped or allowlisted.
-- Revisions (2026-11-03, branch `revisions`, not merged): the Revisions tab lists Fabcheck runs
+- Revisions (2026-11-03, merged to `main` and pushed): the Revisions tab lists Fabcheck runs
   stored with the board (`config.runs`; hidden in ME and FW), downloads their package zip
   (SHA-256 checked) and tags revisions (`project.revisions`, `summary.revisions`). Every Open in
   Fabcheck is a hand-off through IndexedDB `dovetail-handoff`; links carry no `repo`. See README
-  *Revisions* and `docs/fabcheck-link.md`. Not done: the demo's runs and revision, Signoff PL's
-  reader for `summary.revisions`, and re-vendoring into Fabcheck and PL.
+  *Revisions* and `docs/fabcheck-link.md`. Signoff PL shows `summary.revisions` in a Part's
+  inspector (2026-11-04). Not done: the demo's runs and revision (the demo run record's summary
+  matches Fabcheck: 4 errors, 13 warnings, 37 info).
 - Unsynced list (2026-11-03, merged to `main` and pushed): a list button beside the sync pill
   (`syncDetails` in `app.js`) itemizes the dirty projects with `model.changesSince(project,
   cutoff)`. The cutoff is `lastSync.startedAt` (new, written at sync) or `lastSync.at`; a project
