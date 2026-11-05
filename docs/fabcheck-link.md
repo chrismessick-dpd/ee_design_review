@@ -230,3 +230,7 @@ with what Signoff is reading (the run, then the package zip) while it hands the 
 tab goes to Fabcheck; if the run can't be handed over, the card says why and offers to stay.
 Fabcheck's "Back to Signoff EE" and Send's "Open in Signoff EE" go back the same way, and the
 browser's Back button works both ways. Signoff PL's and Partcheck's links to reviews do too.
+Open in Fabcheck leaves a return point in Signoff's storage (`fabReturn`: project id, tab, open
+check, scroll). Fabcheck's "Back to Signoff EE" opens that tab (`signoff.js` `openFindings`), and
+Signoff puts back the check and the scroll (`returnFromFabcheck`), once and within the hour.
+Without one (after a Send, say) it opens the board's Findings tab.
