@@ -539,6 +539,22 @@
   ok(sum.at === '2026-10-24T10:00:00Z' && sum.by === 'bob', 'summary time is the latest edit, not the sync time');
   var S2 = JSON.parse(JSON.stringify(S1)); S2.meta.checklists = ['schematic']; S2.meta.reqsDecided = true;
   ok(M.projectSummary(S2, T).reqs === null, 'no requirement counts when requirements are off');
+  // Reference rows: findings Fabcheck waived and sent to keep (custom `reference: true`) count nowhere.
+  var ix3 = M.indexTemplates(T).items.sg3, refAt = '2026-10-24T05:00:00Z';
+  var addRef = function (p, id, ref) {
+    p.custom[id] = { id: id, checklist: ix3.template.id, section: ix3.section.id, text: 'Waived in Fabcheck: dam', severity: 'minor', reference: ref, source: { tool: 'fabcheck', check: 'mask-dam' }, createdAt: refAt, updatedAt: refAt, updatedBy: 'ann' };
+    p.items[id] = { status: 'issue', severity: 'minor', resolution: 'waived', updatedAt: refAt, updatedBy: 'ann' };
+  };
+  var SR = JSON.parse(JSON.stringify(S1)); addRef(SR, 'xfcref', true);
+  SR.comments.cref = { id: 'cref', item: 'xfcref', author: 'Fabcheck', at: refAt, text: 'Waived in Fabcheck', updatedAt: refAt, updatedBy: 'Fabcheck' };
+  var sumR = M.projectSummary(SR, T), stR = M.projectStats(SR, T);
+  eq([sumR.issues, sumR.open.length, sumR.pct, sumR.total, sumR.checklists.schematic.reviewed, stR.total, sumR.recent],
+    [sum.issues, sum.open.length, sum.pct, sum.total, sum.checklists.schematic.reviewed, st1.total, sum.recent], 'a reference row counts nowhere: progress, issues, the summary, its recent discussion');
+  var refRows = []; M.checklistRows(SR, ix3.template).forEach(function (g) { refRows = refRows.concat(g.rows); });
+  var rr = refRows.filter(function (r) { return r.id === 'xfcref'; })[0];
+  ok(rr && rr.reference === true && M.countStatuses([rr]).total === 0 && M.countStatuses([rr]).reference === 1, 'the row is marked reference and countStatuses sets it apart');
+  var SN = JSON.parse(JSON.stringify(S1)); addRef(SN, 'xfcnot', 'yes');
+  eq(M.projectSummary(SN, T).issues.waived, 1, 'only reference === true sets a row apart (a waived custom check still counts)');
   // Requirement states and the list Signoff PL reads.
   var R1 = JSON.parse(JSON.stringify(S1));
   var rRisk = M.newReq(R1, { text: 'Traced to an open issue', verify: 'pass', links: ['sg3'] }, 'ann'); R1.reqs[rRisk.id] = rRisk;

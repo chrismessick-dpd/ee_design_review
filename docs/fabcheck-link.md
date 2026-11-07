@@ -166,6 +166,21 @@ Send to Signoff puts the run on each Fabcheck custom check:
 
 At most 50 locations per check; the rest stay in the comment text.
 
+### Waived findings (reference rows, 2026-11-07)
+
+Findings waived in Fabcheck (`pcb_dfm/assets/waivers.js`) are sent only when the Send panel's
+**Waived, for reference** box is ticked (it starts unticked). They go as their own custom check per
+Fabcheck check and severity (id from `waived:<check>`), titled "Waived in Fabcheck: …", with
+`reference: true` on the custom record and the item at `status: 'issue'`, `resolution: 'waived'`.
+The engine (`model.row`) marks such a row `reference`: `countStatuses`, the project summary
+(counts, `open`, `recent`) and the requirement tallies leave it out, the checklist's Issues and To
+review filters skip it, and Signoff EE shows it with an "i" and "Reference, not counted", in its own
+*Waived in Fabcheck* section under Findings, with no Status or Severity controls. Only
+`reference === true` counts; any other value leaves the row an ordinary check. A later Send whose
+run no longer has those findings waived tombstones the row (`deleted: true`). An open Fabcheck issue
+whose check's findings are all waived now gets a comment saying so ("Mark it Waived if that is
+expected"); the reviewer's status is never changed.
+
 ## Revisions (Signoff)
 
 Signoff EE's **Revisions** tab lists the runs stored with the board and tags some as revisions.
