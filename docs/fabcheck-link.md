@@ -205,7 +205,9 @@ Signoff EE links to (relative to its own `index.html`):
 ../pcb_dfm/index.html#/board?run=<runId>&project=<projectId>&check=<check>&x=<mm>&y=<mm>&layer=<layer name>
 ```
 
-Every parameter after `run` is optional. There is no `repo` parameter any more: Fabcheck never
+Every parameter after `run` is optional. The run plays on Overview and then shows the board. A link
+to another view with no `check` or place (`#/overview?run=<runId>`, the suite's demo tour) stays on
+that view (2026-11-08). There is no `repo` parameter any more: Fabcheck never
 reads a review's repo. Instead Signoff hands the run over in the browser. Both tools are served
 from one origin, so they share IndexedDB:
 
