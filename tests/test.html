@@ -39,6 +39,15 @@
   var older = JSON.parse(JSON.stringify(T[0])); older.version = 0; older.title = 'Old';
   eq(M.resolveTemplates(T, [older])[0].title, T[0].title, 'bundled template wins over an older pulled one');
 
+  // ── Roles: FTE, client, contractor ──
+  (function () {
+    var r = M.emptyRoster();
+    r.users = { zed: { login: 'zed', name: 'Zed', role: 'contractor' }, amy: { login: 'amy', name: 'Amy', role: 'client' },
+      bo: { login: 'bo', name: 'Bo', role: 'fte' }, cy: { login: 'cy', name: 'Cy', role: 'client', deleted: true } };
+    eq(M.liveUsers(r).map(function (u) { return u.login; }), ['bo', 'amy', 'zed'], 'People lists FTEs, then clients, then contractors');
+    ok(M.isOutside(r.users.amy) && M.isOutside(r.users.zed) && !M.isOutside(r.users.bo) && !M.isOutside(r.users.cy), 'clients and contractors are outside the team; FTEs and removed people aren’t');
+  })();
+
   // ── Config ──
   var CFG = Signoff.config;
   eq(M.TAGS.map(function (t) { return t.id; }), CFG.tags.map(function (t) { return t.id; }), 'profile tags come from config.js');
