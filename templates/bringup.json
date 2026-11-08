@@ -3,7 +3,7 @@
   "title": "Bring-up & Validation",
   "short": "Bring-up",
   "version": 1,
-  "description": "Checks for first boards back, from receiving inspection through power-on, functional bring-up and design validation before releasing the next revision.",
+  "description": "Checks for first boards back, from receiving inspection through power-on, functional bring-up, and design validation before releasing the next revision.",
   "sections": [
     {
       "id": "b-receiving",
@@ -12,15 +12,15 @@
       "items": [
         {
           "id": "bu-rcv-1",
-          "text": "Received boards match the ordered revision, quantity and assembly variant",
-          "hint": "Check the silkscreen revision, fab date code and assembly variant label against the purchase order and release package. Mixed revisions in one batch cause confusing bring-up results.",
+          "text": "Received boards match the ordered revision, quantity, and assembly variant",
+          "hint": "Check the silkscreen revision, fab date code, and assembly variant label against the purchase order and release package. Mixed revisions in one batch cause confusing bring-up results.",
           "tags": [],
           "severity": "major"
         },
         {
           "id": "bu-rcv-2",
           "text": "Each board has a unique serial number or label recorded in the bring-up log",
-          "hint": "Results, rework and failures must be traceable to a specific unit. Label boards before anyone starts probing.",
+          "hint": "Results, rework, and failures must be traceable to a specific unit. Label boards before anyone starts probing.",
           "tags": [],
           "severity": "major"
         },
@@ -54,7 +54,7 @@
         },
         {
           "id": "bu-rcv-7",
-          "text": "Bare-board dimensions, hole positions and mounting features match the fabrication drawing",
+          "text": "Bare-board dimensions, hole positions, and mounting features match the fabrication drawing",
           "hint": "Measure board outline and key mounting holes with calipers, and trial-fit into the enclosure or mechanical fixture if available.",
           "tags": [],
           "severity": "major"
@@ -70,7 +70,7 @@
         },
         {
           "id": "bu-rcv-9",
-          "text": "Flex sections are free of cracks, delamination and coverlay damage at the bend regions",
+          "text": "Flex sections are free of cracks, delamination, and coverlay damage at the bend regions",
           "hint": "Inspect stiffener edges and the rigid-flex transition under magnification. Do not flex the board beyond its specified bend radius during handling.",
           "tags": [
             "flex"
@@ -116,7 +116,7 @@
         },
         {
           "id": "bu-pre-4",
-          "text": "Jumpers, straps, DIP switches and boot-mode resistors are set to the bring-up configuration",
+          "text": "Jumpers, straps, DIP switches, and boot-mode resistors are set to the bring-up configuration",
           "hint": "Document the configuration used in the bring-up log. Default boot from an unprogrammed external flash may need a strap change to enter the debugger or ROM bootloader.",
           "tags": [],
           "severity": "major"
@@ -197,15 +197,15 @@
         },
         {
           "id": "bu-on-6",
-          "text": "Power-good, status and indicator signals report the expected state",
-          "hint": "Check PGOOD outputs, reset supervisors and status LEDs. A missing power-good often explains a processor that never leaves reset.",
+          "text": "Power-good, status, and indicator signals report the expected state",
+          "hint": "Check PGOOD outputs, reset supervisors, and status LEDs. A missing power-good often explains a processor that never leaves reset.",
           "tags": [],
           "severity": "major"
         },
         {
           "id": "bu-on-7",
           "text": "Mains-connected boards are first powered through an isolation transformer with suitable safety precautions",
-          "hint": "Use an isolation transformer, a variac for slow ramp and differential or isolated probes. Follow the lab's high-voltage work procedure.",
+          "hint": "Use an isolation transformer, a variac for slow ramp, and differential or isolated probes. Follow the lab's high-voltage work procedure.",
           "tags": [
             "mains"
           ],
@@ -228,7 +228,7 @@
         {
           "id": "bu-rail-2",
           "text": "Load-step response keeps each rail within tolerance during transients",
-          "hint": "Use an electronic load or a switched resistor at realistic slew rates, or exercise the real firmware load. Check overshoot, undershoot and settling against load IC limits.",
+          "hint": "Use an electronic load or a switched resistor at realistic slew rates, or exercise the real firmware load. Check overshoot, undershoot, and settling against load IC limits.",
           "tags": [],
           "severity": "major"
         },
@@ -244,7 +244,7 @@
         {
           "id": "bu-rail-4",
           "text": "Power-up sequencing order and timing match the requirements of the sequenced devices",
-          "hint": "Capture all relevant rails and resets on a multi-channel scope at power-on. Compare to processor, FPGA or DDR datasheet sequencing requirements.",
+          "hint": "Capture all relevant rails and resets on a multi-channel scope at power-on. Compare to processor, FPGA, or DDR datasheet sequencing requirements.",
           "tags": [],
           "severity": "critical"
         },
@@ -271,7 +271,7 @@
         },
         {
           "id": "bu-rail-8",
-          "text": "Inrush current at power-on is within source, connector and fuse limits",
+          "text": "Inrush current at power-on is within source, connector, and fuse limits",
           "hint": "Capture input current with a current probe at the worst-case input voltage. Hot-plugging can produce higher inrush and input voltage spikes than a slow bench ramp.",
           "tags": [],
           "severity": "major"
@@ -279,21 +279,21 @@
         {
           "id": "bu-rail-9",
           "text": "Converter efficiency at typical and full load meets the power budget",
-          "hint": "Measure input and output power with accurate meters. Low efficiency points to inductor saturation, wrong frequency or layout problems.",
+          "hint": "Measure input and output power with accurate meters. Low efficiency points to inductor saturation, wrong frequency, or layout problems.",
           "tags": [],
           "severity": "major"
         },
         {
           "id": "bu-rail-10",
-          "text": "Over-current, over-voltage and thermal protection trip at the designed thresholds",
+          "text": "Over-current, over-voltage, and thermal protection trip at the designed thresholds",
           "hint": "Test each protection feature at limited energy where possible. Confirm recovery behavior (latch-off vs hiccup) matches the design intent.",
           "tags": [],
           "severity": "major"
         },
         {
           "id": "bu-rail-11",
-          "text": "Motor or actuator supply holds within limits during start-up, stall and regenerative braking",
-          "hint": "Capture bus voltage while starting, stalling and decelerating the load. Regenerated energy can pump the bus above component ratings.",
+          "text": "Motor or actuator supply holds within limits during start-up, stall, and regenerative braking",
+          "hint": "Capture bus voltage while starting, stalling, and decelerating the load. Regenerated energy can pump the bus above component ratings.",
           "tags": [
             "motor"
           ],
@@ -302,7 +302,7 @@
         {
           "id": "bu-rail-12",
           "text": "Rail and connector temperature rise at full load is acceptable",
-          "hint": "Run at maximum current until temperatures settle and measure copper, connectors and fuses with a thermal camera or thermocouples.",
+          "hint": "Run at maximum current until temperatures settle and measure copper, connectors, and fuses with a thermal camera or thermocouples.",
           "tags": [
             "high-current"
           ],
@@ -339,7 +339,7 @@
         {
           "id": "bu-clk-4",
           "text": "Clock signal integrity (amplitude, edge rate, jitter) meets the receiver requirements",
-          "hint": "Measure at the receiving device with adequate scope bandwidth. Check jitter for SerDes, ADC and high-speed reference clocks against datasheet limits.",
+          "hint": "Measure at the receiving device with adequate scope bandwidth. Check jitter for SerDes, ADC, and high-speed reference clocks against datasheet limits.",
           "tags": [
             "high-speed"
           ],
@@ -387,14 +387,14 @@
         {
           "id": "bu-dbg-1",
           "text": "Debugger connects to each programmable device through the debug header",
-          "hint": "Confirm the JTAG/SWD chain is detected and IDs read correctly. Failure here is usually a pinout, pull-up or reset strap problem.",
+          "hint": "Confirm the JTAG/SWD chain is detected and IDs read correctly. Failure here is usually a pinout, pull-up, or reset strap problem.",
           "tags": [],
           "severity": "critical"
         },
         {
           "id": "bu-dbg-2",
           "text": "Each device can be programmed and verified through the intended programming path",
-          "hint": "Program and verify readback for MCUs, flash, CPLDs and FPGAs. Note programming time for production planning.",
+          "hint": "Program and verify readback for MCUs, flash, CPLDs, and FPGAs. Note programming time for production planning.",
           "tags": [],
           "severity": "critical"
         },
@@ -439,14 +439,14 @@
       "items": [
         {
           "id": "bu-per-1",
-          "text": "Every I2C, SPI and UART device responds at its expected address or ID",
-          "hint": "Run a bus scan and read ID registers. Missing devices point to address straps, pull-ups or assembly faults.",
+          "text": "Every I2C, SPI, and UART device responds at its expected address or ID",
+          "hint": "Run a bus scan and read ID registers. Missing devices point to address straps, pull-ups, or assembly faults.",
           "tags": [],
           "severity": "major"
         },
         {
           "id": "bu-per-2",
-          "text": "All GPIO, LED, button and control signals toggle and read correctly",
+          "text": "All GPIO, LED, button, and control signals toggle and read correctly",
           "hint": "Use a test firmware to exercise each pin and confirm against the pinout. This catches schematic-to-firmware pin mapping errors early.",
           "tags": [],
           "severity": "major"
@@ -495,7 +495,7 @@
         {
           "id": "bu-per-8",
           "text": "Display initializes and shows correct image without artifacts, and touch reports accurate coordinates",
-          "hint": "Check color order, orientation, backlight dimming and touch across the full panel area.",
+          "hint": "Check color order, orientation, backlight dimming, and touch across the full panel area.",
           "tags": [
             "display"
           ],
@@ -587,7 +587,7 @@
         {
           "id": "bu-ana-5",
           "text": "Digital and switching activity does not couple into analog channels",
-          "hint": "Compare noise with processors, radios and switchers active vs idle. Look for spurs at known clock or switching frequencies.",
+          "hint": "Compare noise with processors, radios, and switchers active vs idle. Look for spurs at known clock or switching frequencies.",
           "tags": [],
           "severity": "major"
         },
@@ -633,7 +633,7 @@
         {
           "id": "bu-rf-3",
           "text": "Antenna match (return loss / VSWR) is acceptable across the band in the final enclosure",
-          "hint": "Measure with a VNA at the antenna feed with the enclosure, battery and nearby cables in place. Tune the matching network as needed and record final values.",
+          "hint": "Measure with a VNA at the antenna feed with the enclosure, battery, and nearby cables in place. Tune the matching network as needed and record final values.",
           "tags": [],
           "severity": "major"
         },
@@ -656,7 +656,7 @@
         {
           "id": "bu-rf-6",
           "text": "Board-generated noise does not desense the receiver",
-          "hint": "Compare sensitivity with all other subsystems active vs idle. Display, switching regulators and memory clocks are common culprits.",
+          "hint": "Compare sensitivity with all other subsystems active vs idle. Display, switching regulators, and memory clocks are common culprits.",
           "tags": [],
           "severity": "major"
         },
@@ -748,7 +748,7 @@
         {
           "id": "bu-env-4",
           "text": "Board survives vibration and mechanical shock to the product requirement",
-          "hint": "Monitor function during the test where possible. Check heavy parts, connectors and tall capacitors afterward.",
+          "hint": "Monitor function during the test where possible. Check heavy parts, connectors, and tall capacitors afterward.",
           "tags": [
             "harsh-env",
             "automotive"
@@ -782,7 +782,7 @@
         },
         {
           "id": "bu-env-8",
-          "text": "Long-duration soak test runs without errors, resets or memory leaks",
+          "text": "Long-duration soak test runs without errors, resets, or memory leaks",
           "hint": "Run the full system for an extended period (rule of thumb: at least overnight) with logging.",
           "tags": [],
           "severity": "major"
@@ -835,7 +835,7 @@
         },
         {
           "id": "bu-emc-6",
-          "text": "Cables, enclosure and grounding used in pre-compliance match the production configuration",
+          "text": "Cables, enclosure, and grounding used in pre-compliance match the production configuration",
           "hint": "Different cables or shielding can invalidate the results. Record the test setup with photos.",
           "tags": [],
           "severity": "major"
@@ -866,7 +866,7 @@
         },
         {
           "id": "bu-bat-3",
-          "text": "No unintended leakage paths through I/O pins, pull-ups or powered-down peripherals",
+          "text": "No unintended leakage paths through I/O pins, pull-ups, or powered-down peripherals",
           "hint": "Isolate subsystems one at a time to find which contributes extra sleep current.",
           "tags": [
             "low-power"
@@ -876,7 +876,7 @@
         {
           "id": "bu-bat-4",
           "text": "Charge profile (pre-charge, constant current, constant voltage, termination) matches the cell specification",
-          "hint": "Log charge current, voltage and temperature over a full charge cycle and compare to the cell datasheet.",
+          "hint": "Log charge current, voltage, and temperature over a full charge cycle and compare to the cell datasheet.",
           "tags": [
             "battery"
           ],
@@ -893,7 +893,7 @@
         },
         {
           "id": "bu-bat-6",
-          "text": "Battery protection trips correctly for over-charge, over-discharge and over-current",
+          "text": "Battery protection trips correctly for over-charge, over-discharge, and over-current",
           "hint": "Test using a battery simulator or controlled source. Confirm recovery behavior after each trip.",
           "tags": [
             "battery"
@@ -987,7 +987,7 @@
       "items": [
         {
           "id": "bu-rev-1",
-          "text": "Every rework, bodge wire and part change is logged with board serial, description and reason",
+          "text": "Every rework, bodge wire, and part change is logged with board serial, description, and reason",
           "hint": "Photograph bodges. Unlogged rework makes later measurements meaningless.",
           "tags": [],
           "severity": "major"
@@ -1001,8 +1001,8 @@
         },
         {
           "id": "bu-rev-3",
-          "text": "Footprint, silkscreen and assembly drawing errors found during bring-up are recorded",
-          "hint": "Include wrong polarity marks, unclear reference designators and mis-sized pads.",
+          "text": "Footprint, silkscreen, and assembly drawing errors found during bring-up are recorded",
+          "hint": "Include wrong polarity marks, unclear reference designators, and mis-sized pads.",
           "tags": [],
           "severity": "major"
         },
@@ -1023,13 +1023,13 @@
         {
           "id": "bu-rev-6",
           "text": "Open issues are triaged by severity with an owner and a decision for the next revision",
-          "hint": "Decide fix-now, fix-later or accept for each issue before releasing the next revision.",
+          "hint": "Decide fix-now, fix-later, or accept for each issue before releasing the next revision.",
           "tags": [],
           "severity": "major"
         },
         {
           "id": "bu-rev-7",
-          "text": "Bring-up report summarizing results, deviations and open issues is written and reviewed",
+          "text": "Bring-up report summarizing results, deviations, and open issues is written and reviewed",
           "hint": "The report should include measured data against requirements and a recommendation on releasing the next revision.",
           "tags": [],
           "severity": "major"

@@ -4,7 +4,7 @@
 
 **User guide:** [docs/guide.md](docs/guide.md), with a customer-shareable overview and an FTE section on architecture and use.
 
-Signoff EE is Dovetail's checklist tool for schematic, layout, assembly, fab and bring-up reviews.
+Signoff EE is Dovetail's checklist tool for schematic, layout, assembly, fab, and bring-up reviews.
 Its sibling [Signoff ME](https://github.com/chrismessick-dpd/me_design_review) does the same for
 mechanical design, on the same engine; both sit under the Dovetail Signoff hub.
 Each project is a review of one board. Reviewers mark checks Pass / Issue / N/A, discuss them
@@ -13,10 +13,10 @@ Reviews sync through private GitHub repositories, so everyone works on the same 
 
 - **930 checks in 6 checklists:** Schematic, Interfaces, PCB Layout, Assembly & BOM,
   Fabrication & Release, and Bring-up & Validation.
-- **Board profile:** tag a project as battery, mains, RF, high-speed, BGA, flex, medical and
+- **Board profile:** tag a project as battery, mains, RF, high-speed, BGA, flex, medical, and
   so on. Checks for features the board doesn't have are set aside as N/A. You can still bring
   any of them back.
-- **Findings:** each issue has a severity, owner, reference and resolution. You can export
+- **Findings:** each issue has a severity, owner, reference, and resolution. You can export
   findings to CSV or print a signed-off review report (Print → Save as PDF).
 - **Demo mode:** open `index.html?demo` for a self-contained sample with no sync. Use it to
   show the tool to people outside the team.
@@ -98,7 +98,7 @@ everyone straight away.
 
 **Requirements** is picked like a checklist in the project sheet (New review / Edit profile)
 and is on by default. Unlike the checklists, requirements are written for the project rather
-than taken from a template. Unticking it hides the tab, the overview card and the report
+than taken from a template. Unticking it hides the tab, the overview card, and the report
 section, but keeps the requirements, the same way a checklist's review state is kept.
 
 - **Each requirement has:**
@@ -106,12 +106,12 @@ section, but keeps the requirements, the same way a checklist's review state is 
   - the requirement text
   - shall or should
   - category and source (the customer spec and section)
-  - how it's verified: inspection, analysis, demonstration or test
-  - a status: draft, approved, changed or deprecated. Rewording an approved requirement marks
+  - how it's verified: inspection, analysis, demonstration, or test
+  - a status: draft, approved, changed, or deprecated. Rewording an approved requirement marks
     it *changed* so it gets approved again. A *deprecated* requirement stays in the list and
     the report, lined out for reference, but is left out of the counts and failing flags.
   - a verification result (not verified, pass, fail) with evidence
-  - a discipline: system, EE, ME, FW or other. It shows only when it isn't this tool's own.
+  - a discipline: system, EE, ME, FW, or other. It shows only when it isn't this tool's own.
   - a discussion thread
 - **Traceability:** link a requirement to the checks that show it's met. The requirement shows
   how they stand:
@@ -124,11 +124,11 @@ section, but keeps the requirements, the same way a checklist's review state is 
   Each check's panel shows **Traces to** for the requirements it supports.
 - **Import / export:** paste rows from Excel or import a CSV with a *Requirement* (or
   *Description*) column, plus optional ID, Name, Type or Priority, Category or Sub-System,
-  Source or Rationale, Verification and Status. A Name leads the requirement text; must-have
+  Source or Rationale, Verification, and Status. A Name leads the requirement text; must-have
   priorities are *shall* and the rest *should*; obsolete rows come in deprecated. New
   requirements carry on the imported numbering (GEN-124 after GEN-123). Rows whose ID exists
   update that requirement. **Export CSV** gives the compliance matrix, which the review report also prints.
-- Requirements live in the project document (`reqs`), so they sync, merge and discard like
+- Requirements live in the project document (`reqs`), so they sync, merge, and discard like
   everything else.
 - **From the project plan.** Signoff PL (FTEs) can allocate its System requirements to a board and
   write a derived requirement into the review, or trace one written here up to a System
@@ -149,7 +149,7 @@ of them as revisions: "3.1 · sent for quote", "3.2 · DFM updates, used for bui
 
 - **The list** reads `fabcheck/<id>/runs/*.json` from the board's home repo, once per page load
   (**Refresh** reads again). One row per package, newest first, with older runs of the same
-  package folded under it. A row shows the date, who sent it, the package and the findings
+  package folded under it. A row shows the date, who sent it, the package, and the findings
   counts, and its tag.
 - **Expanding a row** shows the files of the run's fab package zip, grouped as in the zip
   (`Fabrication/`, `Assembly/`), the Fabcheck issues the run raised or last updated, and:
@@ -158,7 +158,7 @@ of them as revisions: "3.1 · sent for quote", "3.2 · DFM updates, used for bui
   - **Open in Fabcheck**: the hand-off below.
   - **Tag as revision** / **Edit revision**: label (the next one is suggested: 3.1 → 3.2, or the
     board's revision with .1), title, status (**Sent to fab**, **Used for builds**,
-    **Withdrawn**), fab house, date sent, order ref and notes. "Superseded by" follows the order of
+    **Withdrawn**), fab house, date sent, order ref, and notes. "Superseded by" follows the order of
     the runs; withdrawn revisions supersede nothing.
 - **The Overview** shows the latest revision and its status under the progress ring, and a
   Fabcheck issue whose run is tagged says so beside *From Fabcheck* ("from 3.2 · DFM updates").
@@ -189,7 +189,7 @@ of them as revisions: "3.1 · sent for quote", "3.2 · DFM updates, used for bui
   revisions on shared boards. Fabcheck's Send edits the stored copy in place, and Signoff PL
   writes only through `patchRecords`, so neither drops them.
 
-## Repositories, people and access
+## Repositories, people, and access
 
 GitHub grants access to whole repositories, so Signoff keeps each audience in its own:
 
@@ -198,7 +198,7 @@ GitHub grants access to whole repositories, so Signoff keeps each audience in it
 | `ee_design_review` (tool) | The tool and the checklists | FTEs |
 | `ee_design_review_data` (data) | Internal reviews (`projects/<id>.json`) and People (`users.json`) | FTEs |
 | `review-ee-<project>` (one per shared project) | That one review | FTEs and that project's contractors |
-| `me_design_review`, `me_design_review_data`, `fw_design_review`, `fw_design_review_data`, `signoff`, `pcb_dfm`, `signoff_pl`, `signoff_pl_data` | Signoff ME, Signoff FW, the hub, Fabcheck and Signoff PL | FTEs |
+| `me_design_review`, `me_design_review_data`, `fw_design_review`, `fw_design_review_data`, `signoff`, `pcb_dfm`, `signoff_pl`, `signoff_pl_data` | Signoff ME, Signoff FW, the hub, Fabcheck, and Signoff PL | FTEs |
 
 All of these are set in Settings, under **Repositories**. An FTE is anyone whose token can open
 the data repo. A contractor's token reaches only their projects' `review-…` repos, so their
@@ -215,7 +215,7 @@ copy of Signoff never sees anything else, and neither does GitHub.
   access to it, including an invitation they haven't accepted; only invitations ask first. Their
   copy of the project disappears at their next sync.
 - **Adding an FTE** invites them to this tool's repo, its data repo, every EE shared repo, and
-  the rest of the suite: Signoff ME's and Signoff FW's tool and data repos, the hub repo, Fabcheck (`pcb_dfm`) and Signoff PL's tool and data repos. That list is
+  the rest of the suite: Signoff ME's and Signoff FW's tool and data repos, the hub repo, Fabcheck (`pcb_dfm`), and Signoff PL's tool and data repos. That list is
   `repos.suite` in `assets/config.js`. Signoff ME's shared `review-me-…` repos are granted from
   Signoff ME's own People page, so add FTEs there too (each tool keeps its own People list).
 - **A contractor** gets only their projects' `review-ee-…` repos. One working on an ME project
@@ -225,7 +225,7 @@ copy of Signoff never sees anything else, and neither does GitHub.
   **Give access** fixes any gaps, and **Remove access** takes a contractor off repos they're
   still on but shouldn't be ("Still on …").
 - Project file names are IDs, so they don't give project names away.
-- **Other tools link here.** Signoff PL, Fabcheck and the hub show a **People & access** link
+- **Other tools link here.** Signoff PL, Fabcheck, and the hub show a **People & access** link
   for FTEs that opens `index.html?page=people`. PL shows it once its own sync confirms an FTE.
   Fabcheck and the hub make no request: they show it when `signoff.v1.settings.tokenTag`
   matches the current token and `signoff.v1.dataAccess` is `ok`, as this tool last found.
@@ -241,7 +241,7 @@ narrower roles. Change the account in Settings; the app handles organizations al
    GitHub emails the invitations.
 3. Send them the tool: `python tools/package.py` makes `dist/Signoff-EE-<build>.zip`. It holds
    the tool and checklists only, with no data and no token, plus a START HERE note. Its sidebar links to
-   the hub, the other Signoff tool and Fabcheck point at the hosted site (`hostedBase` in config).
+   the hub, the other Signoff tool, and Fabcheck point at the hosted site (`hostedBase` in config).
 4. They open it, click the gear, follow *New to GitHub? Set up in four steps*, and click
    Save & sync. Signoff lists their invitations with an **Accept** button. From then on they
    just Sync.
@@ -255,7 +255,7 @@ GitHub does all the access control; the pages are a front end. Two things keep t
 
 - **Review files are untrusted data.** A contractor can push any JSON to their `review-…` repo,
   with or without Signoff, and an FTE's browser then reads it. So:
-  - Status, severity and resolution are taken only from their fixed lists (`model.oneOf`), so
+  - Status, severity, and resolution are taken only from their fixed lists (`model.oneOf`), so
     nothing in a file can reach the page as markup, and every other field is escaped.
   - A project file counts only for the id in its name. An FTE's sync takes from a shared repo
     only the projects the data repo's shared map puts there, so a file planted in one repo
@@ -275,7 +275,7 @@ their repos, so ask them to set an expiry too.
 
 Sync commits **directly to `main`, without pull requests.** This is deliberate.
 
-- Every item state, comment and custom check carries `updatedAt` / `updatedBy`. Two copies of
+- Every item state, comment, and custom check carries `updatedAt` / `updatedBy`. Two copies of
   a project merge key by key, and the newer record wins. Deletions are tombstones.
 - One sync builds one commit (Git Data API: tree → commit → ref update with `force: false`).
 - If someone else pushed in the meantime, GitHub rejects the ref update. Signoff then pulls,
@@ -329,7 +329,7 @@ written, and is never merged.
 - **`reqs`.** It is `null` when Requirements is off for the project. `risk` counts the
   requirements at risk.
 - **`reqList`.** Every requirement that isn't deleted, with deprecated ones flagged by `status`.
-  - `state` is `model.reqState`: deprecated, fail, risk, pass or open.
+  - `state` is `model.reqState`: deprecated, fail, risk, pass, or open.
   - `issues` are the linked checks with an open issue, whose detail is in `open`.
   - `parent` is there only for a Signoff PL link.
   - Text is cut to 500 characters.
@@ -341,7 +341,7 @@ written, and is never merged.
 - **`revisions`.** The board's revisions in order (see *Revisions*): label, status (`sent`,
   `built` or `withdrawn`) and the date sent (`''` if not given). It's left out when there are none,
   so boards without revisions keep their bytes. Signoff PL can show what was built for each
-  EVT, DVT or PVT build.
+  EVT, DVT, or PVT build.
 - **`at` / `by`.** These are the project's latest edit, not the sync time. An unchanged
   project therefore writes the same bytes and isn't committed again.
 - **Existing projects.** Projects synced before the summary existed get one at their next sync,
@@ -379,7 +379,7 @@ written, and is never merged.
 | `tests/test.html` | Model and sync tests against a fake GitHub API (open it over http) |
 | `docs/roadmap.md` | DFM tool and customer-facing plans |
 
-## The shared engine (Signoff EE, ME and FW)
+## The shared engine (Signoff EE, ME, and FW)
 
 All three tools run the same engine. This repository is its source: `assets/model.js`, `github.js`,
 `workspace.js`, `app.js`, `demo.js`, `styles.css` and `tools/build.py`, `package.py`,
@@ -387,10 +387,10 @@ All three tools run the same engine. This repository is its source: `assets/mode
 `python tools/sync_engine.py` (in `me_design_review` and `fw_design_review`), and their `build.py`
 fails if the copy is stale, so fixes flow one way and nothing diverges silently. Fix the engine
 here, then sync ME and FW. What differs between the tools lives in each one's `assets/config.js`, `index.html`,
-`templates/`, `tests/` and docs.
+`templates/`, `tests/`, and docs.
 
 Two other tools copy parts of the engine with their own `tools/sync_vendor.py`:
-- **Fabcheck** (`pcb_dfm`) copies `model.js`, `github.js` and `styles.css`.
+- **Fabcheck** (`pcb_dfm`) copies `model.js`, `github.js`, and `styles.css`.
 - **Signoff PL** (`signoff_pl`) copies the same three. PL passes its own merge to
   `GitHubStore` (`cfg.merge`), because its documents aren't reviews.
 
@@ -398,7 +398,7 @@ After an engine change, re-run `sync_vendor.py` in both.
 
 ## Changing the tool or the checklists
 
-1. Edit `templates/*.json`, `index.html` or `assets/`.
+1. Edit `templates/*.json`, `index.html`, or `assets/`.
 2. Run `python tools/build.py`. It validates the templates, rebuilds `assets/templates.js`,
    and stamps `assets/version.js` plus the `?v=` cache-busters. Use `--check` in CI.
 3. Open `tests/test.html` over http (`python -m http.server`, then

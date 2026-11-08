@@ -1,6 +1,6 @@
 /* Signoff EE: everything that differs between the Signoff tools (EE, ME). The shared engine
-   (model.js, github.js, workspace.js, app.js, demo.js, styles.css and tools/*.py) reads this.
-   Keep the part after "=" strict JSON: tools/build.py, validate_templates.py and package.py
+   (model.js, github.js, workspace.js, app.js, demo.js, styles.css, and tools/*.py) reads this.
+   Keep the part after "=" strict JSON: tools/build.py, validate_templates.py, and package.py
    parse it too.
 
    storage.ns:     localStorage namespace for this tool. The GitHub token (signoff.token) and
@@ -9,7 +9,7 @@
                    another tool's (contractors find their repos by name prefix).
    repos.suite:    other repositories every FTE is invited to, next to this tool's own:
                    the other discipline's tool and data repos, and the hub.
-   ids:            prefixes for new project, comment and custom-check IDs.
+   ids:            prefixes for new project, comment, and custom-check IDs.
    templatePrefixes: checklist id -> required prefix of its section and item IDs.
    words.unit(s):  what one review is called on screen (board / part). "Project" is the
                    client project several reviews belong to (meta.project).
@@ -62,7 +62,7 @@ window.SIGNOFF_CONFIG = {
     { "id": "mains", "label": "Mains / HV", "desc": "AC mains or > 60 V DC, isolation" },
     { "id": "high-current", "label": "High current", "desc": "More than ~5 A, power stages" },
     { "id": "motor", "label": "Motors", "desc": "Motors, solenoids, inductive loads" },
-    { "id": "rf", "label": "RF / Wireless", "desc": "Radio, antenna or RF front end" },
+    { "id": "rf", "label": "RF / Wireless", "desc": "Radio, antenna, or RF front end" },
     { "id": "high-speed", "label": "High-speed", "desc": "Multi-Gb/s links, controlled impedance" },
     { "id": "ddr", "label": "DDR memory", "desc": "External DRAM" },
     { "id": "fpga", "label": "FPGA / SoC", "desc": "FPGA or application processor" },

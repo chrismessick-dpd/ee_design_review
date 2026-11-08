@@ -3,7 +3,7 @@
   "title": "Assembly & BOM Review",
   "short": "Assembly",
   "version": 3,
-  "description": "Checks that the BOM, footprints, placement data, stencil, soldering process and assembly documentation let an assembler build the board right first time.",
+  "description": "Checks that the BOM, footprints, placement data, stencil, soldering process, and assembly documentation let an assembler build the board right first time.",
   "sections": [
     {
       "id": "a-bom",
@@ -34,13 +34,13 @@
         {
           "id": "ab4",
           "text": "Alternate or equivalent parts are listed where applicable",
-          "hint": "Confirm each alternate is a true form-fit-function match: footprint, pinout, voltage rating, tolerance and temperature range.",
+          "hint": "Confirm each alternate is a true form-fit-function match: footprint, pinout, voltage rating, tolerance, and temperature range.",
           "tags": [],
           "severity": "minor"
         },
         {
           "id": "ab5",
-          "text": "No obsolete, NRND or EOL parts are used without an approved substitute",
+          "text": "No obsolete, NRND, or EOL parts are used without an approved substitute",
           "hint": "Check lifecycle status at the manufacturer or a distributor shortly before release; status changes without notice.",
           "tags": [],
           "severity": "major"
@@ -55,13 +55,13 @@
         {
           "id": "ab7",
           "text": "BOM reference designators match the schematic exactly",
-          "hint": "Look for missing, duplicated or renamed refdes after back-annotation.",
+          "hint": "Look for missing, duplicated, or renamed refdes after back-annotation.",
           "tags": [],
           "severity": "major"
         },
         {
           "id": "asm-bom-1",
-          "text": "Every line has a complete description: value, tolerance, rating, dielectric and package",
+          "text": "Every line has a complete description: value, tolerance, rating, dielectric, and package",
           "hint": "\"10 µF 0805\" is ambiguous: X7R vs Y5V and the voltage rating change the effective capacitance under DC bias.",
           "tags": [],
           "severity": "major"
@@ -76,7 +76,7 @@
         {
           "id": "asm-bom-3",
           "text": "Each build variant has its own BOM, identified by an assembly part number",
-          "hint": "Variants managed by memory get built wrong. Make the variant visible on the BOM, the assembly drawing and ideally the board label.",
+          "hint": "Variants managed by memory get built wrong. Make the variant visible on the BOM, the assembly drawing, and ideally the board label.",
           "tags": [],
           "severity": "major"
         },
@@ -134,7 +134,7 @@
         {
           "id": "ap1",
           "text": "Every footprint is verified against the manufacturer's datasheet land pattern",
-          "hint": "Check pad size, pitch, body outline and any exposed pad. Library parts copied from other projects are a common source of error.",
+          "hint": "Check pad size, pitch, body outline, and any exposed pad. Library parts copied from other projects are a common source of error.",
           "tags": [],
           "severity": "critical"
         },
@@ -183,20 +183,20 @@
         {
           "id": "asm-fp-3",
           "text": "Footprint pad numbers match the schematic symbol pin numbers for every unique part",
-          "hint": "Watch SOT-23 transistors and regulators (pinouts vary by vendor), connectors and mirrored headers.",
+          "hint": "Watch SOT-23 transistors and regulators (pinouts vary by vendor), connectors, and mirrored headers.",
           "tags": [],
           "severity": "critical"
         },
         {
           "id": "asm-fp-4",
           "text": "The footprint matches the exact package variant of the ordered MPN",
-          "hint": "One IC often comes in QFN, DFN and WSON variants with different pad sizes or exposed pads. Check the ordering code.",
+          "hint": "One IC often comes in QFN, DFN, and WSON variants with different pad sizes or exposed pads. Check the ordering code.",
           "tags": [],
           "severity": "major"
         },
         {
           "id": "asm-fp-5",
-          "text": "Thermal vias in exposed pads are tented, plugged or filled to stop solder wicking",
+          "text": "Thermal vias in exposed pads are tented, plugged, or filled to stop solder wicking",
           "hint": "Open vias drain solder away from the joint and cause voids or a lifted part. Agree the treatment with fab and assembler.",
           "tags": [],
           "severity": "major"
@@ -247,7 +247,7 @@
       "items": [
         {
           "id": "asm-pnp-1",
-          "text": "Centroid file lists refdes, X, Y, rotation and side for every placed part",
+          "text": "Centroid file lists refdes, X, Y, rotation, and side for every placed part",
           "hint": "Generate it from the release PCB file, not an earlier one.",
           "tags": [],
           "severity": "critical"
@@ -320,7 +320,7 @@
         {
           "id": "asm-stn-1",
           "text": "The paste layer has apertures on every pad to be soldered and none on pads that must stay bare",
-          "hint": "Remove paste from test points, fiducials, edge fingers and hand-solder pads.",
+          "hint": "Remove paste from test points, fiducials, edge fingers, and hand-solder pads.",
           "tags": [],
           "severity": "major"
         },
@@ -361,7 +361,7 @@
         },
         {
           "id": "asm-stn-7",
-          "text": "Solder paste type is specified: alloy, powder type and flux chemistry",
+          "text": "Solder paste type is specified: alloy, powder type, and flux chemistry",
           "hint": "No-clean vs water-soluble flux affects cleaning and coating. Finer powder types suit finer pitch.",
           "tags": [],
           "severity": "major"
@@ -376,7 +376,7 @@
         {
           "id": "asm-sol-1",
           "text": "Every part's peak temperature and time-above-liquidus limits suit the planned reflow profile",
-          "hint": "Check connectors, crystals, electrolytics, LEDs and plastic switches, which often have lower limits than ICs.",
+          "hint": "Check connectors, crystals, electrolytics, LEDs, and plastic switches, which often have lower limits than ICs.",
           "tags": [],
           "severity": "critical"
         },
@@ -390,21 +390,21 @@
         {
           "id": "asm-sol-3",
           "text": "Bottom-side parts are light enough to stay in place during the second reflow, or are glued",
-          "hint": "Check heavy inductors, connectors and large ICs on the first-reflowed side with the assembler.",
+          "hint": "Check heavy inductors, connectors, and large ICs on the first-reflowed side with the assembler.",
           "tags": [],
           "severity": "major"
         },
         {
           "id": "asm-sol-4",
           "text": "Parts rated for only one reflow cycle are placed on the second-reflowed side",
-          "hint": "Some connectors, LEDs and sensors only allow a single reflow; check datasheets.",
+          "hint": "Some connectors, LEDs, and sensors only allow a single reflow; check datasheets.",
           "tags": [],
           "severity": "major"
         },
         {
           "id": "asm-sol-5",
           "text": "Every through-hole part has a defined soldering process",
-          "hint": "Wave, selective, pin-in-paste or hand solder. Each has its own pad and keep-out requirements.",
+          "hint": "Wave, selective, pin-in-paste, or hand solder. Each has its own pad and keep-out requirements.",
           "tags": [],
           "severity": "major"
         },
@@ -518,14 +518,14 @@
         {
           "id": "asm-adr-5",
           "text": "The cleaning requirement is specified: no-clean residue allowed, or wash required",
-          "hint": "Residue matters for coating adhesion, high-impedance circuits and RF.",
+          "hint": "Residue matters for coating adhesion, high-impedance circuits, and RF.",
           "tags": [],
           "severity": "major"
         },
         {
           "id": "asm-adr-6",
-          "text": "Label, serial number and marking locations are specified",
-          "hint": "Keep labels off vents, heat sources and areas that get coated.",
+          "text": "Label, serial number, and marking locations are specified",
+          "hint": "Keep labels off vents, heat sources, and areas that get coated.",
           "tags": [],
           "severity": "minor"
         }
@@ -542,21 +542,21 @@
         {
           "id": "asm-cot-1",
           "text": "The coating material type is chosen for the environment and recorded",
-          "hint": "Acrylic, silicone, urethane or parylene differ in moisture, chemical and temperature resistance and in reworkability.",
+          "hint": "Acrylic, silicone, urethane, or parylene differ in moisture, chemical, and temperature resistance and in reworkability.",
           "tags": [],
           "severity": "major"
         },
         {
           "id": "asm-cot-2",
           "text": "Coating keep-out areas are defined and masked",
-          "hint": "Connectors, test points, switches, sensor openings, heatsink interfaces and grounding contacts usually stay uncoated.",
+          "hint": "Connectors, test points, switches, sensor openings, heatsink interfaces, and grounding contacts usually stay uncoated.",
           "tags": [],
           "severity": "major"
         },
         {
           "id": "asm-cot-3",
           "text": "Components are compatible with coating",
-          "hint": "Vented sensors, relays, trimmers, unsealed switches and some connectors are damaged or disabled by coating.",
+          "hint": "Vented sensors, relays, trimmers, unsealed switches, and some connectors are damaged or disabled by coating.",
           "tags": [],
           "severity": "major"
         },
@@ -577,7 +577,7 @@
         {
           "id": "asm-cot-6",
           "text": "Tall or heavy parts are staked or adhesive-bonded for vibration",
-          "hint": "Electrolytics, inductors and large connectors fatigue their joints under vibration.",
+          "hint": "Electrolytics, inductors, and large connectors fatigue their joints under vibration.",
           "tags": [],
           "severity": "major"
         },
@@ -618,29 +618,29 @@
         },
         {
           "id": "asm-mec-4",
-          "text": "Fastener holes have keep-outs for screw heads, washers and tools",
+          "text": "Fastener holes have keep-outs for screw heads, washers, and tools",
           "hint": "Check both sides of the board and the driver access path.",
           "tags": [],
           "severity": "major"
         },
         {
           "id": "asm-mec-5",
-          "text": "Heatsink attachment, thermal interface material and clamping are specified",
-          "hint": "Name the TIM, its thickness and the fastener torque or clip part number.",
+          "text": "Heatsink attachment, thermal interface material, and clamping are specified",
+          "hint": "Name the TIM, its thickness, and the fastener torque or clip part number.",
           "tags": [],
           "severity": "major"
         },
         {
           "id": "asm-mec-6",
           "text": "Board-to-board connector stack height and mating tolerance are checked",
-          "hint": "Add up connector heights, standoffs and tolerances against the datasheet's allowed mating range.",
+          "hint": "Add up connector heights, standoffs, and tolerances against the datasheet's allowed mating range.",
           "tags": [],
           "severity": "major"
         },
         {
           "id": "asm-mec-7",
           "text": "Heavy or cable-loaded connectors have mechanical strain relief",
-          "hint": "Through-hole anchors, screws or brackets stop cable loads from reaching solder joints.",
+          "hint": "Through-hole anchors, screws, or brackets stop cable loads from reaching solder joints.",
           "tags": [],
           "severity": "major"
         }
@@ -679,14 +679,14 @@
         {
           "id": "asm-ins-4",
           "text": "First-article inspection is requested for the first build",
-          "hint": "FAI catches rotation, polarity and wrong-part errors before the full batch is built.",
+          "hint": "FAI catches rotation, polarity, and wrong-part errors before the full batch is built.",
           "tags": [],
           "severity": "major"
         },
         {
           "id": "asm-ins-5",
           "text": "Test points are reachable after assembly for flying probe or ICT",
-          "hint": "Check that tall parts, shields and connectors don't block probe access.",
+          "hint": "Check that tall parts, shields, and connectors don't block probe access.",
           "tags": [
             "production"
           ],
@@ -704,7 +704,7 @@
         {
           "id": "asm-ins-7",
           "text": "Traceability is defined: serial number or lot recorded for each board",
-          "hint": "Link the serial number to the BOM revision, firmware version and test result.",
+          "hint": "Link the serial number to the BOM revision, firmware version, and test result.",
           "tags": [
             "production",
             "medical",
@@ -736,7 +736,7 @@
         {
           "id": "aq3",
           "text": "ESD-sensitive components are identified and handling requirements noted",
-          "hint": "Especially important for RF front ends, unprotected MOSFET gates and lasers.",
+          "hint": "Especially important for RF front ends, unprotected MOSFET gates, and lasers.",
           "tags": [],
           "severity": "minor"
         },
@@ -797,7 +797,7 @@
         {
           "id": "asm-cst-2",
           "text": "Parts are placed on one side where the design allows",
-          "hint": "A single reflow pass saves a stencil, a setup and a process step.",
+          "hint": "A single reflow pass saves a stencil, a setup, and a process step.",
           "tags": [],
           "severity": "minor"
         },

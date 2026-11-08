@@ -3,7 +3,7 @@
   "title": "Fabrication & Release Review",
   "short": "Fab & Release",
   "version": 3,
-  "description": "Checks that the fabrication package, drawing, stackup, panel and release records are complete and match the fabricator's capability before the board is ordered.",
+  "description": "Checks that the fabrication package, drawing, stackup, panel, and release records are complete and match the fabricator's capability before the board is ordered.",
   "sections": [
     {
       "id": "g-fil",
@@ -12,7 +12,7 @@
       "items": [
         {
           "id": "gf1",
-          "text": "All required layers are exported: copper (top, bottom, inner), silkscreen, solder mask and paste",
+          "text": "All required layers are exported: copper (top, bottom, inner), silkscreen, solder mask, and paste",
           "hint": "Compare the layer list against the stackup; a missing inner layer is easy to miss in a zip.",
           "tags": [],
           "severity": "critical"
@@ -53,7 +53,7 @@
         },
         {
           "id": "fab-pkg-1",
-          "text": "Gerber X2, ODB++ or IPC-2581 is used, as agreed with the fabricator",
+          "text": "Gerber X2, ODB++, or IPC-2581 is used, as agreed with the fabricator",
           "hint": "Intelligent formats carry layer function and stackup, reducing interpretation errors.",
           "tags": [],
           "severity": "minor"
@@ -74,7 +74,7 @@
         },
         {
           "id": "fab-pkg-4",
-          "text": "A drill drawing or drill table lists every hole size, symbol, quantity and plating",
+          "text": "A drill drawing or drill table lists every hole size, symbol, quantity, and plating",
           "hint": "Check the totals against the drill file.",
           "tags": [],
           "severity": "major"
@@ -82,7 +82,7 @@
         {
           "id": "fab-pkg-5",
           "text": "A readme lists every file in the package and its function",
-          "hint": "Include layer order, contact name and the revision.",
+          "hint": "Include layer order, contact name, and the revision.",
           "tags": [],
           "severity": "minor"
         },
@@ -101,7 +101,7 @@
         },
         {
           "id": "fab-pkg-8",
-          "text": "Each blind, buried or backdrill span has its own drill file",
+          "text": "Each blind, buried, or backdrill span has its own drill file",
           "hint": "Name the start and end layer of each span.",
           "tags": [
             "hdi",
@@ -166,7 +166,7 @@
         {
           "id": "fab-not-2",
           "text": "Material Tg and Td suit lead-free assembly and the operating temperature",
-          "hint": "Mid- or high-Tg material is typical for lead-free, thick or high-layer-count boards; confirm per fab capability.",
+          "hint": "Mid- or high-Tg material is typical for lead-free, thick, or high-layer-count boards; confirm per fab capability.",
           "tags": [],
           "severity": "major"
         },
@@ -217,7 +217,7 @@
       "items": [
         {
           "id": "fab-stk-1",
-          "text": "The fab drawing has a stackup with layer order, copper weights, dielectric thicknesses and materials",
+          "text": "The fab drawing has a stackup with layer order, copper weights, dielectric thicknesses, and materials",
           "tags": [],
           "severity": "critical"
         },
@@ -237,7 +237,7 @@
         },
         {
           "id": "fab-stk-4",
-          "text": "The impedance table lists each target, tolerance, layer, reference planes and trace geometry",
+          "text": "The impedance table lists each target, tolerance, layer, reference planes, and trace geometry",
           "hint": "Include differential pairs with both width and spacing.",
           "tags": [
             "high-speed",
@@ -349,7 +349,7 @@
         },
         {
           "id": "fab-drl-7",
-          "text": "Backdrill depth, maximum stub length and must-not-cut layers are specified",
+          "text": "Backdrill depth, maximum stub length, and must-not-cut layers are specified",
           "hint": "Give it per net or per drill span, matched to the backdrill file.",
           "tags": [
             "high-speed"
@@ -392,7 +392,7 @@
         },
         {
           "id": "fab-msk-3",
-          "text": "Mask openings exist for test points, fiducials and intentionally exposed copper",
+          "text": "Mask openings exist for test points, fiducials, and intentionally exposed copper",
           "tags": [],
           "severity": "major"
         },
@@ -435,13 +435,13 @@
         {
           "id": "fab-fin-1",
           "text": "The surface finish suits the finest-pitch parts and their flatness needs",
-          "hint": "HASL is uneven and generally a poor fit for fine pitch and BGA; ENIG, OSP or immersion finishes are flatter.",
+          "hint": "HASL is uneven and generally a poor fit for fine pitch and BGA; ENIG, OSP, or immersion finishes are flatter.",
           "tags": [],
           "severity": "major"
         },
         {
           "id": "fab-fin-2",
-          "text": "The finish suits any wire bonding, press-fit or contact areas",
+          "text": "The finish suits any wire bonding, press-fit, or contact areas",
           "hint": "Check connector and bonding requirements; ENEPIG or hard gold may be needed.",
           "tags": [],
           "severity": "major"
@@ -490,7 +490,7 @@
         },
         {
           "id": "gp3",
-          "text": "Rails, tooling holes and fiducials are included in the panel design",
+          "text": "Rails, tooling holes, and fiducials are included in the panel design",
           "hint": "Follow the assembler's preferred rail width and tooling hole size.",
           "tags": [],
           "severity": "major"
@@ -525,13 +525,13 @@
         {
           "id": "fab-pnl-4",
           "text": "A panel drawing is included in the release package",
-          "hint": "Dimension the array, rails, tooling holes, fiducials and break features.",
+          "hint": "Dimension the array, rails, tooling holes, fiducials, and break features.",
           "tags": [],
           "severity": "major"
         },
         {
           "id": "fab-pnl-5",
-          "text": "V-score depth, angle and residual web are specified per fab capability",
+          "text": "V-score depth, angle, and residual web are specified per fab capability",
           "tags": [],
           "severity": "minor"
         },
@@ -585,7 +585,7 @@
         {
           "id": "fab-tst-4",
           "text": "Microsection (cross-section) reports are requested",
-          "hint": "Show plating thickness, registration and laminate quality.",
+          "hint": "Show plating thickness, registration, and laminate quality.",
           "tags": [
             "medical",
             "automotive",
@@ -602,7 +602,7 @@
         {
           "id": "fab-tst-6",
           "text": "Insulation or hipot testing between isolated nets is specified for the bare board",
-          "hint": "Define the test voltage, duration and which nets are tested.",
+          "hint": "Define the test voltage, duration, and which nets are tested.",
           "tags": [
             "mains"
           ],
@@ -736,7 +736,7 @@
         {
           "id": "gr4",
           "text": "Design files are locked and archived at the release revision",
-          "hint": "Include schematic, PCB, libraries and output settings, so the release can be regenerated.",
+          "hint": "Include schematic, PCB, libraries, and output settings, so the release can be regenerated.",
           "tags": [],
           "severity": "major"
         },
@@ -748,7 +748,7 @@
         },
         {
           "id": "fab-rel-2",
-          "text": "Fab, assembly, BOM and centroid outputs are all from the same release revision",
+          "text": "Fab, assembly, BOM, and centroid outputs are all from the same release revision",
           "hint": "Release them together as one package to avoid mixing revisions.",
           "tags": [],
           "severity": "major"
@@ -762,7 +762,7 @@
         {
           "id": "fab-rel-4",
           "text": "Design review sign-offs are recorded before release",
-          "hint": "Include schematic, layout and this fab review, with reviewer names and dates.",
+          "hint": "Include schematic, layout, and this fab review, with reviewer names and dates.",
           "tags": [],
           "severity": "major"
         },
@@ -815,7 +815,7 @@
         },
         {
           "id": "fab-flx-6",
-          "text": "Stiffeners are specified with material, thickness, location and adhesive",
+          "text": "Stiffeners are specified with material, thickness, location, and adhesive",
           "tags": [],
           "severity": "major"
         },

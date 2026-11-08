@@ -2,8 +2,10 @@
 
 Signoff EE is the electrical design review tool, and this repo is the **source of the shared
 Signoff engine**. When the suite folder is checked out, also read `../CLAUDE.md`, which covers the
-suite map, hard rules, the demo suite and testing. This repo is public: no client data, tokens or
-fab packages, in code, docs or commit messages.
+suite map, hard rules, the demo suite, and testing. This repo is public: no client data, tokens, or
+fab packages, in code, docs, or commit messages.
+
+**Serial comma** (Chris, 2026-11-08): use the Oxford comma in every list of three or more, in UI text, docs, demo data, checklists, and commit messages: "A, B, and C". Never change check ids or data keys to fit it.
 
 Read next:
 - `README.md`: users, tokens, requirements, repos and access, sync, *The project summary*,
@@ -22,10 +24,10 @@ Read next:
   | Tool | Command |
   | --- | --- |
   | Signoff ME and Signoff FW | `python tools/sync_engine.py` in `../me_design_review` and `../fw_design_review` |
-  | Fabcheck and Signoff PL | `python tools/sync_vendor.py` in `../pcb_dfm` and `../signoff_pl`, for `model.js`, `github.js` and `styles.css` |
+  | Fabcheck and Signoff PL | `python tools/sync_vendor.py` in `../pcb_dfm` and `../signoff_pl`, for `model.js`, `github.js`, and `styles.css` |
   | Hub | `python tools/sync_suite_css.py` in `../signoff`, for `styles.css` |
 
-  Anything specific to one tool goes in its `assets/config.js`, `index.html`, `templates/` or
+  Anything specific to one tool goes in its `assets/config.js`, `index.html`, `templates/`, or
   `tests/`.
 - **Check IDs** are never renumbered or reused. Reviews store their state by ID. Bump a template's
   `version` when its wording changes.
@@ -44,7 +46,7 @@ Read next:
   live links rely on them.
 - **PL writes requirements here (2026-11-01).** Signoff PL writes only `reqs` records into review
   files, with `GitHubStore.patchRecords` (additive proof, `force: false`, conflicts returned). Keep
-  `reqParent`, `reqState`, `reqDiscipline` and `summary.reqList` in step with PL's `plreqs.js` and
+  `reqParent`, `reqState`, `reqDiscipline`, and `summary.reqList` in step with PL's `plreqs.js` and
   `reader.js`. See README *Requirements*.
 - **Demo.**
   - Demo projects come from `config.demo`, with fixed ids from `S.demo.id(seed)`.

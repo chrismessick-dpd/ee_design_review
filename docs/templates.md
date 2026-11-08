@@ -32,7 +32,7 @@ templates pulled from the repo are used instead of the bundled copy.
 }
 ```
 
-- `id` (template, section, item): lowercase letters, digits and `-`. Unique across **all**
+- `id` (template, section, item): lowercase letters, digits, and `-`. Unique across **all**
   templates. Never reuse or renumber an ID: reviews store their state by item ID.
   If an item is removed, its ID is retired; reviews keep its state and show it as retired.
 - `text`: the check, phrased as the condition that should be true. Required.
@@ -55,15 +55,15 @@ Use only these. `tools/validate_templates.py` rejects anything else (the list li
 | `low-power` | has a sleep / ultra-low-power budget |
 | `mains` | connects to AC mains or has voltages above 60 V DC; needs isolation / creepage |
 | `high-current` | carries more than ~5 A on any rail, or has power stages |
-| `motor` | drives motors, solenoids or other inductive actuators |
-| `rf` | has a radio, antenna or RF front end |
+| `motor` | drives motors, solenoids, or other inductive actuators |
+| `rf` | has a radio, antenna, or RF front end |
 | `high-speed` | has multi-Gb/s serial links or edge rates needing controlled impedance |
 | `ddr` | has external DRAM (DDR3/4/5, LPDDR) |
 | `fpga` | has an FPGA or a large application processor / SoC |
 | `bga` | uses BGA or other fine-pitch area-array packages |
-| `hdi` | uses microvias, via-in-pad or sequential lamination |
+| `hdi` | uses microvias, via-in-pad, or sequential lamination |
 | `flex` | is flex or rigid-flex |
-| `precision-analog` | has precision measurement, low-noise analog or sensors |
+| `precision-analog` | has precision measurement, low-noise analog, or sensors |
 | `audio` | has audio inputs or outputs |
 | `display` | drives a display or touch panel |
 | `harsh-env` | is industrial / outdoor: wide temperature, vibration, moisture, conformal coat |

@@ -27,7 +27,7 @@
         {
           "id": "adc3",
           "text": "Ratiometric measurement is used where appropriate (reference derived from the excitation voltage)",
-          "hint": "Bridges, potentiometers and RTDs cancel excitation drift when the ADC reference tracks the excitation.",
+          "hint": "Bridges, potentiometers, and RTDs cancel excitation drift when the ADC reference tracks the excitation.",
           "tags": [],
           "severity": "major"
         },
@@ -66,7 +66,7 @@
         {
           "id": "adc8",
           "text": "Reference voltage source meets the stability and noise budget for the required accuracy",
-          "hint": "Compare reference tempco, initial accuracy and noise against the error budget. An internal MCU reference is often the limiting factor.",
+          "hint": "Compare reference tempco, initial accuracy, and noise against the error budget. An internal MCU reference is often the limiting factor.",
           "tags": [],
           "severity": "major"
         },
@@ -122,7 +122,7 @@
         {
           "id": "dac3",
           "text": "Reference voltage accuracy and noise meet the output accuracy requirement",
-          "hint": "Reference error passes straight to the output. Check its initial accuracy, tempco and noise against the error budget.",
+          "hint": "Reference error passes straight to the output. Check its initial accuracy, tempco, and noise against the error budget.",
           "tags": [],
           "severity": "major"
         },
@@ -163,7 +163,7 @@
       "items": [
         {
           "id": "uart1",
-          "text": "Baud rate, stop bits and parity match between both ends of the link",
+          "text": "Baud rate, stop bits, and parity match between both ends of the link",
           "hint": "Also check that the clock source gives an acceptable baud-rate error, per the MCU datasheet.",
           "tags": [],
           "severity": "major"
@@ -220,7 +220,7 @@
         {
           "id": "ifc-uart-2",
           "text": "No back-powering occurs through UART lines when one side is unpowered",
-          "hint": "A driven TX into an unpowered device's RX can power it through ESD diodes. Use series resistors, power-off-tolerant buffers or sequencing.",
+          "hint": "A driven TX into an unpowered device's RX can power it through ESD diodes. Use series resistors, power-off-tolerant buffers, or sequencing.",
           "tags": [],
           "severity": "major"
         },
@@ -389,7 +389,7 @@
         },
         {
           "id": "i2s4",
-          "text": "Data format matches at both ends (I2S, left-justified, right-justified or TDM)",
+          "text": "Data format matches at both ends (I2S, left-justified, right-justified, or TDM)",
           "hint": "A one-bit offset between I2S and left-justified formats halves the amplitude or adds distortion.",
           "tags": [],
           "severity": "major"
@@ -474,7 +474,7 @@
         {
           "id": "usb7",
           "text": "Connector shield is connected to chassis / GND according to the product's shielding strategy",
-          "hint": "Options include a direct bond, an RC network (e.g. a resistor and capacitor in parallel) or a ferrite. Choose deliberately for EMC and ESD.",
+          "hint": "Options include a direct bond, an RC network (e.g. a resistor and capacitor in parallel), or a ferrite. Choose deliberately for EMC and ESD.",
           "tags": [],
           "severity": "major"
         },
@@ -511,7 +511,7 @@
         {
           "id": "ifc-usb-5",
           "text": "Suspend current of the bus-powered device is within the USB specification limit",
-          "hint": "Count all leakage paths, LEDs and regulators that stay on in suspend.",
+          "hint": "Count all leakage paths, LEDs, and regulators that stay on in suspend.",
           "tags": [
             "low-power"
           ],
@@ -549,7 +549,7 @@
         },
         {
           "id": "disp4",
-          "text": "Parallel RGB: data, HSYNC, VSYNC and DE are length-matched to PCLK within the timing budget",
+          "text": "Parallel RGB: data, HSYNC, VSYNC, and DE are length-matched to PCLK within the timing budget",
           "hint": "Check setup and hold at the panel against the PCLK edge polarity.",
           "tags": [],
           "severity": "major"
@@ -584,7 +584,7 @@
         },
         {
           "id": "ifc-disp-1",
-          "text": "FPC connector pin-1 orientation, pitch and contact side (top / bottom) match the panel tail",
+          "text": "FPC connector pin-1 orientation, pitch, and contact side (top / bottom) match the panel tail",
           "hint": "A mirrored FPC pinout is a very common respin; check against the panel drawing, not just the netlist.",
           "tags": [],
           "severity": "major"
@@ -662,7 +662,7 @@
         {
           "id": "can2",
           "text": "A CAN transceiver sits between the controller TX/RX and the bus CANH/CANL",
-          "hint": "Check the transceiver matches the bus type (high-speed CAN, CAN FD or fault-tolerant).",
+          "hint": "Check the transceiver matches the bus type (high-speed CAN, CAN FD, or fault-tolerant).",
           "tags": [],
           "severity": "critical"
         },
@@ -774,7 +774,7 @@
         {
           "id": "ifc-eth-2",
           "text": "MAC-PHY interface mode (MII / RMII / RGMII) matches on both sides, including RGMII internal delays",
-          "hint": "RGMII needs a clock delay inserted by the PHY, the MAC or the PCB, and by exactly one of them.",
+          "hint": "RGMII needs a clock delay inserted by the PHY, the MAC, or the PCB, and by exactly one of them.",
           "tags": [],
           "severity": "major"
         },
@@ -952,7 +952,7 @@
         },
         {
           "id": "ifc-dbg-5",
-          "text": "JTAG: TRST, TMS and TDI pull resistors follow the device datasheet",
+          "text": "JTAG: TRST, TMS, and TDI pull resistors follow the device datasheet",
           "hint": "Wrong pull directions can hold the TAP in reset or make the chain unreliable.",
           "tags": [],
           "severity": "major"
@@ -968,7 +968,7 @@
         },
         {
           "id": "ifc-dbg-7",
-          "text": "Programming access exists in production (pads, pogo-pin pattern or Tag-Connect footprint)",
+          "text": "Programming access exists in production (pads, pogo-pin pattern, or Tag-Connect footprint)",
           "hint": "Plan fixture access early. Pads hidden under components or shields cannot be probed.",
           "tags": [
             "production"
@@ -1021,7 +1021,7 @@
         },
         {
           "id": "ifc-qspi-5",
-          "text": "Boot ROM supports the chosen flash part, mode and address width if the device boots from it",
+          "text": "Boot ROM supports the chosen flash part, mode, and address width if the device boots from it",
           "hint": "Check the boot ROM's supported command set and dummy-cycle defaults.",
           "tags": [],
           "severity": "critical"
@@ -1107,8 +1107,8 @@
       "items": [
         {
           "id": "ifc-ddr-1",
-          "text": "DDR type, density and speed grade are supported by the controller and its boot / init software",
-          "hint": "Confirm the controller's supported device widths, ranks and densities.",
+          "text": "DDR type, density, and speed grade are supported by the controller and its boot / init software",
+          "hint": "Confirm the controller's supported device widths, ranks, and densities.",
           "tags": [],
           "severity": "critical"
         },
@@ -1142,7 +1142,7 @@
         },
         {
           "id": "ifc-ddr-6",
-          "text": "VREF generation, filtering and routing follow the controller / memory datasheet",
+          "text": "VREF generation, filtering, and routing follow the controller / memory datasheet",
           "hint": "Keep VREF away from noisy nets and decouple it at each device.",
           "tags": [],
           "severity": "major"
@@ -1193,7 +1193,7 @@
         },
         {
           "id": "ifc-pcie-3",
-          "text": "Reference clock source, architecture (common / separate) and jitter meet the endpoint requirement",
+          "text": "Reference clock source, architecture (common / separate), and jitter meet the endpoint requirement",
           "hint": "Check the clock's jitter against the requirement for the PCIe generation used.",
           "tags": [],
           "severity": "major"
@@ -1221,8 +1221,8 @@
         },
         {
           "id": "ifc-pcie-7",
-          "text": "M.2 / card-edge connector key, pinout and power rails match the module type",
-          "hint": "Check the M.2 key, module length and 3.3 V current per the module datasheet.",
+          "text": "M.2 / card-edge connector key, pinout, and power rails match the module type",
+          "hint": "Check the M.2 key, module length, and 3.3 V current per the module datasheet.",
           "tags": [],
           "severity": "major"
         }
@@ -1235,7 +1235,7 @@
       "items": [
         {
           "id": "ifc-csi-1",
-          "text": "Lane count, data rate and lane mapping are supported by the processor's CSI receiver",
+          "text": "Lane count, data rate, and lane mapping are supported by the processor's CSI receiver",
           "hint": "Check the processor supports the sensor's output format and bit depth.",
           "tags": [],
           "severity": "critical"
@@ -1257,7 +1257,7 @@
         {
           "id": "ifc-csi-4",
           "text": "Sensor power rails and sequencing match the sensor datasheet",
-          "hint": "Image sensors often need the analog, digital and I/O rails in a specific order.",
+          "hint": "Image sensors often need the analog, digital, and I/O rails in a specific order.",
           "tags": [],
           "severity": "critical"
         },
@@ -1488,7 +1488,7 @@
       "items": [
         {
           "id": "ifc-sens-1",
-          "text": "4–20 mA input: burden resistor value, tolerance and power rating suit the full current range",
+          "text": "4–20 mA input: burden resistor value, tolerance, and power rating suit the full current range",
           "hint": "Include fault currents above 20 mA and below 4 mA so faults can be detected.",
           "tags": [],
           "severity": "major"
@@ -1516,14 +1516,14 @@
         },
         {
           "id": "ifc-sens-5",
-          "text": "RTD wiring (2, 3 or 4 wire) matches the lead-resistance error budget",
+          "text": "RTD wiring (2, 3, or 4 wire) matches the lead-resistance error budget",
           "hint": "Two-wire RTDs add lead resistance directly to the reading; three- and four-wire connections cancel it. Complements the excitation check in the ADC section.",
           "tags": [],
           "severity": "major"
         },
         {
           "id": "ifc-sens-6",
-          "text": "Bridge sensors: excitation, gain and offset are budgeted for full-scale range",
+          "text": "Bridge sensors: excitation, gain, and offset are budgeted for full-scale range",
           "hint": "Check the bridge output range against the ADC input range at the chosen gain.",
           "tags": [],
           "severity": "major"
@@ -1625,7 +1625,7 @@
         },
         {
           "id": "ifc-touch-5",
-          "text": "Ground and shield connections between touch panel, display and chassis follow the vendor guidance",
+          "text": "Ground and shield connections between touch panel, display, and chassis follow the vendor guidance",
           "hint": "Follow the touch vendor's grounding guidance; poor grounding gives false or missed touches.",
           "tags": [],
           "severity": "major"

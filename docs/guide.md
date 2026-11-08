@@ -7,7 +7,7 @@
 ## Part 1: Signoff EE at a glance
 
 Signoff EE is Dovetail's electrical design review tool. A project is a review of one board. It
-walks reviewers through 930 checks in six checklists and records every decision, comment and
+walks reviewers through 930 checks in six checklists and records every decision, comment, and
 issue. At the end it produces a signed-off review report.
 
 | Checklist | Covers |
@@ -24,14 +24,14 @@ issue. At the end it produces a signed-off review report.
 1. **Describe the board.** Pick the checklists and the board's profile (battery, mains, RF,
    high-speed, BGA, flex…). Checks for features the board doesn't have are set aside, so the
    list fits the board.
-2. **Review.** Mark each check **Pass**, **Issue** or **N/A**. Keyboard: `j`/`k` to move, `p`/`i`/`n`
+2. **Review.** Mark each check **Pass**, **Issue**, or **N/A**. Keyboard: `j`/`k` to move, `p`/`i`/`n`
    to mark, `c` to comment. Each check carries guidance on what to look for.
 3. **Track issues.** Every issue has a severity, an owner, a reference, a discussion, and an
-   outcome: open, fixed or waived. The **Findings** tab lists them all.
+   outcome: open, fixed, or waived. The **Findings** tab lists them all.
 4. **Requirements (optional).** List what the board must do, how each requirement is verified,
    and which checks show it's met. Signoff flags a requirement whose checks have open issues.
    You can paste requirements from Excel and export the compliance matrix.
-5. **Report.** Print or save a PDF with the summary, findings and requirements matrix, plus
+5. **Report.** Print or save a PDF with the summary, findings, and requirements matrix, plus
    sign-off lines.
 
 **Working together.** Several reviewers can work on the same project at once. Their changes
@@ -64,11 +64,11 @@ people and access, tokens), see the hub's guide: `signoff/docs/guide.md`.
   `styles.css` and the `tools/*.py` scripts are shared with Signoff ME. **Edit them here**, then run
   `python tools/sync_engine.py` in `me_design_review`. Fabcheck and Signoff PL copy `model.js`,
   `github.js` and `styles.css` with their own `tools/sync_vendor.py`. Everything EE-specific is in
-  `assets/config.js`: names, repos, tags, stages and demo data.
+  `assets/config.js`: names, repos, tags, stages, and demo data.
 - **Links in.** `index.html?project=<id>` opens a project, and `&item=<check id>` opens that check.
   Signoff PL links here this way; a project not in the browser yet opens after the first sync.
 - **Data.** Each project is one JSON document: `meta`, `items` (check states), `sections`,
-  `comments`, `custom` (project checks) and `reqs` (requirements).
+  `comments`, `custom` (project checks), and `reqs` (requirements).
   - Every record carries `updatedAt` / `updatedBy`, and the newer one wins key by key. Deletes are
     tombstones.
   - `summary` is a digest of the document for other tools (stage, progress, open issues by
@@ -97,17 +97,17 @@ people and access, tokens), see the hub's guide: `signoff/docs/guide.md`.
   - The **GitHub access** column shows any gaps; **Give access** fixes them.
 - **Contractors** can simply be sent the hosted link (https://chrismessick-dpd.github.io/ee_design_review/). For offline use,
   `python tools/package.py` builds `dist/Signoff-EE-<build>.zip`. It holds the
-  tool only, with no data and no token; its links to the hub, Signoff ME and Fabcheck point at the
+  tool only, with no data and no token; its links to the hub, Signoff ME, and Fabcheck point at the
   hosted site. Never put your own token in a copy you send out.
 - **Old checklist exports:** go to **⋯ → Import**.
 
 ### Changing the tool
 
-1. Edit `templates/`, `index.html` or `assets/`.
-2. Run `python tools/build.py`. It validates the templates, bundles them and stamps the version.
+1. Edit `templates/`, `index.html`, or `assets/`.
+2. Run `python tools/build.py`. It validates the templates, bundles them, and stamps the version.
 3. Open `tests/test.html` over http. It should say PASS.
 4. Sync the engine into Signoff ME (`tools/sync_engine.py`), and into Fabcheck and Signoff PL
-   (`tools/sync_vendor.py` in each) if `model.js`, `github.js` or `styles.css` changed. Commit each.
+   (`tools/sync_vendor.py` in each) if `model.js`, `github.js`, or `styles.css` changed. Commit each.
 5. If you changed the demo, bump `VERSION` in `assets/demo.js` and regenerate Signoff PL's demo
    snapshot (`signoff_pl/tools/demo_designs.html`).
 

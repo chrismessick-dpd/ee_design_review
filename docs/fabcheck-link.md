@@ -1,13 +1,13 @@
 # Fabcheck ↔ Signoff EE link
 
-How a Fabcheck run is kept, stored, listed and reopened from Signoff EE. Fabcheck
+How a Fabcheck run is kept, stored, listed, and reopened from Signoff EE. Fabcheck
 (`pcb_dfm`) and Signoff EE (`ee_design_review`) both follow this; change it here first.
 
 Since 2026-11-03 **Fabcheck only writes** to a review's repo, once, at Send. Signoff reads
 everything back: it lists the runs, tags revisions, downloads packages, and hands a run to Fabcheck
 in the browser. The design and Chris's decisions are in `pcb_dfm/docs/signoff-revisions.md`.
 
-A run is reproducible: the same package, fab profile, board thickness (and variant) and
+A run is reproducible: the same package, fab profile, board thickness (and variant), and
 Fabcheck version always give the same findings. So a run is identified by a small record,
 and the package is what's worth keeping.
 
@@ -89,11 +89,11 @@ fabcheck/<projectId>/packages/<key>/<root>.zip     the fab package (package.zip.
 fabcheck/<projectId>/preview/…                     board pictures (below)
 ```
 
-- **One commit per Send** holds exactly these files: the run record, the zip and the pictures.
+- **One commit per Send** holds exactly these files: the run record, the zip, and the pictures.
 - **The zip** is the structured fab package, as Fabcheck's Files tab exports it: `<PN>-<REV>_manufacturing/`
   with `Fabrication/` (Gerber, NC drill, netlist, fab drawing) and `Assembly/` (BOM, pick and place,
   assembly drawing), and one `README.txt` listing each file's SHA-256 (`pcb_dfm/docs/fab-package.md`).
-  Part number, revision and the files to keep are picked under Send's Details.
+  Part number, revision, and the files to keep are picked under Send's Details.
 - **By key:** the zip sits under the package's key, so re-sending the same package with the same
   picks writes nothing new.
 - **Gone:** the per-file storage (`packages/<key>/manifest.json` and `files/…`) stops for new runs;
@@ -173,7 +173,7 @@ Findings waived in Fabcheck (`pcb_dfm/assets/waivers.js`) are sent only when the
 Fabcheck check and severity (id from `waived:<check>`), titled "Waived in Fabcheck: …", with
 `reference: true` on the custom record and the item at `status: 'issue'`, `resolution: 'waived'`.
 The engine (`model.row`) marks such a row `reference`: `countStatuses`, the project summary
-(counts, `open`, `recent`) and the requirement tallies leave it out, the checklist's Issues and To
+(counts, `open`, `recent`), and the requirement tallies leave it out, the checklist's Issues and To
 review filters skip it, and Signoff EE shows it with an "i" and "Reference, not counted", in its own
 *Waived in Fabcheck* section under Findings, with no Status or Severity controls. Only
 `reference === true` counts; any other value leaves the row an ordinary check. A later Send whose
@@ -228,7 +228,7 @@ Fabcheck resolves `run` in this order:
 
 1. Its own runs kept in IndexedDB on this computer.
 2. The demo boards' fixed runs (demo mode).
-3. The hand-off: it opens the zip, shows the stored findings and places the parts, then deletes
+3. The hand-off: it opens the zip, shows the stored findings, and places the parts, then deletes
    the entry (`store.js` `takeHandoff`). An entry is taken when it's read, so a failed open needs
    another click in Signoff. Entries older than a day are cleared whenever Fabcheck starts.
 4. Otherwise it says which package made the run (name, sha256) and asks for it to be dropped

@@ -3,7 +3,7 @@
   "title": "Schematic Review",
   "short": "Schematic",
   "version": 4,
-  "description": "Checks a schematic before layout or release: documentation, power, grounding, component ratings, connectivity, processors, interfaces, protection, safety, test and sourcing.",
+  "description": "Checks a schematic before layout or release: documentation, power, grounding, component ratings, connectivity, processors, interfaces, protection, safety, test, and sourcing.",
   "sections": [
     {
       "id": "s-gen",
@@ -34,7 +34,7 @@
         {
           "id": "sg4",
           "text": "All referenced documents and datasheets are at the correct revision",
-          "hint": "Silicon errata and datasheet revisions can change pinouts, strap values or absolute maximums. Check the revision you designed against is the current one.",
+          "hint": "Silicon errata and datasheet revisions can change pinouts, strap values, or absolute maximums. Check the revision you designed against is the current one.",
           "tags": [],
           "severity": "major"
         },
@@ -83,7 +83,7 @@
         {
           "id": "sp1",
           "text": "All power nets are correctly named and consistent across sheets",
-          "hint": "Look for near-duplicates such as 3V3, +3V3 and VCC_3V3 that the tool treats as separate nets.",
+          "hint": "Look for near-duplicates such as 3V3, +3V3, and VCC_3V3 that the tool treats as separate nets.",
           "tags": [],
           "severity": "major"
         },
@@ -97,28 +97,28 @@
         {
           "id": "sp8",
           "text": "Inrush current is limited on high-capacitance rails and hot-pluggable inputs",
-          "hint": "Estimate inrush from total downstream capacitance and source impedance; check it against fuse, connector and upstream supply limits.",
+          "hint": "Estimate inrush from total downstream capacitance and source impedance; check it against fuse, connector, and upstream supply limits.",
           "tags": [],
           "severity": "major"
         },
         {
           "id": "sch-pwr-1",
-          "text": "A power tree diagram exists showing every rail, its source, converter type and load",
-          "hint": "The power tree is the quickest way to spot missing rails, wrong sources and overloaded regulators.",
+          "text": "A power tree diagram exists showing every rail, its source, converter type, and load",
+          "hint": "The power tree is the quickest way to spot missing rails, wrong sources, and overloaded regulators.",
           "tags": [],
           "severity": "major"
         },
         {
           "id": "sch-pwr-2",
           "text": "Power budget is calculated for each rail, with worst-case load below the regulator rating plus margin",
-          "hint": "Include start-up, peak and transient loads (radios transmitting, motors starting, FPGA configuration), not just typical current.",
+          "hint": "Include start-up, peak, and transient loads (radios transmitting, motors starting, FPGA configuration), not just typical current.",
           "tags": [],
           "severity": "critical"
         },
         {
           "id": "sch-pwr-3",
           "text": "Input supply range (min, nominal, max) is defined and every input-side part is rated for the maximum",
-          "hint": "Include tolerance of the source, cable drop and any transients the supply can produce, such as a hot-plugged adapter ringing.",
+          "hint": "Include tolerance of the source, cable drop, and any transients the supply can produce, such as a hot-plugged adapter ringing.",
           "tags": [],
           "severity": "major"
         },
@@ -131,7 +131,7 @@
         },
         {
           "id": "sch-pwr-5",
-          "text": "Behavior on power-up, brown-out and power loss is defined for every rail",
+          "text": "Behavior on power-up, brown-out, and power loss is defined for every rail",
           "hint": "Consider what happens when the input sags slowly: regulators dropping out of regulation, MCUs running out of spec, flash writes corrupting.",
           "tags": [],
           "severity": "major"
@@ -146,7 +146,7 @@
         {
           "id": "sch-pwr-7",
           "text": "Sleep / standby current budget is calculated and met, including leakage of always-on parts",
-          "hint": "Include pull-up currents, divider currents, regulator quiescent current, LED indicators and leakage through ESD parts.",
+          "hint": "Include pull-up currents, divider currents, regulator quiescent current, LED indicators, and leakage through ESD parts.",
           "tags": [
             "low-power",
             "battery"
@@ -176,21 +176,21 @@
         },
         {
           "id": "sch-reg-3",
-          "text": "Switching regulator inductor value, saturation current and RMS current rating suit the worst-case load",
+          "text": "Switching regulator inductor value, saturation current, and RMS current rating suit the worst-case load",
           "hint": "Saturation current should exceed peak inductor current at current limit, not just at full load.",
           "tags": [],
           "severity": "major"
         },
         {
           "id": "sch-reg-4",
-          "text": "Converter input and output capacitors meet datasheet type, ESR and effective capacitance after DC bias",
+          "text": "Converter input and output capacitors meet datasheet type, ESR, and effective capacitance after DC bias",
           "hint": "Ceramic capacitors can lose most of their capacitance at rated voltage; use the manufacturer's DC-bias curves.",
           "tags": [],
           "severity": "major"
         },
         {
           "id": "sch-reg-5",
-          "text": "Loop compensation network is calculated and stable across load, input and temperature range",
+          "text": "Loop compensation network is calculated and stable across load, input, and temperature range",
           "hint": "Use the vendor design tool or datasheet procedure; check phase margin with real output capacitance after derating.",
           "tags": [],
           "severity": "major"
@@ -204,7 +204,7 @@
         },
         {
           "id": "sch-reg-7",
-          "text": "Enable, power-good and mode pins are tied or driven to a defined state",
+          "text": "Enable, power-good, and mode pins are tied or driven to a defined state",
           "hint": "Floating enable or mode pins can cause random start-up or unexpected light-load mode.",
           "tags": [],
           "severity": "major"
@@ -309,7 +309,7 @@
         },
         {
           "id": "sch-dec-3",
-          "text": "Analog, PLL and reference supply pins have filtering per datasheet (ferrite, RC or dedicated LDO)",
+          "text": "Analog, PLL, and reference supply pins have filtering per datasheet (ferrite, RC, or dedicated LDO)",
           "hint": "Check the ferrite or resistor does not drop too much voltage at the pin's maximum current.",
           "tags": [],
           "severity": "major"
@@ -356,14 +356,14 @@
         {
           "id": "sc3",
           "text": "Power ratings of resistors and inductors are sufficient with derating applied",
-          "hint": "Check pulse and surge ratings too, not only steady-state dissipation, for inrush, sense and snubber resistors.",
+          "hint": "Check pulse and surge ratings too, not only steady-state dissipation, for inrush, sense, and snubber resistors.",
           "tags": [],
           "severity": "major"
         },
         {
           "id": "sc4",
           "text": "Component tolerances are acceptable for the application",
-          "hint": "Do a worst-case or tolerance stack-up on dividers, references, filters and timing circuits.",
+          "hint": "Do a worst-case or tolerance stack-up on dividers, references, filters, and timing circuits.",
           "tags": [],
           "severity": "major"
         },
@@ -377,21 +377,21 @@
         {
           "id": "sch-cmp-1",
           "text": "No part is operated beyond its absolute maximum ratings in any operating mode",
-          "hint": "Include start-up, shutdown, fault and transient conditions as well as normal operation.",
+          "hint": "Include start-up, shutdown, fault, and transient conditions as well as normal operation.",
           "tags": [],
           "severity": "critical"
         },
         {
           "id": "sch-cmp-2",
-          "text": "Semiconductor current, voltage and power ratings have margin per the derating policy",
-          "hint": "MOSFETs, diodes and transistors should be checked at maximum junction temperature, not 25 °C.",
+          "text": "Semiconductor current, voltage, and power ratings have margin per the derating policy",
+          "hint": "MOSFETs, diodes, and transistors should be checked at maximum junction temperature, not 25 °C.",
           "tags": [],
           "severity": "major"
         },
         {
           "id": "sch-cmp-3",
           "text": "Every part's operating temperature range covers the product's environment",
-          "hint": "Commercial-grade parts may not cover outdoor, automotive or in-enclosure temperatures.",
+          "hint": "Commercial-grade parts may not cover outdoor, automotive, or in-enclosure temperatures.",
           "tags": [],
           "severity": "major"
         },
@@ -407,13 +407,13 @@
         {
           "id": "sch-cmp-5",
           "text": "Capacitor dielectric suits the function (C0G/NP0 for timing and filters, X7R/X5R for decoupling)",
-          "hint": "Class II dielectrics drift with voltage, temperature and age; they are unsuitable for precision timing or filters.",
+          "hint": "Class II dielectrics drift with voltage, temperature, and age; they are unsuitable for precision timing or filters.",
           "tags": [],
           "severity": "major"
         },
         {
           "id": "sch-cmp-6",
-          "text": "Capacitor ripple-current ratings are adequate in converters, motor drives and bulk positions",
+          "text": "Capacitor ripple-current ratings are adequate in converters, motor drives, and bulk positions",
           "hint": "Calculate RMS ripple current and compare with the rating at operating temperature and frequency.",
           "tags": [],
           "severity": "major"
@@ -421,7 +421,7 @@
         {
           "id": "sch-cmp-7",
           "text": "Ceramic capacitors in high-flex or high-voltage positions use flex-term or suitable package choices",
-          "hint": "Large ceramics near board edges, connectors or mounting holes are prone to flex cracking that can short rails.",
+          "hint": "Large ceramics near board edges, connectors, or mounting holes are prone to flex cracking that can short rails.",
           "tags": [
             "harsh-env",
             "automotive",
@@ -446,7 +446,7 @@
         {
           "id": "sn2",
           "text": "No pin is left unconnected unless the datasheet allows it and it is intentionally marked no-connect",
-          "hint": "Check unused inputs on logic, op-amps and comparators; floating CMOS inputs cause extra current and erratic behavior.",
+          "hint": "Check unused inputs on logic, op-amps, and comparators; floating CMOS inputs cause extra current and erratic behavior.",
           "tags": [],
           "severity": "critical"
         },
@@ -487,7 +487,7 @@
         },
         {
           "id": "sn8",
-          "text": "All connectors have correct pin count, pinout and mating connector called out",
+          "text": "All connectors have correct pin count, pinout, and mating connector called out",
           "hint": "Check against the mating board or cable drawing, watching for pin-1 orientation and mirror-image errors.",
           "tags": [],
           "severity": "critical"
@@ -502,7 +502,7 @@
         {
           "id": "sch-net-2",
           "text": "Symbol pin numbers match the footprint and the datasheet pinout for every part",
-          "hint": "Pay special attention to new or self-made library parts, multi-package parts and SOT-23 transistors whose pinouts vary by vendor.",
+          "hint": "Pay special attention to new or self-made library parts, multi-package parts, and SOT-23 transistors whose pinouts vary by vendor.",
           "tags": [],
           "severity": "critical"
         },
@@ -536,7 +536,7 @@
       "items": [
         {
           "id": "sch-mcu-1",
-          "text": "All processor supply pins, including analog, I/O-bank, core and backup domains, are connected per datasheet",
+          "text": "All processor supply pins, including analog, I/O-bank, core, and backup domains, are connected per datasheet",
           "hint": "Check against the datasheet pin table, not the symbol; some packages bond out extra supply pins.",
           "tags": [],
           "severity": "critical"
@@ -557,8 +557,8 @@
         },
         {
           "id": "sch-mcu-4",
-          "text": "Peripheral pin choices respect alternate-function, timer and ADC-channel limits",
-          "hint": "Check that ADC inputs are on ADC-capable pins, PWM outputs on suitable timer channels and that 5 V-tolerant pins are used where needed.",
+          "text": "Peripheral pin choices respect alternate-function, timer, and ADC-channel limits",
+          "hint": "Check that ADC inputs are on ADC-capable pins, PWM outputs on suitable timer channels, and that 5 V-tolerant pins are used where needed.",
           "tags": [],
           "severity": "major"
         },
@@ -572,27 +572,27 @@
         {
           "id": "sch-mcu-6",
           "text": "GPIO current per pin and per port is within datasheet limits",
-          "hint": "Directly driven LEDs, buzzers and relays can exceed total port current.",
+          "hint": "Directly driven LEDs, buzzers, and relays can exceed total port current.",
           "tags": [],
           "severity": "major"
         },
         {
           "id": "sch-mcu-7",
           "text": "Pins that are high-impedance or toggling during reset do not cause unwanted actions on driven loads",
-          "hint": "Motor enables, heaters, relays and power switches need a defined safe state via pull resistors until firmware takes control.",
+          "hint": "Motor enables, heaters, relays, and power switches need a defined safe state via pull resistors until firmware takes control.",
           "tags": [],
           "severity": "major"
         },
         {
           "id": "sch-mcu-8",
-          "text": "External memory (flash, EEPROM) interface, voltage and boot source are compatible with the processor",
-          "hint": "Check boot ROM support for the chosen flash type, interface width and voltage.",
+          "text": "External memory (flash, EEPROM) interface, voltage, and boot source are compatible with the processor",
+          "hint": "Check boot ROM support for the chosen flash type, interface width, and voltage.",
           "tags": [],
           "severity": "major"
         },
         {
           "id": "sch-mcu-9",
-          "text": "FPGA configuration mode, configuration memory and done/init signals are connected per vendor guidance",
+          "text": "FPGA configuration mode, configuration memory, and done/init signals are connected per vendor guidance",
           "hint": "Check mode pins, config memory size for the bitstream, and pull-ups on open-drain config signals.",
           "tags": [
             "fpga"
@@ -610,7 +610,7 @@
         },
         {
           "id": "sch-mcu-11",
-          "text": "DDR memory interface pinout, termination and reference voltage follow the controller vendor's guidelines",
+          "text": "DDR memory interface pinout, termination, and reference voltage follow the controller vendor's guidelines",
           "hint": "Byte-lane swaps and bit swaps must follow the controller's rules; check VTT and VREF supplies.",
           "tags": [
             "ddr"
@@ -626,8 +626,8 @@
       "items": [
         {
           "id": "sd4",
-          "text": "Clock sources and frequencies match MCU, FPGA and interface requirements",
-          "hint": "Check accuracy and jitter requirements of interfaces such as USB, Ethernet and radios, not just nominal frequency.",
+          "text": "Clock sources and frequencies match MCU, FPGA, and interface requirements",
+          "hint": "Check accuracy and jitter requirements of interfaces such as USB, Ethernet, and radios, not just nominal frequency.",
           "tags": [],
           "severity": "critical"
         },
@@ -648,13 +648,13 @@
         {
           "id": "sp7",
           "text": "Power sequencing requirements are met (where applicable)",
-          "hint": "Check order, ramp time and maximum delay between rails against each datasheet, including power-down sequencing.",
+          "hint": "Check order, ramp time, and maximum delay between rails against each datasheet, including power-down sequencing.",
           "tags": [],
           "severity": "critical"
         },
         {
           "id": "sch-clk-1",
-          "text": "Clock fan-out, termination and drive strength suit each load",
+          "text": "Clock fan-out, termination, and drive strength suit each load",
           "hint": "Check that one oscillator output is not driving too many loads or a long run without termination.",
           "tags": [],
           "severity": "major"
@@ -709,7 +709,7 @@
       "items": [
         {
           "id": "sa1",
-          "text": "Op-amp feedback network values are verified for gain, bandwidth and stability",
+          "text": "Op-amp feedback network values are verified for gain, bandwidth, and stability",
           "hint": "Check gain-bandwidth product against the closed-loop gain and signal bandwidth.",
           "tags": [],
           "severity": "major"
@@ -724,7 +724,7 @@
         {
           "id": "sa3",
           "text": "ADC/DAC reference voltage source is stable and low-noise",
-          "hint": "Check reference accuracy, drift and its ability to supply the ADC's dynamic reference current.",
+          "hint": "Check reference accuracy, drift, and its ability to supply the ADC's dynamic reference current.",
           "tags": [],
           "severity": "major"
         },
@@ -774,7 +774,7 @@
         },
         {
           "id": "sch-ana-5",
-          "text": "Sensor excitation, bias and ratiometric referencing are defined",
+          "text": "Sensor excitation, bias, and ratiometric referencing are defined",
           "hint": "Ratiometric measurement removes reference error; check the excitation source and the ADC reference share a source where intended.",
           "tags": [
             "precision-analog"
@@ -783,7 +783,7 @@
         },
         {
           "id": "sch-ana-6",
-          "text": "Current-sense resistor and amplifier are sized for range, resolution and Kelvin connection",
+          "text": "Current-sense resistor and amplifier are sized for range, resolution, and Kelvin connection",
           "hint": "Mark the Kelvin sense connections on the schematic so layout does not share them with the current path.",
           "tags": [],
           "severity": "major"
@@ -834,14 +834,14 @@
         {
           "id": "sd1",
           "text": "Pull-up or pull-down resistors are present on all open-drain / open-collector outputs",
-          "hint": "Check interrupt, alert, fault and power-good lines as well as the obvious buses.",
+          "hint": "Check interrupt, alert, fault, and power-good lines as well as the obvious buses.",
           "tags": [],
           "severity": "major"
         },
         {
           "id": "sd2",
           "text": "Series termination resistors are included on high-speed lines where required",
-          "hint": "Typical candidates are clock lines, fast SPI and parallel buses with long runs.",
+          "hint": "Typical candidates are clock lines, fast SPI, and parallel buses with long runs.",
           "tags": [],
           "severity": "major"
         },
@@ -882,14 +882,14 @@
         },
         {
           "id": "sch-dig-2",
-          "text": "USB data lines, VBUS sensing and CC/ID pins are connected per the USB connector type and role",
+          "text": "USB data lines, VBUS sensing, and CC/ID pins are connected per the USB connector type and role",
           "hint": "USB-C needs CC resistors or a controller per its role; check VBUS detection and the ID or CC configuration.",
           "tags": [],
           "severity": "major"
         },
         {
           "id": "sch-dig-3",
-          "text": "Ethernet PHY strapping, magnetics and termination follow the PHY reference design",
+          "text": "Ethernet PHY strapping, magnetics, and termination follow the PHY reference design",
           "hint": "Check center-tap connection (voltage-mode vs current-mode PHY) and the Bob Smith termination network.",
           "tags": [],
           "severity": "major"
@@ -897,7 +897,7 @@
         {
           "id": "sch-dig-4",
           "text": "AC-coupling capacitors are present on high-speed serial links where the standard requires them, on the correct side",
-          "hint": "PCIe, SATA, DisplayPort and similar links specify which end the capacitors sit on.",
+          "hint": "PCIe, SATA, DisplayPort, and similar links specify which end the capacitors sit on.",
           "tags": [
             "high-speed"
           ],
@@ -925,7 +925,7 @@
         {
           "id": "sch-dig-7",
           "text": "Display and touch interfaces (MIPI, LVDS, RGB, SPI) match the panel datasheet pinout and voltage",
-          "hint": "Check backlight driver current and voltage, panel power sequence and the FPC pinout orientation.",
+          "hint": "Check backlight driver current and voltage, panel power sequence, and the FPC pinout orientation.",
           "tags": [
             "display"
           ],
@@ -951,7 +951,7 @@
         {
           "id": "sp9",
           "text": "ESD and transient protection is present at every external interface",
-          "hint": "List every connector, button and exposed conductive part and confirm each has protection.",
+          "hint": "List every connector, button, and exposed conductive part and confirm each has protection.",
           "tags": [],
           "severity": "critical"
         },
@@ -964,8 +964,8 @@
         },
         {
           "id": "spr2",
-          "text": "Over-current protection (fuse, PTC or current limiter) is present on power inputs and outputs",
-          "hint": "Check the fuse rating against normal load, inrush I2t and the wiring or connector it protects.",
+          "text": "Over-current protection (fuse, PTC, or current limiter) is present on power inputs and outputs",
+          "hint": "Check the fuse rating against normal load, inrush I2t, and the wiring or connector it protects.",
           "tags": [],
           "severity": "major"
         },
@@ -986,14 +986,14 @@
         {
           "id": "spr5",
           "text": "Chassis ground and protective earth connections are correctly handled for safety-critical designs",
-          "hint": "Check the earth bond path and how chassis is connected to circuit ground (direct, RC or isolated).",
+          "hint": "Check the earth bond path and how chassis is connected to circuit ground (direct, RC, or isolated).",
           "tags": [],
           "severity": "critical"
         },
         {
           "id": "sch-pro-1",
           "text": "Outputs that drive off-board loads survive a short circuit to ground and to supply",
-          "hint": "Check output drivers, power outputs and sensor supplies for short-circuit protection.",
+          "hint": "Check output drivers, power outputs, and sensor supplies for short-circuit protection.",
           "tags": [],
           "severity": "major"
         },
@@ -1017,7 +1017,7 @@
         },
         {
           "id": "sch-pro-4",
-          "text": "Automotive supply inputs withstand load dump, reverse battery and transient pulses for the required standard",
+          "text": "Automotive supply inputs withstand load dump, reverse battery, and transient pulses for the required standard",
           "hint": "Check the protection against the transient levels in the applicable automotive standard (ISO 7637 / ISO 16750 style).",
           "tags": [
             "automotive"
@@ -1027,7 +1027,7 @@
         {
           "id": "sch-pro-5",
           "text": "Surge and EFT protection on long-cable industrial interfaces is rated for the required immunity levels",
-          "hint": "Industrial I/O, RS-485 and 24 V inputs typically need surge-rated TVS and series impedance.",
+          "hint": "Industrial I/O, RS-485, and 24 V inputs typically need surge-rated TVS and series impedance.",
           "tags": [
             "harsh-env"
           ],
@@ -1036,7 +1036,7 @@
         {
           "id": "sch-pro-6",
           "text": "Inductive loads have flyback or clamp protection",
-          "hint": "Relays, solenoids and long cables need a clamp; check its effect on release time.",
+          "hint": "Relays, solenoids, and long cables need a clamp; check its effect on release time.",
           "tags": [],
           "severity": "major"
         }
@@ -1059,7 +1059,7 @@
         {
           "id": "sch-bat-2",
           "text": "Charge voltage and current settings match the cell chemistry and manufacturer limits",
-          "hint": "Check the charge termination voltage, charge current and pre-charge current against the cell datasheet.",
+          "hint": "Check the charge termination voltage, charge current, and pre-charge current against the cell datasheet.",
           "tags": [],
           "severity": "critical"
         },
@@ -1117,14 +1117,14 @@
       "items": [
         {
           "id": "sch-mot-1",
-          "text": "Power MOSFETs / IGBTs have voltage, current and SOA margin for the worst-case operating point",
-          "hint": "Check SOA for linear operation during switching, start-up and fault conditions.",
+          "text": "Power MOSFETs / IGBTs have voltage, current, and SOA margin for the worst-case operating point",
+          "hint": "Check SOA for linear operation during switching, start-up, and fault conditions.",
           "tags": [],
           "severity": "critical"
         },
         {
           "id": "sch-mot-2",
-          "text": "Gate drive voltage, current and gate resistors suit the switches and the target switching speed",
+          "text": "Gate drive voltage, current, and gate resistors suit the switches and the target switching speed",
           "hint": "Check gate charge against driver capability and the bootstrap supply capacity at low duty cycle.",
           "tags": [],
           "severity": "major"
@@ -1175,7 +1175,7 @@
         },
         {
           "id": "sch-mot-9",
-          "text": "Motor outputs are in a safe state at power-up, reset and fault",
+          "text": "Motor outputs are in a safe state at power-up, reset, and fault",
           "hint": "Driver enables should be pulled to the disabled state independently of firmware.",
           "tags": [
             "motor"
@@ -1184,8 +1184,8 @@
         },
         {
           "id": "sch-mot-10",
-          "text": "Encoder, Hall and position-sensor inputs have filtering and protection suitable for motor noise",
-          "hint": "Motor cables carry large common-mode noise; check pull-ups, filtering and ESD on sensor inputs.",
+          "text": "Encoder, Hall, and position-sensor inputs have filtering and protection suitable for motor noise",
+          "hint": "Motor cables carry large common-mode noise; check pull-ups, filtering, and ESD on sensor inputs.",
           "tags": [
             "motor"
           ],
@@ -1242,8 +1242,8 @@
         },
         {
           "id": "sch-iso-6",
-          "text": "Mains inrush current is limited to suit the fuse, switch and upstream supply",
-          "hint": "Use an NTC, active inrush limiter or the converter's soft-start; check behavior on a hot restart when an NTC is still warm.",
+          "text": "Mains inrush current is limited to suit the fuse, switch, and upstream supply",
+          "hint": "Use an NTC, active inrush limiter, or the converter's soft-start; check behavior on a hot restart when an NTC is still warm.",
           "tags": [
             "mains"
           ],
@@ -1303,7 +1303,7 @@
         {
           "id": "sch-therm-2",
           "text": "Parts relying on copper area or heatsinks have thermal requirements noted for layout",
-          "hint": "Note the required copper area, thermal vias or heatsink so the assumption survives into layout.",
+          "hint": "Note the required copper area, thermal vias, or heatsink so the assumption survives into layout.",
           "tags": [],
           "severity": "major"
         },
@@ -1342,7 +1342,7 @@
         {
           "id": "sf1",
           "text": "Test points are provided on all critical nets (power rails, key signals)",
-          "hint": "Include every rail, reset, clocks, boot straps and key communication buses.",
+          "hint": "Include every rail, reset, clocks, boot straps, and key communication buses.",
           "tags": [],
           "severity": "major"
         },
@@ -1363,7 +1363,7 @@
         {
           "id": "sf3",
           "text": "BOM is generated and cross-checked against the schematic",
-          "hint": "Check quantities, DNP fields and manufacturer part numbers against the schematic values.",
+          "hint": "Check quantities, DNP fields, and manufacturer part numbers against the schematic values.",
           "tags": [],
           "severity": "major"
         },
@@ -1399,7 +1399,7 @@
         },
         {
           "id": "sch-fab-3",
-          "text": "Power rails can be isolated for bring-up (0 ohm links, jumpers or current-measure points)",
+          "text": "Power rails can be isolated for bring-up (0 ohm links, jumpers, or current-measure points)",
           "hint": "Being able to bring up rails one at a time and measure current saves boards during first power-on.",
           "tags": [],
           "severity": "major"
@@ -1415,7 +1415,7 @@
         },
         {
           "id": "sch-fab-5",
-          "text": "Unique serialization, calibration storage and MAC/ID provisioning are planned",
+          "text": "Unique serialization, calibration storage, and MAC/ID provisioning are planned",
           "hint": "Decide where calibration constants and unique IDs live and how production writes them.",
           "tags": [
             "production"
@@ -1459,7 +1459,7 @@
         },
         {
           "id": "sch-life-3",
-          "text": "Environmental compliance (RoHS, REACH and any customer-specific substance lists) is confirmed for all parts",
+          "text": "Environmental compliance (RoHS, REACH, and any customer-specific substance lists) is confirmed for all parts",
           "hint": "Check part compliance data, not just the family claim.",
           "tags": [
             "production",
