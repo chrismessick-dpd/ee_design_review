@@ -379,14 +379,14 @@ written, and is never merged.
 | `tests/test.html` | Model and sync tests against a fake GitHub API (open it over http) |
 | `docs/roadmap.md` | DFM tool and customer-facing plans |
 
-## The shared engine (Signoff EE and Signoff ME)
+## The shared engine (Signoff EE, ME and FW)
 
-Both tools run the same engine. This repository is its source: `assets/model.js`, `github.js`,
+All three tools run the same engine. This repository is its source: `assets/model.js`, `github.js`,
 `workspace.js`, `app.js`, `demo.js`, `styles.css` and `tools/build.py`, `package.py`,
-`validate_templates.py`. Signoff ME vendors them byte for byte with
-`python tools/sync_engine.py` (in `me_design_review`), and its `build.py` fails if its copy is
-stale, so fixes flow one way and nothing diverges silently. Fix the engine here, then sync
-ME. What differs between the tools lives in each one's `assets/config.js`, `index.html`,
+`validate_templates.py`. Signoff ME and Signoff FW vendor them byte for byte with
+`python tools/sync_engine.py` (in `me_design_review` and `fw_design_review`), and their `build.py`
+fails if the copy is stale, so fixes flow one way and nothing diverges silently. Fix the engine
+here, then sync ME and FW. What differs between the tools lives in each one's `assets/config.js`, `index.html`,
 `templates/`, `tests/` and docs.
 
 Two other tools copy parts of the engine with their own `tools/sync_vendor.py`:

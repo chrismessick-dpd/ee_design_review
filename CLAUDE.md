@@ -21,7 +21,7 @@ Read next:
 
   | Tool | Command |
   | --- | --- |
-  | Signoff ME | `python tools/sync_engine.py` in `../me_design_review` |
+  | Signoff ME and Signoff FW | `python tools/sync_engine.py` in `../me_design_review` and `../fw_design_review` |
   | Fabcheck and Signoff PL | `python tools/sync_vendor.py` in `../pcb_dfm` and `../signoff_pl`, for `model.js`, `github.js` and `styles.css` |
   | Hub | `python tools/sync_suite_css.py` in `../signoff`, for `styles.css` |
 
