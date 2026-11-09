@@ -66,7 +66,7 @@ Read next:
 
 1. Run `python tools/build.py`. It validates the templates and stamps the version and `?v=`.
    `--check` verifies the stamp.
-2. Open `tests/test.html` over http. It should show PASS (286 tests on branch `description`, 2026-11-08; 211 on `main`).
+2. Open `tests/test.html` over http. It should show PASS (313 tests on branch `ee-blocks`, 2026-11-08; 286 on `main`).
 3. Sync the engine into ME, and vendor it into Fabcheck and PL where needed, then run their
    checks and tests.
 
@@ -99,6 +99,11 @@ Read next:
   Start pill); Start opens New design review filled in (`projectSheet(null, preset)`), and the review keeps
   `meta.plPart`, written as `summary.plPart`. PL links its Part at its next sync. Not tried live, and the
   list itself hasn't been seen on screen (it needs an FTE token); `model` and `workspace` are tested.
+- Description as a block diagram (2026-11-08, branch `ee-blocks`, Chris: "think of it like a schematic
+  block diagram"): EE's Description tab is a subcircuit block diagram (`config.spec`: flow layout, no
+  kinds, Connects and Supplies, Parts), organized by sections from the outline (drawn in the diagram,
+  moved in the hierarchy under it), with the Main PCBA demo and EE guide steps. See
+  `docs/block-diagram.md`.
 - Unsynced list (2026-11-03, merged to `main` and pushed): a list button beside the sync pill
   (`syncDetails` in `app.js`) itemizes the dirty projects with `model.changesSince(project,
   cutoff)`. The cutoff is `lastSync.startedAt` (new, written at sync) or `lastSync.at`; a project

@@ -890,6 +890,10 @@
     eq(M.revNotes({ meta: { name: 'Bare' }, comments: {} }).length, 0, 'revNotes copes with a review without custom items');
   })();
 
+  // The description tests below use FW's vocabulary (kinds product to hardware, Uses), the model's
+  // default; EE's own (Connects, Supplies, Parts, the flow layout) is tested after them.
+  var TOOL_SPEC = window.SIGNOFF_CONFIG.spec;
+  window.SIGNOFF_CONFIG.spec = { label: 'Description' };
   // The description (project.spec): headings, sentences, tracing, edits, the editor round trip, the summary.
   (function () {
     var sp = M.newProject({ name: 'Spec', checklists: ['reqs'], profile: [] }, 'Ann', T);
@@ -1047,6 +1051,8 @@
     eq(hr.hist.length, 5, 'a section keeps its last five versions');
     var legacy = JSON.parse(JSON.stringify(cp)); delete legacy.spec[loop.id].hist; var L2 = JSON.parse(JSON.stringify(legacy)); L2.spec[loop.id].updatedAt = '2031-01-01T00:00:00.000Z'; L2.spec[loop.id].body = 'x';
     eq(live(M.mergeProjects(legacy, L2)).length, 2, 'sections without history merge newer-wins');
+    var built = JSON.parse(JSON.stringify(cp)); delete built.spec[loop.id].hist; built.spec[loop.id].updatedAt = '2032-01-01T00:00:00.000Z';
+    eq(live(M.mergeProjects(A, built)).length, 2, 'an edited section and one with no history merge newer-wins, with no copy');
     // Phrase links.
     var body = 'The loop switches the heat relay [quickly]{std} every second.';
     eq(M.specEdit(body, 0, body.length, 'phrase', { id: 'q1', text: 'heat relay' }), 'The loop switches the [heat relay]{q:q1} [quickly]{std} every second.', 'phrase wraps just those words');
@@ -1075,6 +1081,68 @@
     var md2 = M.specMarkdown(lp);
     ok(md2.indexOf('It stops [REQ-001] on reset. Background.') > 0 && md2.indexOf('*Uses: Top*') > 0 && md2.indexOf('| REQ-001 | Relays off | Top |') > 0, 'specMarkdown turns links into refs, drops standard marks, and says where each requirement is described', md2);
   })();
+
+  // EE's vocabulary: subcircuit kinds, Connects and Supplies with signal and rail names, and Parts.
+  (function () {
+    window.SIGNOFF_CONFIG.spec = { label: 'Description', layout: 'flow', parts: true,
+      kinds: [{ id: 'power', band: true, link: 'supplies' }, { id: 'connector' }, { id: 'processor' }, { id: 'output' }], links: ['Connects', 'Supplies'] };
+    eq(M.specKinds(), ['power', 'connector', 'processor', 'output'], 'kinds come from config.spec.kinds');
+    eq([M.specHeading('## 3V3 buck * power').kind, M.specHeading('## Control loop * task').kind], ['power', ''], 'a heading takes only the tool’s kinds');
+    eq(M.specLinkItems('MCU (UART), Display board, Relays (RLY1/RLY2)'), [{ name: 'MCU', label: 'UART' }, { name: 'Display board', label: '' }, { name: 'Relays', label: 'RLY1/RLY2' }], 'link names carry a signal in brackets');
+    var ep = M.newProject({ name: 'Board', checklists: [], profile: [] }, 'Ann', T), put = function (recs) { recs.forEach(function (r) { ep.spec[r.id] = r; }); };
+    ep.spec = {};
+    put(M.specSave(ep, null, '# Board\n## Buck * power\nSteps down.\nParts: U7, L1, C1–C3\nSupplies: MCU (3V3), Relays (5V)\n## USB * connector\nConnects: MCU (USB)\n## MCU * processor\nRuns it.\nConnects: Relays\n## Relays * output\nSwitch.', 'Ann'));
+    var a = M.specAnalysis(ep), by = {}; a.sections.forEach(function (x) { by[x.sec.title] = x; });
+    eq(by.Buck.edges.map(function (e) { return e.word + ':' + a.ctx.secs[e.id].title + ':' + e.label; }), ['Supplies:MCU:3V3', 'Supplies:Relays:5V'], 'Supplies lines are edges with their rail');
+    eq(by.USB.edges.map(function (e) { return e.word + ':' + e.label; }), ['Connects:USB'], 'Connects lines are edges with their signal');
+    eq(by.Buck.parts, ['U7', 'L1', 'C1–C3'], 'a Parts line lists the reference designators');
+    eq(by.Buck.counts, { linked: 0, std: 0, tag: 0, untraced: 1 }, 'link and Parts lines are not counted as sentences');
+    eq(M.specUsesItems(by.Buck.sec.body, 'supplies'), [{ name: 'MCU', label: '3V3' }, { name: 'Relays', label: '5V' }], 'specUsesItems reads one link word');
+    eq(M.specSetLine('Text.', 'connects', 'MCU (I2C)'), 'Text.\nConnects: MCU (I2C)', 'specSetLine writes the tool’s spelling of the word');
+    put(M.specRename(ep, by.MCU.sec.id, 'Controller', 'Ann'));
+    var b2 = {}; M.specAnalysis(ep).sections.forEach(function (x) { b2[x.sec.title] = x; });
+    eq([M.specUsesItems(b2.Buck.sec.body, 'Supplies')[0], M.specUsesItems(b2.USB.sec.body, 'Connects')[0]], [{ name: 'Controller', label: '3V3' }, { name: 'Controller', label: 'USB' }], 'a rename follows into every link word and keeps the signal');
+    var add = M.specAddBlock(ep, { title: 'LDO', kind: 'power', parent: b2.Buck.sec.id, label: '1V8' }, 'Ann'); put(add);
+    eq(M.specUsesItems(ep.spec[b2.Buck.sec.id].body, 'Supplies').pop(), { name: 'LDO', label: '1V8' }, 'a block added under a power block is supplied by it, with its rail');
+    var add2 = M.specAddBlock(ep, { title: 'ESD', kind: 'connector', parent: b2.USB.sec.id }, 'Ann'); put(add2);
+    eq(M.specUsesNames(ep.spec[b2.USB.sec.id].body, 'Connects').pop(), 'ESD', 'a block added under another is connected from it');
+    eq(M.specKindLink('power') + '/' + M.specKindLink('processor'), 'Supplies/Connects', 'a power block’s new links supply; others connect');
+    ok(M.specMarkdown(ep).indexOf('*Supplies: Controller (3V3), Relays (5V), LDO (1V8)*') > 0 && M.specMarkdown(ep).indexOf('*Parts: U7, L1, C1–C3*') > 0, 'the Markdown export keeps link and Parts lines', M.specMarkdown(ep));
+  })();
+  // Sections (EE, no kinds): nesting, grouping, ungrouping, and kept positions.
+  (function () {
+    window.SIGNOFF_CONFIG.spec = { label: 'Description', layout: 'flow', parts: true, kinds: [], links: ['Connects', 'Supplies'] };
+    eq([M.specKinds(), M.specHeading('## Buck * power').title], [[], 'Buck * power'], 'with no kinds, a starred word stays in the title');
+    var sp = M.newProject({ name: 'Sections', checklists: [], profile: [] }, 'Ann', T), put = function (recs) { recs.forEach(function (r) { sp.spec[r.id] = r; }); };
+    sp.spec = {};
+    put(M.specSave(sp, null, '# Board\n## Power\n### Buck\nSupplies: MCU (3V3)\n### LDO\n## MCU\nRuns.\n## LEDs', 'Ann'));
+    var id = function (t) { return M.liveSpec(sp).filter(function (x) { return x.title === t; })[0].id; };
+    var shape = function () { return M.liveSpec(sp).map(function (x) { return x.level + x.title; }).join(' '); };
+    eq(shape(), '1Board 2Power 3Buck 3LDO 2MCU 2LEDs', 'headings set up');
+    put(M.specNest(sp, [id('LEDs')], id('Power'), 'Ann'));
+    eq(shape(), '1Board 2Power 3Buck 3LDO 3LEDs 2MCU', 'specNest moves a block to the end of a section, one level under it');
+    put(M.specNest(sp, [id('LEDs')], null, 'Ann'));
+    eq(shape(), '1Board 2Power 3Buck 3LDO 2MCU 2LEDs', 'specNest with no section moves it out, under the board');
+    eq(M.specNest(sp, [id('Power')], id('Buck'), 'Ann'), [], 'a section never moves into itself');
+    var g = M.specGroup(sp, [id('MCU'), id('LEDs')], 'Control', 'Ann'); put(g);
+    eq(shape(), '1Board 2Power 3Buck 3LDO 2Control 3MCU 3LEDs', 'specGroup makes a section where the first block was, with the blocks under it');
+    put(M.specNest(sp, [id('Control')], id('Power'), 'Ann'));
+    eq(shape(), '1Board 2Power 3Buck 3LDO 3Control 4MCU 4LEDs', 'a section nests with everything in it');
+    put(M.specNest(sp, [id('LEDs')], id('Control'), 'Ann', id('MCU')));
+    eq(shape(), '1Board 2Power 3Buck 3LDO 3Control 4LEDs 4MCU', 'specNest with a heading to go before reorders inside a section');
+    put(M.specNest(sp, [id('Control')], null, 'Ann', id('Power')));
+    eq(shape(), '1Board 2Control 3LEDs 3MCU 2Power 3Buck 3LDO', 'a section moves before another at the top level');
+    put(M.specNest(sp, [id('Control')], id('Power'), 'Ann'));
+    put(M.specUngroup(sp, id('Control'), 'Ann'));
+    eq(shape(), '1Board 2Power 3Buck 3LDO 3LEDs 3MCU', 'specUngroup moves its blocks up a level and drops an empty section heading');
+    sp.spec[id('MCU')] = Object.assign({}, sp.spec[id('MCU')], { pos: { x: 120.4, y: 'bad' } });
+    eq(M.liveSpec(sp).filter(function (x) { return x.title === 'MCU'; })[0].pos, null, 'a position must be two numbers');
+    sp.spec[id('MCU')] = Object.assign({}, sp.spec[id('MCU')], { pos: { x: 120.4, y: 80 } });
+    put(M.specSave(sp, id('MCU'), '### MCU\nRuns the board.', 'Ann'));
+    put(M.specSaveAll(sp, M.specToText(sp).replace('### LEDs', '### Status LEDs'), 'Ann'));
+    eq(M.liveSpec(sp).filter(function (x) { return x.title === 'MCU'; })[0].pos, { x: 120, y: 80 }, 'a block keeps its place through edits and Edit all');
+  })();
+  window.SIGNOFF_CONFIG.spec = TOOL_SPEC;
 
   var failed = results.filter(function (r) { return !r.ok; });
   document.getElementById('out').innerHTML = results.map(function (r) {
