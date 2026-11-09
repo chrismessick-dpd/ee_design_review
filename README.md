@@ -318,6 +318,7 @@ written, and is never merged.
   "recent": [ { "id": "c…", "item": "usb2", "check": "…", "author": "Morgan Lee", "at": "…", "text": "…" } ],
   "revisions": [ { "label": "3.1", "status": "sent", "sentAt": "2026-10-21" }, { "label": "3.2", "status": "built", "sentAt": "" } ],
   "plPart": { "project": "pl…", "node": "n…", "at": "2026-11-08T10:00:00Z" },
+  "kind": "assembly",
   "spec": { "gists": [ { "title": "Thermostat firmware", "gist": "…", "depth": 0 }, { "title": "Control loop", "gist": "…", "depth": 1 } ],
     "sections": 19, "untraced": 7, "undescribed": 1, "flagged": 2 },
   "at": "2026-10-24T18:36:53Z", "by": "Sam Patel"
@@ -352,6 +353,10 @@ written, and is never merged.
   from the Part. Signoff PL links that Part to the review at its next sync (`pl.js` `claimPlanned`;
   the earliest `at` wins). Left out when there's none, so other reviews keep their bytes. Loom
   writes the same field for harnesses.
+- **`kind`.** `'assembly'` when the review is of an assembly rather than a single part
+  (`meta.kind`, the *This part is* toggle in the details window, offered where `config.assemblies`
+  is set: Signoff ME). Left out for a part, so other reviews keep their bytes. Signoff PL links such
+  a review to an assembly, whose branch then shows the review (2026-11-08).
 - **`spec`.** The review's description (`project.spec`, Scribe where `config.spec` is
   on; Signoff FW for now): the top-level sections' gists, plus the level under them when there's only
   one top section (`depth` 0 or 1), and its gaps: untraced sentences, requirements nothing describes,

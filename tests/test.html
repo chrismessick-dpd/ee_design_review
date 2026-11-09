@@ -619,6 +619,14 @@
   eq(M.projectSummary(started, T).plPart, { project: 'pl1', node: 'w1', at: '2026-11-08T10:00:00.000Z' }, 'the summary names the Part, for PL to link');
   ok(!('plPart' in M.projectSummary(groupDoc('plain', 'X'), T)), 'a review not started from PL has no plPart (its bytes don’t change)');
   ok(M.cleanPlPart({ project: 'p', node: 3 }) === null && M.cleanPlPart('x') === null, 'a malformed plPart is dropped');
+  // An assembly review (meta.kind, config.assemblies in Signoff ME): summary.kind, only for an assembly.
+  var asmDoc = groupDoc('asm', 'X');
+  ok(!('kind' in M.projectSummary(asmDoc, T)) && !M.isAssembly(asmDoc), 'a part has no summary.kind (its bytes don’t change)');
+  asmDoc.meta.kind = 'assembly';
+  ok(M.isAssembly(asmDoc) && M.projectSummary(asmDoc, T).kind === 'assembly', 'an assembly says so in its summary, for Signoff PL');
+  asmDoc.meta.kind = 'widget';
+  ok(!('kind' in M.projectSummary(asmDoc, T)), 'any other kind reads as a part');
+  ok(M.stableStringify({ meta: { name: 'X', kind: undefined } }).indexOf('kind') < 0, 'a part saved with kind undefined writes no kind');
   // The read at sync: FTEs only, cached by blob sha with the shape's version.
   var plHub = new FakeHub();
   plHub.makeRepo('ann/data', { 'README.md': '#' }, ['ann']);
