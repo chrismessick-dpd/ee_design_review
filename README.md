@@ -318,6 +318,8 @@ written, and is never merged.
   "recent": [ { "id": "c…", "item": "usb2", "check": "…", "author": "Morgan Lee", "at": "…", "text": "…" } ],
   "revisions": [ { "label": "3.1", "status": "sent", "sentAt": "2026-10-21" }, { "label": "3.2", "status": "built", "sentAt": "" } ],
   "plPart": { "project": "pl…", "node": "n…", "at": "2026-11-08T10:00:00Z" },
+  "spec": { "gists": [ { "title": "Thermostat firmware", "gist": "…", "depth": 0 }, { "title": "Control loop", "gist": "…", "depth": 1 } ],
+    "sections": 19, "untraced": 7, "undescribed": 1, "flagged": 2 },
   "at": "2026-10-24T18:36:53Z", "by": "Sam Patel"
 }
 ```
@@ -350,6 +352,12 @@ written, and is never merged.
   from the Part. Signoff PL links that Part to the review at its next sync (`pl.js` `claimPlanned`;
   the earliest `at` wins). Left out when there's none, so other reviews keep their bytes. Loom
   writes the same field for harnesses.
+- **`spec`.** The review's description (`project.spec`, the Description tab where `config.spec` is
+  on; Signoff FW for now): the top-level sections' gists, plus the level under them when there's only
+  one top section (`depth` 0 or 1), and its gaps: untraced sentences, requirements nothing describes,
+  and sentences flagged `@req`. Left out while the description is empty or the review doesn't pick
+  the Description tab, so other reviews keep their bytes. Signoff PL shows it as *What it does* in a Part's inspector. The format of `project.spec`
+  is at *Description* in `model.js`; the design is in `fw_design_review/docs/description-tab.md`.
 - **`at` / `by`.** These are the project's latest edit, not the sync time. An unchanged
   project therefore writes the same bytes and isn't committed again.
 - **Existing projects.** Projects synced before the summary existed get one at their next sync,

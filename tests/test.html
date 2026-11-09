@@ -890,6 +890,192 @@
     eq(M.revNotes({ meta: { name: 'Bare' }, comments: {} }).length, 0, 'revNotes copes with a review without custom items');
   })();
 
+  // The description (project.spec): headings, sentences, tracing, edits, the editor round trip, the summary.
+  (function () {
+    var sp = M.newProject({ name: 'Spec', checklists: ['reqs'], profile: [] }, 'Ann', T);
+    var q1 = M.newReq(sp, { ref: 'REQ-001', text: 'Relays off on reset', status: 'approved' }, 'Ann'); sp.reqs[q1.id] = q1;
+    var q2 = M.newReq(sp, { ref: 'REQ-002', text: 'Keep the schedule' }, 'Ann'); sp.reqs[q2.id] = q2;
+    eq(M.specHeading('## Control loop * task'), { level: 2, title: 'Control loop', kind: 'task' }, 'specHeading reads level, title and kind');
+    eq([M.specHeading('## Control loop · task').kind, M.specHeading('## Control loop *task').kind, M.specHeading('## 3 * 4 grid').title], ['task', 'task', '3 * 4 grid'], 'a kind can follow a middle dot or an asterisk; an asterisk mid-title stays');
+    eq(M.specHeading('### Power · stuff'), { level: 3, title: 'Power · stuff', kind: '' }, 'specHeading keeps an unknown kind in the title');
+    eq(M.specHeading('Not a heading'), null, 'specHeading is null for body text');
+    eq([M.specHeading('## Control loop (task)'), M.specHeading('## Power (main)')], [{ level: 2, title: 'Control loop', kind: 'task' }, { level: 2, title: 'Power (main)', kind: '' }], 'a kind can be written in brackets; other brackets stay in the title');
+    var text = '# Firmware · product\n> Runs the heating.\n[It runs on FreeRTOS.]{std} It switches relays, e.g. the heat relay, at 0.5 °C. [Relays go off]{REQ-001} on reset.\n' +
+      'Make the LED pulse @req.\n\n## Status frame · interface\n| Field | Units |\n| --- | --- |\n| temp | °C |\n\n## Cloud link · task\nIt [publishes the frame]{#Status frame} every 60 s.\nUses: Status frame, Nowhere\n- A list item.';
+    var recs = M.specSave(sp, null, text, 'Ann');
+    sp.spec = {}; recs.forEach(function (r) { sp.spec[r.id] = r; });
+    var secs = M.liveSpec(sp);
+    eq(secs.map(function (s) { return s.level + s.title + ':' + s.kind; }), ['1Firmware:product', '2Status frame:interface', '2Cloud link:task'], 'specSave cuts text into sections at headings, in order');
+    ok(secs[0].body.indexOf('{q:' + q1.id + '}') >= 0 && secs[2].body.indexOf('{s:' + secs[1].id + '}') >= 0, 'specSave stores requirement and section links by id', secs[0].body + ' / ' + secs[2].body);
+    var a = M.specAnalysis(sp), x0 = a.sections[0];
+    eq(x0.blocks.filter(function (b) { return b.type === 'p'; }).map(function (b) { return b.units.map(function (u) { return u.state; }); }),
+      [['std', 'untraced', 'linked', 'tag']], 'sentences split after a span that ends one, not at "e.g." or decimals, with their states');
+    eq(x0.gist, 'Runs the heating.', 'a > line is the gist');
+    eq(a.sections[2].counts, { linked: 1, std: 0, tag: 0, untraced: 1 }, 'a pointer to an interface section counts as traced, and list items are units');
+    eq(a.sections[2].uses, [secs[1].id], 'Uses names sections by title and skips unknown ones');
+    eq(a.sections[1].counts, { linked: 0, std: 0, tag: 0, untraced: 0 }, 'tables are not counted');
+    eq(a.undescribed, [q2.id], 'requirements nothing links are not described');
+    eq(a.tags.map(function (t) { return [t.text, t.sectionReqs]; }), [['Make the LED pulse.', [q1.id]]], 'flagged sentences list the requirements their section links');
+    eq(a.uses[q1.id].length, 1, 'a requirement knows the sentences that describe it');
+    // Edits on one sentence.
+    var u = x0.blocks[1].units[1], body = x0.sec.body;
+    var linked = M.specEdit(body, u.start, u.end, 'link', q2.id);
+    ok(linked.indexOf('[It switches relays, e.g. the heat relay, at 0.5 °C]{q:' + q2.id + '}.') >= 0, 'link wraps the whole sentence, punctuation outside', linked);
+    var tag = x0.blocks[1].units[3];
+    var made = M.specEdit(body, tag.start, tag.end, 'link', q2.id);
+    ok(made.indexOf('[Make the LED pulse]{q:' + q2.id + '}.') >= 0 && made.indexOf('@req') < 0, 'link drops the @req flag', made);
+    var lk = x0.blocks[1].units[2], both = M.specEdit(body, lk.start, lk.end, 'link', q2.id);
+    ok(both.indexOf('[Relays go off]{q:' + q1.id + ',q:' + q2.id + '} on reset.') >= 0, 'link adds to an existing link', both);
+    var unl = M.specEdit(body, lk.start, lk.end, 'unlink', q1.id);
+    ok(unl.indexOf('Relays go off on reset.') >= 0, 'unlink takes the last requirement out of a span and unwraps it', unl);
+    var std = M.specEdit(body, u.start, u.end, 'std', true);
+    ok(std.indexOf('[It switches relays, e.g. the heat relay, at 0.5 °C]{std}.') >= 0, 'std marks a sentence standard', std);
+    var flag = M.specEdit(body, u.start, u.end, 'tag', true);
+    ok(flag.indexOf('at 0.5 °C @req.') >= 0, 'tag adds @req before the full stop', flag);
+    var unflag = M.specEdit(body, tag.start, tag.end, 'tag', false);
+    ok(unflag.indexOf('Make the LED pulse.') >= 0, 'tag false removes the flag', unflag);
+    // The editor shows refs and titles, and saves ids.
+    var ctx = M.specContext(sp), shown = M.specToEditor(secs[2].body, ctx);
+    ok(shown.indexOf('{#Status frame}') >= 0 && M.specToEditor(secs[0].body, ctx).indexOf('{REQ-001}') >= 0, 'specToEditor shows refs and #titles', shown);
+    eq(M.specFromEditor(M.specToEditor(secs[0].body, ctx), ctx), secs[0].body, 'specFromEditor turns them back into ids');
+    // Saving one section: new headings become sections after it; empty text deletes it.
+    var more = M.specSave(sp, secs[1].id, '## Status frame · interface\nv2.\n### Fields\nTable below.', 'Ann');
+    more.forEach(function (r) { sp.spec[r.id] = r; });
+    eq(M.liveSpec(sp).map(function (s) { return s.title; }), ['Firmware', 'Status frame', 'Fields', 'Cloud link'], 'specSave puts new sections right after the one edited');
+    var gone = M.specSave(sp, secs[1].id, '   ', 'Ann');
+    ok(gone.length === 1 && gone[0].deleted, 'specSave deletes a section whose text is emptied');
+    // Merge and summary.
+    var other = JSON.parse(JSON.stringify(sp)), sid = secs[2].id;
+    other.spec[sid] = Object.assign({}, other.spec[sid], { body: 'Newer.', updatedAt: '2999-01-01T00:00:00.000Z' });
+    eq(M.mergeProjects(sp, other).spec[sid].body, 'Newer.', 'mergeProjects merges description sections, newer wins');
+    eq(M.mergeProjects(M.newProject({ name: 'A' }, 'Ann', T), M.newProject({ name: 'B' }, 'Ann', T)).spec, undefined, 'documents without a description keep their bytes');
+    var sum = M.specSummary(sp);
+    eq(sum.gists.map(function (g) { return g.depth + g.title; }), ['0Firmware', '1Status frame', '1Cloud link'], 'summary.spec has the top-level gists, and the next level under a single top section');
+    eq(sum.gists[0].gist, 'Runs the heating.', 'summary.spec gists come from the > line or the first sentence');
+    eq([sum.untraced, sum.undescribed, sum.flagged], [4, 1, 1], 'summary.spec counts the gaps');
+    eq(M.specSummary(M.newProject({ name: 'Empty' }, 'Ann', T)), null, 'no summary.spec without a description');
+    sp.spec.bad = { id: 'bad', level: 9, kind: '<script>', order: 'x', title: 7 };
+    var bad = M.liveSpec(sp).filter(function (s) { return s.id === 'bad'; })[0];
+    eq([bad.level, bad.kind, bad.order, bad.title], [1, '', 0, '7'], 'liveSpec cleans untrusted section fields');
+    ok(M.changesSince(sp, '').some(function (c) { return c.kind === 'spec'; }), 'changesSince lists description edits');
+  })();
+
+  // Editing the whole description at once (specToText, specSaveAll): sections keep their ids.
+  (function () {
+    var wp = M.newProject({ name: 'Whole', checklists: ['reqs'], profile: [] }, 'Ann', T);
+    var q = M.newReq(wp, { ref: 'REQ-001', text: 'Relays off' }, 'Ann'); wp.reqs[q.id] = q;
+    var put = function (recs) { recs.forEach(function (r) { wp.spec[r.id] = r; }); };
+    wp.spec = {};
+    put(M.specSave(wp, null, '# A · product\nAlpha [off]{REQ-001}.\n## B · task\nBravo.\n## C\nCharlie, see [B]{#B}.\n## D\nDelta.', 'Ann'));
+    var ids = function () { var o = {}; M.liveSpec(wp).forEach(function (s) { o[s.title] = s.id; }); return o; };
+    var before = ids(), text = M.specToText(wp);
+    ok(text.indexOf('# A * product\nAlpha [off]{REQ-001}.') === 0 && text.indexOf('[B]{#B}') > 0, 'specToText shows headings, refs, and #titles', text);
+    eq(M.specSaveAll(wp, text, 'Ann'), [], 'saving the text unchanged writes nothing');
+    // Rename B, move D above C, add E, delete nothing.
+    var edited = text.replace('## B * task', '## Bravo task * task').replace('## C\nCharlie, see [B]{#B}.\n\n## D\nDelta.', '## D\nDelta.\n\n## C\nCharlie, see [B]{#Bravo task}.\n\n### E\nEcho.');
+    var recs = M.specSaveAll(wp, edited, 'Ann'); put(recs);
+    var after = ids();
+    eq([after['Bravo task'], after.D, after.C, after.A], [before.B, before.D, before.C, before.A], 'a renamed and a moved heading keep their section ids');
+    eq(M.liveSpec(wp).map(function (s) { return s.title; }), ['A', 'Bravo task', 'D', 'C', 'E'], 'sections follow the order of the text');
+    ok(!!after.E && [before.A, before.B, before.C, before.D].indexOf(after.E) < 0, 'a new heading becomes a new section');
+    ok(wp.spec[after.C].body.indexOf('{s:' + before.B + '}') >= 0, 'a pointer to a renamed section keeps its id', wp.spec[after.C].body);
+    ok(recs.every(function (r) { return r.id !== before.A; }), 'unchanged sections are not rewritten');
+    // Deleting a heading deletes its section; its text joins nothing else.
+    var cut = M.specSaveAll(wp, M.specToText(wp).replace('## D\nDelta.\n\n', ''), 'Ann');
+    eq(cut.filter(function (r) { return r.deleted; }).map(function (r) { return r.id; }), [before.D], 'a heading taken out deletes its section');
+  })();
+
+  // Building in the diagram: gist and Uses lines, renames that follow into Uses, new blocks.
+  (function () {
+    eq(M.specSetLine('Body.', 'gist', 'Does it.'), '> Does it.\nBody.', 'specSetLine puts a new gist first');
+    eq(M.specSetLine('> Old.\nBody.', 'gist', 'New.'), '> New.\nBody.', 'specSetLine replaces the gist');
+    eq(M.specSetLine('> Old.\nBody.', 'gist', ''), 'Body.', 'specSetLine removes an emptied gist');
+    eq(M.specSetLine('Body.\n\n', 'uses', 'A, B'), 'Body.\nUses: A, B', 'specSetLine puts a new Uses line last');
+    eq(M.specSetLine('```\nUses: x\n```\nBody.', 'uses', 'A'), '```\nUses: x\n```\nBody.\nUses: A', 'specSetLine skips lines in code');
+    eq(M.specUsesNames('Text.\nUses: Relay driver,  Sensor driver ,'), ['Relay driver', 'Sensor driver'], 'specUsesNames reads the Uses line');
+    eq(M.specRenameUses('Uses: Relay driver, relay DRIVER x, Status LED', 'Status LED', 'Status light'), 'Uses: Relay driver, relay DRIVER x, Status light', 'specRenameUses renames whole names only');
+    var bp = M.newProject({ name: 'Blocks', checklists: [], profile: [] }, 'Ann', T), put = function (recs) { recs.forEach(function (r) { bp.spec[r.id] = r; }); };
+    bp.spec = {};
+    put(M.specSave(bp, null, '# Firmware * product\n## Control loop * task\nRuns.\nUses: Relay driver\n## Drivers\n### Relay driver * driver\nSwitches.', 'Ann'));
+    var byT = function () { var o = {}; M.liveSpec(bp).forEach(function (s) { o[s.title] = s; }); return o; };
+    var loop = byT()['Control loop'];
+    var add = M.specAddBlock(bp, { title: 'Sensor driver', kind: 'driver', gist: 'Reads the sensor.', parent: loop.id }, 'Ann'); put(add);
+    eq(M.liveSpec(bp).map(function (s) { return s.level + s.title; }), ['1Firmware', '2Control loop', '2Drivers', '3Relay driver', '3Sensor driver'], 'a new block goes after the last of its kind, at that level');
+    eq([byT()['Sensor driver'].body, M.specUsesNames(byT()['Control loop'].body)], ['> Reads the sensor.', ['Relay driver', 'Sensor driver']], 'it gets its gist, and its parent uses it');
+    put(M.specAddBlock(bp, { title: 'Scheduler', kind: 'module', parent: loop.id }, 'Ann'));
+    eq(byT().Scheduler.level + ':' + M.liveSpec(bp).map(function (s) { return s.title; }).indexOf('Scheduler'), '3:2', 'a block of a new kind goes under its parent');
+    put(M.specRename(bp, byT()['Relay driver'].id, 'Relay output', 'Ann'));
+    eq(M.specUsesNames(byT()['Control loop'].body), ['Relay output', 'Sensor driver', 'Scheduler'], 'renaming a block renames it in Uses lines');
+    var one = M.specSave(bp, byT()['Sensor driver'].id, '### Temp sensor * driver\n> Reads the sensor.', 'Ann'); put(one);
+    eq(M.specUsesNames(byT()['Control loop'].body), ['Relay output', 'Temp sensor', 'Scheduler'], 'renaming a section in its editor renames it in other Uses lines');
+    put(M.specSaveAll(bp, M.specToText(bp).replace('### Relay output * driver', '### Relays out * driver'), 'Ann'));
+    eq(M.specUsesNames(byT()['Control loop'].body), ['Relays out', 'Temp sensor', 'Scheduler'], 'renaming a heading in Edit all renames it in Uses lines');
+  })();
+
+  // The Description tab is picked per review, like Requirements.
+  (function () {
+    var e = M.newProject({ name: 'Pick', checklists: ['schematic'], profile: [] }, 'Ann', T);
+    eq(M.specEnabled(e), false, 'a review without a description and without the pick has no Description tab');
+    e.meta.checklists = ['schematic', 'spec'];
+    eq(M.specEnabled(e), true, 'picking Description turns the tab on');
+    e.meta.checklists = ['schematic']; e.spec = {}; var r = M.newSection({ title: 'A', body: 'Text.' }, 'Ann'); e.spec[r.id] = r;
+    eq(M.specEnabled(e), true, 'a review from before the pick shows its description');
+    e.meta.specDecided = true;
+    eq([M.specEnabled(e), M.specSummary(e)], [false, null], 'unpicked, the description is kept but hidden and left out of the summary');
+  })();
+
+  // Conflict copies, phrase links, moving blocks, @req comments, and the Markdown export.
+  (function () {
+    var cp = M.newProject({ name: 'Conflicts', checklists: ['reqs'], profile: [] }, 'Ann', T);
+    var q = M.newReq(cp, { ref: 'REQ-001', text: 'Relays off' }, 'Ann'); cp.reqs[q.id] = q;
+    var put = function (doc, recs) { recs.forEach(function (r) { doc.spec[r.id] = r; }); };
+    cp.spec = {};
+    put(cp, M.specSave(cp, null, '# Firmware * product\nIt runs.\n## Loop * task\nIt loops.', 'Ann'));
+    var loop = M.liveSpec(cp)[1], base = cp.spec[loop.id];
+    var A = JSON.parse(JSON.stringify(cp)), B = JSON.parse(JSON.stringify(cp));
+    A.spec[loop.id] = M.specStamp(Object.assign({}, base, { body: 'Ann wrote this.', updatedAt: base.updatedAt }), 'Ann'); A.spec[loop.id].updatedAt = '2030-01-01T00:00:00.000Z';
+    B.spec[loop.id] = M.specStamp(Object.assign({}, base, { body: 'Bo wrote this.' }), 'Bo'); B.spec[loop.id].updatedAt = '2030-01-02T00:00:00.000Z';
+    var ab = M.mergeProjects(A, B), ba = M.mergeProjects(B, A);
+    var live = function (d) { return M.liveSpec(d).map(function (s) { return s.title + ':' + s.body; }); };
+    eq(live(ab), ['Firmware:It runs.', 'Loop:Bo wrote this.', 'Loop (conflict copy):Ann wrote this.'], 'two edits from one version: the newer wins and the other is kept as a conflict copy after it');
+    eq(live(ba), live(ab), 'merging either way makes the same copy');
+    eq(Object.keys(M.mergeProjects(ab, B).spec).length, Object.keys(ab.spec).length, 'merging again makes no second copy');
+    var B2 = JSON.parse(JSON.stringify(B)); B2.spec[loop.id] = M.specStamp(Object.assign({}, B.spec[loop.id], { body: 'Bo again.' }), 'Bo'); B2.spec[loop.id].updatedAt = '2030-01-03T00:00:00.000Z';
+    eq(live(M.mergeProjects(B, B2)).length, 2, 'an edit on top of another is not a conflict');
+    var hr = { id: 'h', title: 'H', body: '', updatedAt: '2030-01-01T00:00:00.000Z' };
+    for (var hi = 0; hi < 8; hi++) { hr = M.specStamp(Object.assign({}, hr), 'Ann'); hr.updatedAt = '2030-01-0' + (hi + 2) + 'T00:00:00.000Z'; }
+    eq(hr.hist.length, 5, 'a section keeps its last five versions');
+    var legacy = JSON.parse(JSON.stringify(cp)); delete legacy.spec[loop.id].hist; var L2 = JSON.parse(JSON.stringify(legacy)); L2.spec[loop.id].updatedAt = '2031-01-01T00:00:00.000Z'; L2.spec[loop.id].body = 'x';
+    eq(live(M.mergeProjects(legacy, L2)).length, 2, 'sections without history merge newer-wins');
+    // Phrase links.
+    var body = 'The loop switches the heat relay [quickly]{std} every second.';
+    eq(M.specEdit(body, 0, body.length, 'phrase', { id: 'q1', text: 'heat relay' }), 'The loop switches the [heat relay]{q:q1} [quickly]{std} every second.', 'phrase wraps just those words');
+    eq(M.specEdit(body, 0, body.length, 'phrase', { id: 'q1', text: 'quickly' }), 'The loop switches the heat relay [quickly]{q:q1} every second.', 'phrase on a link’s own words turns that link into a requirement link');
+    eq(M.specEdit(body, 0, body.length, 'phrase', { id: 'q1', text: 'relay quickly' }), body, 'phrase across a mark leaves the text alone');
+    eq(M.specEdit('Pulse the LED @req.', 0, 19, 'phrase', { id: 'q1', text: 'the LED' }), 'Pulse [the LED]{q:q1}.', 'phrase drops the @req flag');
+    // Moving blocks.
+    var mp = M.newProject({ name: 'Move', checklists: [], profile: [] }, 'Ann', T); mp.spec = {};
+    put(mp, M.specSave(mp, null, '# P * product\n## A * task\n### A1\n## B * task\n## Drivers\n### D * driver', 'Ann'));
+    var ids = {}; M.liveSpec(mp).forEach(function (s) { ids[s.title] = s.id; });
+    put(mp, M.specMoveBlock(mp, ids.A, { kind: 'task', after: ids.B }, 'Ann'));
+    eq(M.liveSpec(mp).map(function (s) { return s.level + s.title; }), ['1P', '2B', '2A', '3A1', '2Drivers', '3D'], 'moving a block after another takes its subsections along');
+    put(mp, M.specMoveBlock(mp, ids.A, { kind: 'driver', before: ids.D }, 'Ann'));
+    eq(M.liveSpec(mp).map(function (s) { return s.level + s.title + (s.kind ? '*' + s.kind : ''); }), ['1P*product', '2B*task', '2Drivers', '3A*driver', '4A1', '3D*driver'], 'moving to another layer sets the kind, the place, and the level');
+    eq(M.specMoveBlock(mp, ids.A, { kind: 'driver' }, 'Ann'), [], 'a move that changes nothing writes nothing');
+    // @req comments.
+    cp.comments.c1 = { id: 'c1', item: 'x1', author: 'Bo', at: '2030-01-01T00:00:00.000Z', text: 'Make it pulse @req' };
+    cp.comments.c2 = { id: 'c2', item: 'x1', author: 'Bo', at: '2030-01-02T00:00:00.000Z', text: 'See @revnotes' };
+    cp.comments.c3 = { id: 'c3', item: '', author: 'Bo', at: '2030-01-03T00:00:00.000Z', text: 'Done @req', reqDone: true };
+    eq(M.specCommentTags(cp).map(function (c) { return c.id + ':' + c.text; }), ['c1:Make it pulse'], 'comments flagged @req wait in the inbox until handled');
+    // Markdown.
+    var md = M.specMarkdown(ab);
+    ok(md.indexOf('# Conflicts') === 0 && md.indexOf('## Firmware (product)') > 0 && md.indexOf('| REQ-001 | Relays off | Not described |') > 0, 'specMarkdown writes headings with kinds and the requirements table', md);
+    var lp = M.newProject({ name: 'Links', checklists: ['reqs'], profile: [] }, 'Ann', T); lp.reqs[q.id] = q; lp.spec = {};
+    put(lp, M.specSave(lp, null, '# Top\n[It stops]{REQ-001} on reset. [Background.]{std}\nUses: Top', 'Ann'));
+    var md2 = M.specMarkdown(lp);
+    ok(md2.indexOf('It stops [REQ-001] on reset. Background.') > 0 && md2.indexOf('*Uses: Top*') > 0 && md2.indexOf('| REQ-001 | Relays off | Top |') > 0, 'specMarkdown turns links into refs, drops standard marks, and says where each requirement is described', md2);
+  })();
+
   var failed = results.filter(function (r) { return !r.ok; });
   document.getElementById('out').innerHTML = results.map(function (r) {
     return '<div class="' + (r.ok ? 'pass' : 'fail') + '">' + (r.ok ? '✓ ' : '✗ ') + r.name + '</div>' + (r.ok ? '' : '<pre>' + (r.detail || '') + '</pre>');
