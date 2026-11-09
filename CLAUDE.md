@@ -100,10 +100,10 @@ Read next:
   `meta.plPart`, written as `summary.plPart`. PL links its Part at its next sync. Not tried live, and the
   list itself hasn't been seen on screen (it needs an FTE token); `model` and `workspace` are tested.
 - Description as a block diagram (2026-11-08, branch `ee-blocks`, Chris: "think of it like a schematic
-  block diagram"): EE's Description tab is a subcircuit block diagram (`config.spec`: flow layout, no
+  block diagram"): Scribe EE is a subcircuit block diagram (`config.spec`: flow layout, no
   kinds, Connects and Supplies, Parts), organized by sections from the outline (drawn in the diagram,
   moved in the hierarchy under it), with the Main PCBA demo and EE guide steps. See
-  `docs/block-diagram.md`.
+  `docs/scribe-ee.md`.
 - Unsynced list (2026-11-03, merged to `main` and pushed): a list button beside the sync pill
   (`syncDetails` in `app.js`) itemizes the dirty projects with `model.changesSince(project,
   cutoff)`. The cutoff is `lastSync.startedAt` (new, written at sync) or `lastSync.at`; a project

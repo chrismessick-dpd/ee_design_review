@@ -14,10 +14,10 @@
    pl:             Signoff PL: this tool's id there (a Part's source) and PL's data repo. At sync an
                    FTE reads PL's Parts marked as a Placeholder for this tool and lists them under
                    From Signoff PL (model.plSlim, workspace.js readPl).
-   spec:           offers the Description tab (a free-form description tied to requirements; see
-                   fw_design_review/docs/description-tab.md) as a pick beside the checklists. label
+   spec:           offers Scribe, the description tab (a free-form description tied to requirements;
+                   see fw_design_review/docs/scribe.md) as a pick beside the checklists. label
                    names the tab; default: true ticks it for new reviews; guide: a demo seed whose
-                   description the Description guide (assets/specguide.js) walks through (FW sets it).
+                   description the Scribe guide (assets/specguide.js) walks through (FW sets it).
    words.unit(s):  what one review is called on screen (board / part). "Project" is the
                    client project several reviews belong to (meta.project).
    previews.dir:   the folder a checker stores pictures in next to a review (Fabcheck's board
@@ -54,7 +54,7 @@ window.SIGNOFF_CONFIG = {
   "defaultStage": "Schematic",
   "legacyTabs": ["schematic", "interfaces", "pcb", "assembly", "fab"],
   "pl": { "tool": "ee", "dataRepo": "signoff_pl_data" },
-  "spec": {"label": "Description", "layout": "flow", "parts": true, "guide": 7, "kinds": [], "links": ["Connects", "Supplies"]},
+  "spec": {"label": "Scribe", "layout": "flow", "parts": true, "guide": 7, "kinds": [], "links": ["Connects", "Supplies"]},
   "words": {
     "unit": "board",
     "units": "boards",

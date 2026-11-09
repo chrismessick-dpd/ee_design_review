@@ -352,12 +352,12 @@ written, and is never merged.
   from the Part. Signoff PL links that Part to the review at its next sync (`pl.js` `claimPlanned`;
   the earliest `at` wins). Left out when there's none, so other reviews keep their bytes. Loom
   writes the same field for harnesses.
-- **`spec`.** The review's description (`project.spec`, the Description tab where `config.spec` is
+- **`spec`.** The review's description (`project.spec`, Scribe where `config.spec` is
   on; Signoff FW for now): the top-level sections' gists, plus the level under them when there's only
   one top section (`depth` 0 or 1), and its gaps: untraced sentences, requirements nothing describes,
   and sentences flagged `@req`. Left out while the description is empty or the review doesn't pick
-  the Description tab, so other reviews keep their bytes. Signoff PL shows it as *What it does* in a Part's inspector. The format of `project.spec`
-  is at *Description* in `model.js`; the design is in `fw_design_review/docs/description-tab.md`.
+  Scribe, so other reviews keep their bytes. Signoff PL shows it as *What it does* in a Part's inspector. The format of `project.spec`
+  is at *Description* in `model.js`; the design is in `fw_design_review/docs/scribe.md`.
   A tool's `config.spec.template` gives new reviews a starting description, chosen by profile
   (`model.specTemplate`; see *The template* in that doc).
 - **`at` / `by`.** These are the project's latest edit, not the sync time. An unchanged

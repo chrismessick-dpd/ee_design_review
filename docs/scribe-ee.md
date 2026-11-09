@@ -1,9 +1,8 @@
-# Signoff EE: the Description tab as a schematic block diagram (design)
+# Scribe EE: the description tab in Signoff EE, as a schematic block diagram (design)
 
-2026-11-08. Status: built on branch `ee-blocks` (EE, ME, FW, PL, and the hub; worktrees in `_ee/`,
-preview `signoff-ee-blocks` on port 8794), not merged. Chris: "think of it like a schematic block
+2026-11-08. Status: built and pushed. Chris: "think of it like a schematic block
 diagram, and the markdown describes each subcircuit." The FW tab and its design are in
-`../../fw_design_review/docs/description-tab.md`; this covers what changes for a board.
+`../../fw_design_review/docs/scribe.md`; this covers what changes for a board.
 
 ## Why it fits a board
 
