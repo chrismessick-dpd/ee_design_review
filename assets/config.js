@@ -16,7 +16,8 @@
                    From Signoff PL (model.plSlim, workspace.js readPl).
    spec:           offers the Description tab (a free-form description tied to requirements; see
                    fw_design_review/docs/description-tab.md) as a pick beside the checklists. label
-                   names the tab; default: true ticks it for new reviews.
+                   names the tab; default: true ticks it for new reviews; guide: a demo seed whose
+                   description the Description guide (assets/specguide.js) walks through (FW sets it).
    words.unit(s):  what one review is called on screen (board / part). "Project" is the
                    client project several reviews belong to (meta.project).
    previews.dir:   the folder a checker stores pictures in next to a review (Fabcheck's board

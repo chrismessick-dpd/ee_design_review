@@ -18,7 +18,7 @@ Read next:
 ## Rules
 
 - **Engine files**: `assets/model.js`, `github.js`, `workspace.js`, `app.js`, `demo.js`,
-  `styles.css`, and `tools/build.py`, `package.py`, `validate_templates.py`. Edit them only
+  `specguide.js`, `styles.css`, and `tools/build.py`, `package.py`, `validate_templates.py`. Edit them only
   here. Then copy them to the other tools:
 
   | Tool | Command |
