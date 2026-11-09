@@ -12,7 +12,7 @@
    ids:            prefixes for new project, comment, and custom-check IDs.
    templatePrefixes: checklist id -> required prefix of its section and item IDs.
    pl:             Signoff PL: this tool's id there (a Part's source) and PL's data repo. At sync an
-                   FTE reads PL's Parts marked "Not started yet" in this tool and lists them under
+                   FTE reads PL's Parts marked as a Placeholder for this tool and lists them under
                    From Signoff PL (model.plSlim, workspace.js readPl).
    words.unit(s):  what one review is called on screen (board / part). "Project" is the
                    client project several reviews belong to (meta.project).

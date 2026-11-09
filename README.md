@@ -344,7 +344,7 @@ written, and is never merged.
   so boards without revisions keep their bytes. Signoff PL can show what was built for each
   EVT, DVT, or PVT build.
 - **`plPart`.** The Signoff PL Part the review was started from (`meta.plPart`): a PL project id,
-  a node id, and when it was started. FTEs see the PL Parts marked "Not started yet" in this tool
+  a node id, and when it was started. FTEs see the PL Parts marked as a Placeholder for this tool
   under *From Signoff PL* in the sidebar (read from PL's data repo at sync, `config.pl`,
   `workspace.js` `readPl`, `model.plSlim` and `plWaiting`); Start opens New design review filled in
   from the Part. Signoff PL links that Part to the review at its next sync (`pl.js` `claimPlanned`;
