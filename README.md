@@ -358,6 +358,8 @@ written, and is never merged.
   and sentences flagged `@req`. Left out while the description is empty or the review doesn't pick
   the Description tab, so other reviews keep their bytes. Signoff PL shows it as *What it does* in a Part's inspector. The format of `project.spec`
   is at *Description* in `model.js`; the design is in `fw_design_review/docs/description-tab.md`.
+  A tool's `config.spec.template` gives new reviews a starting description, chosen by profile
+  (`model.specTemplate`; see *The template* in that doc).
 - **`at` / `by`.** These are the project's latest edit, not the sync time. An unchanged
   project therefore writes the same bytes and isn't committed again.
 - **Existing projects.** Projects synced before the summary existed get one at their next sync,
