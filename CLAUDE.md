@@ -66,7 +66,7 @@ Read next:
 
 1. Run `python tools/build.py`. It validates the templates and stamps the version and `?v=`.
    `--check` verifies the stamp.
-2. Open `tests/test.html` over http. It should show PASS (321 tests, 2026-11-08).
+2. Open `tests/test.html` over http. It should show PASS (322 tests, 2026-11-09).
 3. Sync the engine into ME, and vendor it into Fabcheck and PL where needed, then run their
    checks and tests.
 

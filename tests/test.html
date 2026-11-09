@@ -72,6 +72,8 @@
   ok(st.total === rows.length - hidden.length + 1 && st.outside === hidden.length - 1 && st.reviewed === 1, 'profile-hidden items are left out of progress (a passed one counts)');
   var fresh = M.newProject({ name: 'Fresh', checklists: ['schematic', 'pcb'], profile: ['battery'] }, 'Ann', T);
   eq(M.projectStats(fresh, T).pct, 0, 'a new review starts at 0%');
+  var bare = M.newProject({ name: 'Bare', checklists: [] }, 'ann', T);
+  eq([M.projectStats(bare, T).pct, M.projectSummary(bare, T).pct], [100, 100], 'a review with nothing to review is 100% (requirements only, or no checks)');
 
   // ── Merge ──
   var base = M.newProject({ name: 'Merge', checklists: ['schematic'] }, 'Ann', T);

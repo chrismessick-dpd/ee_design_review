@@ -328,6 +328,9 @@ written, and is never merged.
 - **Counts.** They match the project overview. Checks set aside by the board profile aren't
   counted, and neither are reference rows (custom checks with `reference: true`: findings Fabcheck
   waived, kept to read; see `docs/fabcheck-link.md`). Their comments are left out of `recent` too.
+  With nothing to review (`total` 0: requirements only, or every check set aside), `pct` is 100, for
+  the review and for each checklist (2026-11-09; files written before then say 0, and Signoff PL
+  reads those as 100).
 - **`project`.** The client project the board belongs to (`meta.project`), or `''`. Signoff PL
   can group or match designs by it.
 - **`reqs`.** It is `null` when Requirements is off for the project. `risk` counts the
