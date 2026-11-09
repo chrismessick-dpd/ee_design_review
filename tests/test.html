@@ -964,6 +964,30 @@
     ok(M.changesSince(sp, '').some(function (c) { return c.kind === 'spec'; }), 'changesSince lists description edits');
   })();
 
+  // A starting description from a template (specTemplate): entries by profile, Uses lines and empty
+  // group headings pruned to what made it in.
+  (function () {
+    var tpl = [
+      { lines: ['# {name} * product', 'What does it do?'] },
+      { lines: ['## Structure', 'How is it built?', 'Uses: Loop, Radio link, Sensing'] },
+      { when: ['wireless'], lines: ['### Radio link * task', 'Which radio?', 'Uses: Radio driver'] },
+      { when: ['sensing'], unless: ['wireless'], lines: ['### Sensing * task', 'What is read?'] },
+      { lines: ['## Drivers'] },
+      { when: ['wireless'], lines: ['### Radio driver * driver', 'Which stack?'] },
+      { lines: ['## Interfaces'] }
+    ];
+    var tp = M.newProject({ name: 'Tpl', checklists: [], profile: ['sensing'] }, 'Ann', T);
+    eq(M.specTemplate(tp, tpl), '# Tpl * product\nWhat does it do?\n\n## Structure\nHow is it built?\nUses: Sensing\n\n### Sensing * task\nWhat is read?\n',
+      'specTemplate keeps entries for the profile, prunes Uses lines, and drops empty group headings');
+    tp.meta.profile = ['sensing', 'wireless'];
+    var text = M.specTemplate(tp, tpl);
+    ok(text.indexOf('Uses: Radio link\n') > 0 && text.indexOf('### Sensing') < 0 && text.indexOf('## Drivers\n\n### Radio driver * driver') > 0, 'specTemplate honors unless, and keeps a group heading with sections under it', text);
+    tp.spec = {};
+    M.specSave(tp, null, text, 'Ann').forEach(function (r) { tp.spec[r.id] = r; });
+    eq(M.liveSpec(tp).map(function (s) { return s.kind; }), ['product', '', 'task', '', 'driver'], 'a template becomes sections with kinds for the diagram');
+    eq(M.specTemplate(tp, []), '', 'no template, no text');
+  })();
+
   // Editing the whole description at once (specToText, specSaveAll): sections keep their ids.
   (function () {
     var wp = M.newProject({ name: 'Whole', checklists: ['reqs'], profile: [] }, 'Ann', T);

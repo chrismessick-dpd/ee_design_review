@@ -93,7 +93,7 @@ need"): there's one **+ Add block**, and the diagram is organized by **sections*
   between neighbors in one section).
 - **Making sections.** Write headings under a heading, or drag on empty diagram space to draw a box
   around blocks: you name it, and it becomes a heading with those blocks moved under it
-  (`model.specGroup`). The section panel has Add a block here, Write its text, and Ungroup
+  (`model.specGroup`). The section panel has Add a block here, Edit its text, and Ungroup
   (`specUngroup`: its blocks move up a level; the heading goes unless it has text).
 - **Dragging in the diagram only arranges** (Chris: dropping a block outside a box left it unclear
   whether it was still in the section). A section's box always wraps its blocks, so a dragged block
