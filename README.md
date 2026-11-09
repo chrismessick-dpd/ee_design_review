@@ -317,6 +317,7 @@ written, and is never merged.
     "parent": { "tool": "pl", "project": "pl…", "id": "q…", "ref": "REQ-002" }, "at": "…", "by": "…" } ],
   "recent": [ { "id": "c…", "item": "usb2", "check": "…", "author": "Morgan Lee", "at": "…", "text": "…" } ],
   "revisions": [ { "label": "3.1", "status": "sent", "sentAt": "2026-10-21" }, { "label": "3.2", "status": "built", "sentAt": "" } ],
+  "plPart": { "project": "pl…", "node": "n…", "at": "2026-11-08T10:00:00Z" },
   "at": "2026-10-24T18:36:53Z", "by": "Sam Patel"
 }
 ```
@@ -342,6 +343,13 @@ written, and is never merged.
   `built` or `withdrawn`) and the date sent (`''` if not given). It's left out when there are none,
   so boards without revisions keep their bytes. Signoff PL can show what was built for each
   EVT, DVT, or PVT build.
+- **`plPart`.** The Signoff PL Part the review was started from (`meta.plPart`): a PL project id,
+  a node id, and when it was started. FTEs see the PL Parts marked "Not started yet" in this tool
+  under *From Signoff PL* in the sidebar (read from PL's data repo at sync, `config.pl`,
+  `workspace.js` `readPl`, `model.plSlim` and `plWaiting`); Start opens New design review filled in
+  from the Part. Signoff PL links that Part to the review at its next sync (`pl.js` `claimPlanned`;
+  the earliest `at` wins). Left out when there's none, so other reviews keep their bytes. Loom
+  writes the same field for harnesses.
 - **`at` / `by`.** These are the project's latest edit, not the sync time. An unchanged
   project therefore writes the same bytes and isn't committed again.
 - **Existing projects.** Projects synced before the summary existed get one at their next sync,

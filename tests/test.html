@@ -593,6 +593,51 @@
     'groups sort A–Z ignoring case and spaces, keep their order, and reviews with no project come last');
   eq(M.projectGroups([]), [], 'no reviews, no groups');
 
+  // ── From Signoff PL: Parts waiting to be started in this tool (config.pl) ──
+  var plTool = (window.SIGNOFF_CONFIG.pl || {}).tool || 'ee';
+  function plDoc() {
+    return { id: 'pl1', slug: 'gizmo', meta: { name: 'Acme Gizmo', clientProject: '' }, nodes: {
+      top: { id: 'top', parent: '', kind: 'assembly', name: 'Gizmo' },
+      w1: { id: 'w1', parent: 'top', kind: 'part', name: 'Sensor board', number: 'PCB-77', source: plTool, ref: null },
+      w2: { id: 'w2', parent: 'top', kind: 'part', name: 'Gone', source: plTool, ref: null, deleted: true },
+      w3: { id: 'w3', parent: 'top', kind: 'part', name: 'Linked', source: plTool, ref: { tool: plTool, id: 'p9' } },
+      w4: { id: 'w4', parent: 'top', kind: 'part', name: 'Bought', source: 'purchased', ref: null },
+      w5: { id: 'w5', parent: 'top', kind: 'part', name: 'Harness', source: 'loom', ref: null },
+      w6: { id: 'w6', parent: 'top', kind: 'part', name: '<b>Odd</b>', number: { x: 1 }, source: plTool } } };
+  }
+  var pslim = M.plSlim(plDoc(), plTool);
+  eq(pslim.planned.map(function (n) { return [n.node, n.name, n.number, n.path]; }).sort(), [['w1', 'Sensor board', 'PCB-77', ['Gizmo']], ['w6', '<b>Odd</b>', '', ['Gizmo']]],
+    'PL’s live Parts waiting for this tool are read (strings only); linked, deleted, and other tools’ Parts aren’t');
+  eq(pslim.clientProject, 'Acme Gizmo', 'no client project: the PL project’s name, as PL matches');
+  ok(M.plSlim({ id: 'x' }, plTool) === null && M.plSlim(null, plTool) === null, 'a file that isn’t a PL project is skipped');
+  var pw = M.plWaiting([pslim], []);
+  eq(pw.map(function (w) { return [w.project, w.node, w.projectName, w.clientProject]; }), [['pl1', 'w6', 'Acme Gizmo', 'Acme Gizmo'], ['pl1', 'w1', 'Acme Gizmo', 'Acme Gizmo']], 'every waiting Part is listed, by name within its place');
+  var started = M.newProject({ name: 'Sensor board', project: 'Acme Gizmo', board: 'PCB-77', checklists: ['schematic'] }, 'ann', T);
+  started.meta.plPart = { project: 'pl1', node: 'w1', at: '2026-11-08T10:00:00.000Z' };
+  eq(M.plWaiting([pslim], [started]).map(function (w) { return w.node; }), ['w6'], 'a review started from a Part takes it off the list');
+  eq(M.plWaiting([Object.assign({}, pslim, { archived: true })], []), [], 'an archived PL project lists nothing');
+  eq(M.projectSummary(started, T).plPart, { project: 'pl1', node: 'w1', at: '2026-11-08T10:00:00.000Z' }, 'the summary names the Part, for PL to link');
+  ok(!('plPart' in M.projectSummary(groupDoc('plain', 'X'), T)), 'a review not started from PL has no plPart (its bytes don’t change)');
+  ok(M.cleanPlPart({ project: 'p', node: 3 }) === null && M.cleanPlPart('x') === null, 'a malformed plPart is dropped');
+  // The read at sync: FTEs only, cached by blob sha with the shape's version.
+  var plHub = new FakeHub();
+  plHub.makeRepo('ann/data', { 'README.md': '#' }, ['ann']);
+  plHub.makeRepo('ann/tool', { 'README.md': '#' }, ['ann']);
+  plHub.makeRepo('ann/pl_data', { 'projects/pl1.json': M.stableStringify(plDoc()), 'projects/bad.json': 'not json', 'users.json': '{}' }, ['ann']);
+  var plSet = Object.assign({}, SET, { suiteRepos: [], plRepo: 'pl_data', plTool: plTool });
+  var plRes = await new Signoff.Workspace(plSet, 'tok-ann', plHub.fetchFor('tok-ann')).sync(blank(), {});
+  eq(plRes.pl && plRes.pl.projects.map(function (s) { return s.planned.length; }), [2], 'an FTE’s sync reads PL’s waiting Parts');
+  ok(plRes.plCache.v === 1 && plRes.plCache.files[plTool]['projects/pl1.json'].sha, 'and caches them by blob sha');
+  var plBefore = plHub.calls.length;
+  var plRes2 = await new Signoff.Workspace(plSet, 'tok-ann', plHub.fetchFor('tok-ann')).sync(plRes.state, { plCache: plRes.plCache });
+  ok(plRes2.pl.projects.length === 1 && !plHub.calls.slice(plBefore).some(function (c) { return /git\/blobs/.test(c); }), 'an unchanged PL file isn’t read again');
+  var plOld = { files: plRes.plCache.files };   // a cache without its version: not trusted
+  var plBefore2 = plHub.calls.length;
+  await new Signoff.Workspace(plSet, 'tok-ann', plHub.fetchFor('tok-ann')).sync(plRes.state, { plCache: plOld });
+  ok(plHub.calls.slice(plBefore2).some(function (c) { return /git\/blobs/.test(c); }), 'a cache of another shape is read again');
+  var noPl = await new Signoff.Workspace(Object.assign({}, plSet, { plRepo: 'missing' }), 'tok-ann', plHub.fetchFor('tok-ann')).sync(blank(), {});
+  ok(!noPl.pl && !noPl.errors.length, 'no PL repo (or no access): skipped quietly');
+
   hub.makeRepo('ann/review-sum', { 'README.md': '#' }, ['ann']);
   var sumWs = new Signoff.Workspace(SET, 'tok-ann', hub.fetchFor('tok-ann'), function (d) { return M.projectSummary(d, T); });
   var sumStore = sumWs.store('ann/review-sum');

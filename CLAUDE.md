@@ -66,7 +66,7 @@ Read next:
 
 1. Run `python tools/build.py`. It validates the templates and stamps the version and `?v=`.
    `--check` verifies the stamp.
-2. Open `tests/test.html` over http. It should show PASS (192 tests as of 2026-11-03).
+2. Open `tests/test.html` over http. It should show PASS (211 tests as of 2026-11-08, after From Signoff PL).
 3. Sync the engine into ME, and vendor it into Fabcheck and PL where needed, then run their
    checks and tests.
 
@@ -92,6 +92,13 @@ Read next:
   *Revisions* and `docs/fabcheck-link.md`. Signoff PL shows `summary.revisions` in a Part's
   inspector (2026-11-04). Not done: the demo's runs and revision (the demo run record's summary
   matches Fabcheck: 4 errors, 13 warnings, 37 info).
+- From Signoff PL (2026-11-08, Chris: new things wait in a tray in the tool they belong to): an FTE's
+  sync reads Signoff PL's data repo (`config.pl`: this tool's id in PL and PL's data repo; step 5 of
+  `Workspace.sync`, `readPl`, cached by blob sha in `plCache` with `PL_CACHE_V`) for Parts marked "Not
+  started yet" in this tool. The sidebar lists them above the reviews (`fromPlHtml`: a dashed ring and a
+  Start pill); Start opens New design review filled in (`projectSheet(null, preset)`), and the review keeps
+  `meta.plPart`, written as `summary.plPart`. PL links its Part at its next sync. Not tried live, and the
+  list itself hasn't been seen on screen (it needs an FTE token); `model` and `workspace` are tested.
 - Unsynced list (2026-11-03, merged to `main` and pushed): a list button beside the sync pill
   (`syncDetails` in `app.js`) itemizes the dirty projects with `model.changesSince(project,
   cutoff)`. The cutoff is `lastSync.startedAt` (new, written at sync) or `lastSync.at`; a project
