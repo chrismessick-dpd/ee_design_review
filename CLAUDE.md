@@ -18,8 +18,8 @@ Read next:
 ## Rules
 
 - **Engine files**: `assets/model.js`, `github.js`, `workspace.js`, `app.js`, `demo.js`,
-  `specguide.js`, `styles.css`, and `tools/build.py`, `package.py`, `validate_templates.py`. Edit them only
-  here. Then copy them to the other tools:
+  `specguide.js`, `styles.css`, and `tools/build.py`, `package.py`, `validate_templates.py`, `signoff.js`,
+  `signoff_test.js`. Edit them only here. Then copy them to the other tools:
 
   | Tool | Command |
   | --- | --- |
@@ -67,6 +67,8 @@ Read next:
 1. Run `python tools/build.py`. It validates the templates and stamps the version and `?v=`.
    `--check` verifies the stamp.
 2. Open `tests/test.html` over http. It should show PASS (322 tests, 2026-11-09).
+   If `tools/signoff.js` or anything it calls changed, run `node tools/signoff_test.js` here and in ME
+   and FW (34 tests each, 2026-11-09).
 3. Sync the engine into ME, and vendor it into Fabcheck and PL where needed, then run their
    checks and tests.
 
