@@ -68,7 +68,7 @@ Read next:
    `--check` verifies the stamp.
 2. Open `tests/test.html` over http. It should show PASS (322 tests, 2026-11-09).
    If `tools/signoff.js` or anything it calls changed, run `node tools/signoff_test.js` here and in ME
-   and FW (34 tests each, 2026-11-09).
+   and FW (36 tests each, 2026-11-09).
 3. Sync the engine into ME, and vendor it into Fabcheck and PL where needed, then run their
    checks and tests.
 

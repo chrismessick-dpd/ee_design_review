@@ -1,7 +1,7 @@
 # Signoff from the command line (plan)
 
-2026-11-09. Status: phases 1 (read only) and 2 (push) built; see *Phase 1, as built* and *Phase 2,
-as built* at the end. Next is phase 3: the Claude skill, and the first real push.
+2026-11-09. Status: phases 1 (read only), 2 (push), and 3 (the Claude skill) built; see the *as
+built* sections at the end. Next: install the skill where Chris works, and the first real push.
 
 ## Why
 
@@ -137,8 +137,9 @@ wins, just as with another reviewer.
 
 ## For Claude
 
-A short guide, `tools/signoff-skill.md`, ships beside the CLI and is installed as a Claude Code skill
-wherever the CLI is used: the tools folder's `.claude/skills/`, or a firmware repo's. It covers:
+A short guide is installed as a Claude Code skill wherever the CLI is used: the tools folder's
+`.claude/skills/`, or a firmware repo's. (As built, `signoff.js skill` generates it; see *Phase 3, as
+built*.) It covers:
 
 - The loop: pull, edit `scribe.md` and `reqs.csv`, status, push with dry run, then push.
 - The Scribe markup: the writing guide's marks (`{std}`, `{REQ-004}`, `{#Title}`, `@req`, `Uses:`,
@@ -337,4 +338,55 @@ node tools/signoff.js push [dir] --confirm <code>    commits exactly that
   script (38 sections, 78 requirements). It round-trips with no warning. A throwaway added section
   passed the proof: only that section and the summary would change. The checkout was deleted, and
   nothing was pushed. All three FW reviews' stored summaries match the engine's, so a browser sync
-  won't recommit them.
+  won't recommit them. (This held for the engine of that day. The Scribe review notes merged later,
+  `Check:`, changed the counts; see *Phase 3, as built*.)
+
+## Phase 3, as built (2026-11-09)
+
+```
+node tools/signoff.js skill                      print the Claude Code skill
+node tools/signoff.js skill --install <folder>   write <folder>/.claude/skills/signoff/SKILL.md
+```
+
+- **Generated, not a fixed file.** The plan named a fixed `tools/signoff-skill.md`. `signoff.js
+  skill` writes the skill instead, from:
+  - this machine's paths: Node, which may not be on PATH, and the CLI of each Signoff tool found
+    beside this one (EE, ME, FW);
+  - each tool's own Scribe words, read from its `config.js`: FW's kinds and `Uses:`, and EE's
+    `Connects:`, `Supplies:`, and `Parts:`. ME has no Scribe.
+  - `checkouts` from `~/.signoff/config.json`.
+
+  `--install` won't replace a different file there without `--force`. `.claude/` is git-ignored in
+  the tool repos.
+- **The skill** has these parts:
+  - the commands;
+  - the loop: list, pull, edit, status, dry run, the user's approval, confirm, open, and deleting the
+    checkout when done;
+  - `scribe.md`'s marks, in each tool's words, and `reqs.csv`'s columns and values;
+  - the rules: data stays private, never handle the token, nothing is pushed without the user's OK
+    on that dry run, one writer per review, and doubts go in `Check:` notes;
+  - what to do when something goes wrong.
+- **The CLI for the merged Scribe fixes:**
+  - `status` and `list` count review notes (`Check:`) apart from unlinked text, and list them;
+  - `status` lists marks that don't parse, by line (`specBrokenMarks`);
+  - the text output says *unlinked*, as the tab does. `--json` keeps `untraced`, as the data does;
+  - the dry run prints its confirm command in full;
+  - a warning line starts `Warning:`.
+- **Tried by another Claude given only the skill** (a fresh agent, dry runs only, on Generator
+  Firmware). It found the counts, ran a dry run of a throwaway section, restored the file, and
+  deleted the checkout, without `--confirm` or `--force`. What it found unclear went into the skill
+  or the CLI:
+  - no count of review notes (it ran the older copy in FW, before the sync);
+  - "untraced" against "unlinked";
+  - the relative confirm command;
+  - what a warning looks like;
+  - what the dry run's Summary line means;
+  - spacing around headings;
+  - deleting a checkout when done.
+- **Stored summaries after the review-notes change.** All three FW reviews' summaries were written
+  before `Check:` became a note, so they count notes as untraced. Generator's says 92 untraced, where
+  the engine now says 0 unlinked and 92 notes. A browser sync of FW rewrites them, and so would a push.
+- **Tests:** 36 in each of EE, ME, and FW. New ones cover review notes, marks that don't parse, and
+  `skill` with `--install`.
+- **Not done:** installing the skill anywhere, which is Chris's call. The tools folder,
+  `C:\Dovetail\tools`, is the obvious place. Also the first real push.
