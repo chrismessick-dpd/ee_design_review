@@ -965,6 +965,7 @@
     eq(M.mergeProjects(M.newProject({ name: 'A' }, 'Ann', T), M.newProject({ name: 'B' }, 'Ann', T)).spec, undefined, 'documents without a description keep their bytes');
     var sum = M.specSummary(sp);
     eq(sum.gists.map(function (g) { return g.depth + g.title; }), ['0Firmware', '1Status frame', '1Cloud link'], 'summary.spec has the top-level gists, and the next level under a single top section');
+    eq(sum.more, undefined, 'summary.spec has no more while every gist fits');
     eq(sum.gists[0].gist, 'Runs the heating.', 'summary.spec gists come from the > line or the first sentence');
     eq([sum.untraced, sum.undescribed, sum.flagged], [4, 1, 1], 'summary.spec counts the gaps');
     eq(M.specSummary(M.newProject({ name: 'Empty' }, 'Ann', T)), null, 'no summary.spec without a description');
@@ -1048,6 +1049,73 @@
     eq(M.specUsesNames(byT()['Control loop'].body), ['Relay output', 'Temp sensor', 'Scheduler'], 'renaming a section in its editor renames it in other Uses lines');
     put(M.specSaveAll(bp, M.specToText(bp).replace('### Relay output * driver', '### Relays out * driver'), 'Ann'));
     eq(M.specUsesNames(byT()['Control loop'].body), ['Relays out', 'Temp sensor', 'Scheduler'], 'renaming a heading in Edit all renames it in Uses lines');
+  })();
+
+  // First real use (2026-11-09): marks holding brackets and code, sentence splitting, plain text, long
+  // sections, the summary's gists, and kind plurals.
+  (function () {
+    var fp = M.newProject({ name: 'First use', checklists: ['reqs', 'spec'], profile: [] }, 'Ann', T);
+    var q = M.newReq(fp, { ref: 'REQ-001', text: 'Relays off' }, 'Ann'); fp.reqs[q.id] = q;
+    var ctx = M.specContext(fp);
+    var units = function (body) { var out = []; M.specBlocks(body, ctx).forEach(function (b) { (b.units || []).forEach(function (u) { out.push(u); }); }); return out; };
+    var states = function (body) { return units(body).map(function (u) { return u.state; }); };
+    var texts = function (body) { return units(body).map(function (u) { return u.text; }); };
+    // Brackets, braces, and code inside a mark's words.
+    eq(states('[It reads buf[0] first.]{std}'), ['std'], 'a mark may hold balanced brackets');
+    eq(states('[It reads `buf[0` first.]{std}'), ['std'], 'brackets inside `code` in a mark don’t count');
+    eq(states('[It sets {mode} to 2.]{std}'), ['std'], 'braces in a mark’s words are fine');
+    eq(units('[It reads buf[0] first.]{std}')[0].text, 'It reads buf[0] first.', 'the words keep their brackets');
+    eq(M.specSpans('Set `cfg[i]{0}` here.').length, 0, '`code` outside a mark is never a mark');
+    var bad = units('[It reads x.]{std Then more.'), good = units('[It reads x.]{std}');
+    ok(bad[0].broken && !good[0].broken && bad[0].state === 'untraced', 'a mark that doesn’t parse is flagged, not silently untraced', JSON.stringify(bad));
+    ok(units('[A]{q:1{2}} b.')[0].broken && !units('Use `[x]{y}` as written.')[0].broken, 'a brace inside {…} is flagged; "]{" inside `code` is not');
+    eq(M.specBrokenMarks('# A\nFine [x]{std}.\n## B\nBad [y]{std here.\n```\nnot [z]{ checked\n```\nUse `a]{b}`.').map(function (b) { return b.line + b.heading; }), ['4B'], 'specBrokenMarks lists lines with a mark that doesn’t parse, outside code');
+    eq(M.specBrokenMarks('[A]{std} b. [c d.]{std e.')[0].text, '…[c d.]{std e.', 'specBrokenMarks shows the line from the mark that breaks');
+    var brk = 'It reads x]{std} first.';
+    eq([M.specEdit(brk, 0, brk.length, 'std', true), M.specEdit(brk, 0, brk.length, 'link', q.id)], [brk, brk], 'a sentence with a broken mark isn’t wrapped in another');
+    var nest = '[It reads buf[0] first]{std}. More.', nu = units(nest)[0];
+    eq(M.specEdit(nest, nu.start, nu.end, 'link', q.id), '[It reads buf[0] first]{q:' + q.id + '}. More.', 'a mark holding brackets can be linked from its panel');
+    eq(M.specFromEditor(M.specToEditor('[x[1] y]{q:' + q.id + '} `a]{b}`', ctx), ctx), '[x[1] y]{q:' + q.id + '} `a]{b}`', 'refs round-trip through the editor with brackets and code');
+    // Sentence splitting.
+    eq(texts('[A b.]{std} foo c.'), ['A b.', 'foo c.'], 'a mark whose words end a sentence ends it, even before a lowercase word');
+    eq(states('[A b.]{std} foo c.'), ['std', 'untraced'], '… and the next sentence has its own state');
+    eq(texts('It sets the gain. kff is added after.'), ['It sets the gain.', 'kff is added after.'], 'a sentence may start with a lowercase identifier');
+    eq(texts('It trips above 22 V. The pump stops. Wait 5 min. Then retry. Max. The end.'), ['It trips above 22 V.', 'The pump stops.', 'Wait 5 min.', 'Then retry.', 'Max.', 'The end.'], 'V., min., and max. end a sentence before a capital');
+    eq(texts('It trips at 22 V. A fault latches.'), ['It trips at 22 V.', 'A fault latches.'], 'a unit ends a sentence before a one-letter word');
+    eq(texts('Use no. 4, see Fig. 3, rev. B, and ref. REQ-004 here. LEDs, buttons, etc. The end.'), ['Use no. 4, see Fig. 3, rev. B, and ref. REQ-004 here.', 'LEDs, buttons, etc.', 'The end.'], 'No., Fig., rev., and ref. hold before a number, a letter, or a ref; etc. ends before a capital');
+    eq(texts('A sensor, e.g. Linux reads it, cf. the table, a.k.a. the probe, vs. Windows. Done.'), ['A sensor, e.g. Linux reads it, cf. the table, a.k.a. the probe, vs. Windows.', 'Done.'], 'e.g., cf., a.k.a., and vs. never end a sentence');
+    eq(texts('It is 0.5 °C at 36.7 Hz. Then etc. and so on. Is it on? It is.'), ['It is 0.5 °C at 36.7 Hz.', 'Then etc. and so on.', 'Is it on?', 'It is.'], 'decimals stay inside, etc. holds before a lowercase word, and a question mark ends a sentence');
+    eq(texts('It logs ("RELAY ON!") when the relay closes. Done.'), ['It logs ("RELAY ON!") when the relay closes.', 'Done.'], 'an exclamation mark in a quoted string, before a lowercase word, stays inside');
+    eq(states('[Relays go off]{REQ-001}. Check: is it 100 ms?'), ['linked', 'untraced'], 'a note after a linked sentence is its own sentence');
+    // Plain text keeps the space before a dotted word.
+    eq([M.specPlain('Open the .cfg file.'), M.specPlain('Make it pulse @req.'), M.specPlain('A , b'), M.specPlain('[x]{std} .')], ['Open the .cfg file.', 'Make it pulse.', 'A, b', 'x.'], 'specPlain drops a space before punctuation only where it ends a word');
+    // Long sections are kept whole, and every rewrite of one line keeps the rest.
+    var lp = M.newProject({ name: 'Long', checklists: ['spec'], profile: [] }, 'Ann', T), putL = function (recs) { recs.forEach(function (r) { lp.spec[r.id] = r; }); };
+    lp.spec = {};
+    putL(M.specSave(lp, null, '# Big * task\nUses: Relay driver\n' + new Array(5001).join('Some text ') + 'end.\n## Relay driver * driver\nSwitches.', 'Ann'));
+    var bigId = M.liveSpec(lp)[0].id, relayId = M.liveSpec(lp)[1].id, bigBody = lp.spec[bigId].body;
+    ok(bigBody.length > 50000 && M.liveSpec(lp)[0].body === bigBody, 'a section longer than 40,000 characters is kept whole', bigBody.length);
+    putL(M.specRename(lp, relayId, 'Relay output', 'Ann'));
+    eq(lp.spec[bigId].body, bigBody.replace('Uses: Relay driver', 'Uses: Relay output'), 'renaming a block keeps all of a long section that uses it');
+    putL(M.specSave(lp, relayId, '## Relay out * driver\nSwitches.', 'Ann'));
+    eq(lp.spec[bigId].body, bigBody.replace('Uses: Relay driver', 'Uses: Relay out'), '… in a section’s editor too');
+    eq(M.specSaveAll(lp, M.specToText(lp), 'Ann'), [], 'Edit all round-trips a long section unchanged');
+    var ren = M.specSaveAll(lp, M.specToText(lp).replace('## Relay out', '## Relays'), 'Ann'); putL(ren);
+    eq(lp.spec[bigId].body, bigBody.replace('Uses: Relay driver', 'Uses: Relays'), '… and in Edit all');
+    eq(M.specTooLong(ren), [], 'specTooLong is empty when every section fits');
+    var huge = M.specSave(lp, null, '## Huge\n' + new Array(M.SPEC_BODY_MAX / 10 + 2).join('Some text '), 'Ann');
+    eq(M.specTooLong(huge).map(function (x) { return x.title; }), ['Huge'], 'specTooLong names a section too long to save');
+    // The summary's gists: no empty group headings, up to 40, and how many more.
+    var gp = M.newProject({ name: 'Gists', checklists: ['spec'], profile: [] }, 'Ann', T), lines = ['# Product * product', 'Does things.', '## Software', '### Loop * task', 'Runs.'];
+    for (var i = 0; i < 45; i++) lines.push('## Part ' + i, 'Part ' + i + ' works.');
+    gp.spec = {}; M.specSave(gp, null, lines.join('\n'), 'Ann').forEach(function (r) { gp.spec[r.id] = r; });
+    var gs = M.specSummary(gp);
+    eq([gs.gists.length, gs.more, gs.gists[0].title, gs.gists[1].title, gs.gists[39].title], [40, 6, 'Product', 'Part 0', 'Part 38'], 'summary.spec skips empty group headings, keeps up to 40 gists, and counts the rest in more');
+    // Kind labels and plurals.
+    eq([M.specKindPlural('hardware'), M.specKindPlural('task'), M.specKindLabel('driver')], ['Hardware', 'Tasks', 'Driver'], 'a kind reads in the singular and plural, and hardware has no plural');
+    window.SIGNOFF_CONFIG.spec = { label: 'Description', kinds: ['task', { id: 'hardware', label: 'Board', plural: 'Boards' }] };
+    eq([M.specKindPlural('hardware'), M.specKindLabel('hardware'), M.specKindPlural('task')], ['Boards', 'Board', 'Tasks'], 'config.spec.kinds can name a kind and its plural');
+    window.SIGNOFF_CONFIG.spec = { label: 'Description' };
   })();
 
   // The Description tab is picked per review, like Requirements.
