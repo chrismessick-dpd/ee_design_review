@@ -925,9 +925,9 @@
     eq(x0.blocks.filter(function (b) { return b.type === 'p'; }).map(function (b) { return b.units.map(function (u) { return u.state; }); }),
       [['std', 'untraced', 'linked', 'tag']], 'sentences split after a span that ends one, not at "e.g." or decimals, with their states');
     eq(x0.gist, 'Runs the heating.', 'a > line is the gist');
-    eq(a.sections[2].counts, { linked: 1, std: 0, tag: 0, untraced: 1 }, 'a pointer to an interface section counts as traced, and list items are units');
+    eq(a.sections[2].counts, { linked: 1, std: 0, tag: 0, untraced: 1, note: 0 }, 'a pointer to an interface section counts as traced, and list items are units');
     eq(a.sections[2].uses, [secs[1].id], 'Uses names sections by title and skips unknown ones');
-    eq(a.sections[1].counts, { linked: 0, std: 0, tag: 0, untraced: 0 }, 'tables are not counted');
+    eq(a.sections[1].counts, { linked: 0, std: 0, tag: 0, untraced: 0, note: 0 }, 'tables are not counted');
     eq(a.undescribed, [q2.id], 'requirements nothing links are not described');
     eq(a.tags.map(function (t) { return [t.text, t.sectionReqs]; }), [['Make the LED pulse.', [q1.id]]], 'flagged sentences list the requirements their section links');
     eq(a.uses[q1.id].length, 1, 'a requirement knows the sentences that describe it');
@@ -965,6 +965,7 @@
     eq(M.mergeProjects(M.newProject({ name: 'A' }, 'Ann', T), M.newProject({ name: 'B' }, 'Ann', T)).spec, undefined, 'documents without a description keep their bytes');
     var sum = M.specSummary(sp);
     eq(sum.gists.map(function (g) { return g.depth + g.title; }), ['0Firmware', '1Status frame', '1Cloud link'], 'summary.spec has the top-level gists, and the next level under a single top section');
+    eq(sum.more, undefined, 'summary.spec has no more while every gist fits');
     eq(sum.gists[0].gist, 'Runs the heating.', 'summary.spec gists come from the > line or the first sentence');
     eq([sum.untraced, sum.undescribed, sum.flagged], [4, 1, 1], 'summary.spec counts the gaps');
     eq(M.specSummary(M.newProject({ name: 'Empty' }, 'Ann', T)), null, 'no summary.spec without a description');
@@ -1050,6 +1051,126 @@
     eq(M.specUsesNames(byT()['Control loop'].body), ['Relays out', 'Temp sensor', 'Scheduler'], 'renaming a heading in Edit all renames it in Uses lines');
   })();
 
+  // First real use (2026-11-09): marks holding brackets and code, sentence splitting, plain text, long
+  // sections, the summary's gists, and kind plurals.
+  (function () {
+    var fp = M.newProject({ name: 'First use', checklists: ['reqs', 'spec'], profile: [] }, 'Ann', T);
+    var q = M.newReq(fp, { ref: 'REQ-001', text: 'Relays off' }, 'Ann'); fp.reqs[q.id] = q;
+    var ctx = M.specContext(fp);
+    var units = function (body) { var out = []; M.specBlocks(body, ctx).forEach(function (b) { (b.units || []).forEach(function (u) { out.push(u); }); }); return out; };
+    var states = function (body) { return units(body).map(function (u) { return u.state; }); };
+    var texts = function (body) { return units(body).map(function (u) { return u.text; }); };
+    // Brackets, braces, and code inside a mark's words.
+    eq(states('[It reads buf[0] first.]{std}'), ['std'], 'a mark may hold balanced brackets');
+    eq(states('[It reads `buf[0` first.]{std}'), ['std'], 'brackets inside `code` in a mark don’t count');
+    eq(states('[It sets {mode} to 2.]{std}'), ['std'], 'braces in a mark’s words are fine');
+    eq(units('[It reads buf[0] first.]{std}')[0].text, 'It reads buf[0] first.', 'the words keep their brackets');
+    eq(M.specSpans('Set `cfg[i]{0}` here.').length, 0, '`code` outside a mark is never a mark');
+    var bad = units('[It reads x.]{std Then more.'), good = units('[It reads x.]{std}');
+    ok(bad[0].broken && !good[0].broken && bad[0].state === 'untraced', 'a mark that doesn’t parse is flagged, not silently untraced', JSON.stringify(bad));
+    ok(units('[A]{q:1{2}} b.')[0].broken && !units('Use `[x]{y}` as written.')[0].broken, 'a brace inside {…} is flagged; "]{" inside `code` is not');
+    eq(M.specBrokenMarks('# A\nFine [x]{std}.\n## B\nBad [y]{std here.\n```\nnot [z]{ checked\n```\nUse `a]{b}`.').map(function (b) { return b.line + b.heading; }), ['4B'], 'specBrokenMarks lists lines with a mark that doesn’t parse, outside code');
+    eq(M.specBrokenMarks('[A]{std} b. [c d.]{std e.')[0].text, '…[c d.]{std e.', 'specBrokenMarks shows the line from the mark that breaks');
+    var brk = 'It reads x]{std} first.';
+    eq([M.specEdit(brk, 0, brk.length, 'std', true), M.specEdit(brk, 0, brk.length, 'link', q.id)], [brk, brk], 'a sentence with a broken mark isn’t wrapped in another');
+    var nest = '[It reads buf[0] first]{std}. More.', nu = units(nest)[0];
+    eq(M.specEdit(nest, nu.start, nu.end, 'link', q.id), '[It reads buf[0] first]{q:' + q.id + '}. More.', 'a mark holding brackets can be linked from its panel');
+    eq(M.specFromEditor(M.specToEditor('[x[1] y]{q:' + q.id + '} `a]{b}`', ctx), ctx), '[x[1] y]{q:' + q.id + '} `a]{b}`', 'refs round-trip through the editor with brackets and code');
+    // Sentence splitting.
+    eq(texts('[A b.]{std} foo c.'), ['A b.', 'foo c.'], 'a mark whose words end a sentence ends it, even before a lowercase word');
+    eq(states('[A b.]{std} foo c.'), ['std', 'untraced'], '… and the next sentence has its own state');
+    eq(texts('It sets the gain. kff is added after.'), ['It sets the gain.', 'kff is added after.'], 'a sentence may start with a lowercase identifier');
+    eq(texts('It trips above 22 V. The pump stops. Wait 5 min. Then retry. Max. The end.'), ['It trips above 22 V.', 'The pump stops.', 'Wait 5 min.', 'Then retry.', 'Max.', 'The end.'], 'V., min., and max. end a sentence before a capital');
+    eq(texts('It trips at 22 V. A fault latches.'), ['It trips at 22 V.', 'A fault latches.'], 'a unit ends a sentence before a one-letter word');
+    eq(texts('Use no. 4, see Fig. 3, rev. B, and ref. REQ-004 here. LEDs, buttons, etc. The end.'), ['Use no. 4, see Fig. 3, rev. B, and ref. REQ-004 here.', 'LEDs, buttons, etc.', 'The end.'], 'No., Fig., rev., and ref. hold before a number, a letter, or a ref; etc. ends before a capital');
+    eq(texts('A sensor, e.g. Linux reads it, cf. the table, a.k.a. the probe, vs. Windows. Done.'), ['A sensor, e.g. Linux reads it, cf. the table, a.k.a. the probe, vs. Windows.', 'Done.'], 'e.g., cf., a.k.a., and vs. never end a sentence');
+    eq(texts('It is 0.5 °C at 36.7 Hz. Then etc. and so on. Is it on? It is.'), ['It is 0.5 °C at 36.7 Hz.', 'Then etc. and so on.', 'Is it on?', 'It is.'], 'decimals stay inside, etc. holds before a lowercase word, and a question mark ends a sentence');
+    eq(texts('It logs ("RELAY ON!") when the relay closes. Done.'), ['It logs ("RELAY ON!") when the relay closes.', 'Done.'], 'an exclamation mark in a quoted string, before a lowercase word, stays inside');
+    eq(states('[Relays go off]{REQ-001}. Check: is it 100 ms?'), ['linked', 'note'], 'a note after a linked sentence is its own sentence');
+    // Plain text keeps the space before a dotted word.
+    eq([M.specPlain('Open the .cfg file.'), M.specPlain('Make it pulse @req.'), M.specPlain('A , b'), M.specPlain('[x]{std} .')], ['Open the .cfg file.', 'Make it pulse.', 'A, b', 'x.'], 'specPlain drops a space before punctuation only where it ends a word');
+    // Long sections are kept whole, and every rewrite of one line keeps the rest.
+    var lp = M.newProject({ name: 'Long', checklists: ['spec'], profile: [] }, 'Ann', T), putL = function (recs) { recs.forEach(function (r) { lp.spec[r.id] = r; }); };
+    lp.spec = {};
+    putL(M.specSave(lp, null, '# Big * task\nUses: Relay driver\n' + new Array(5001).join('Some text ') + 'end.\n## Relay driver * driver\nSwitches.', 'Ann'));
+    var bigId = M.liveSpec(lp)[0].id, relayId = M.liveSpec(lp)[1].id, bigBody = lp.spec[bigId].body;
+    ok(bigBody.length > 50000 && M.liveSpec(lp)[0].body === bigBody, 'a section longer than 40,000 characters is kept whole', bigBody.length);
+    putL(M.specRename(lp, relayId, 'Relay output', 'Ann'));
+    eq(lp.spec[bigId].body, bigBody.replace('Uses: Relay driver', 'Uses: Relay output'), 'renaming a block keeps all of a long section that uses it');
+    putL(M.specSave(lp, relayId, '## Relay out * driver\nSwitches.', 'Ann'));
+    eq(lp.spec[bigId].body, bigBody.replace('Uses: Relay driver', 'Uses: Relay out'), '… in a section’s editor too');
+    eq(M.specSaveAll(lp, M.specToText(lp), 'Ann'), [], 'Edit all round-trips a long section unchanged');
+    var ren = M.specSaveAll(lp, M.specToText(lp).replace('## Relay out', '## Relays'), 'Ann'); putL(ren);
+    eq(lp.spec[bigId].body, bigBody.replace('Uses: Relay driver', 'Uses: Relays'), '… and in Edit all');
+    eq(M.specTooLong(ren), [], 'specTooLong is empty when every section fits');
+    var huge = M.specSave(lp, null, '## Huge\n' + new Array(M.SPEC_BODY_MAX / 10 + 2).join('Some text '), 'Ann');
+    eq(M.specTooLong(huge).map(function (x) { return x.title; }), ['Huge'], 'specTooLong names a section too long to save');
+    // The summary's gists: no empty group headings, up to 40, and how many more.
+    var gp = M.newProject({ name: 'Gists', checklists: ['spec'], profile: [] }, 'Ann', T), lines = ['# Product * product', 'Does things.', '## Software', '### Loop * task', 'Runs.'];
+    for (var i = 0; i < 45; i++) lines.push('## Part ' + i, 'Part ' + i + ' works.');
+    gp.spec = {}; M.specSave(gp, null, lines.join('\n'), 'Ann').forEach(function (r) { gp.spec[r.id] = r; });
+    var gs = M.specSummary(gp);
+    eq([gs.gists.length, gs.more, gs.gists[0].title, gs.gists[2].title, gs.gists[39].title], [40, 7, 'Product', 'Part 0', 'Part 37'], 'summary.spec keeps up to 40 gists and counts the rest in more');
+    eq(gs.gists[1], { title: 'Software', gist: 'Loop', depth: 1 }, 'a group heading with no text of its own lists the sections under it');
+    var ep = M.newProject({ name: 'Empty', checklists: ['spec'], profile: [] }, 'Ann', T); ep.spec = {};
+    M.specSave(ep, null, '# P\nDoes it.\n## Blank\n## Full\nWorks.', 'Ann').forEach(function (r) { ep.spec[r.id] = r; });
+    eq(M.specSummary(ep).gists.map(function (g) { return g.title; }), ['P', 'Full'], 'a heading with nothing at all under it is left out');
+    // Review notes ("Check:", Chris 2026-11-09): their own state, not gaps, their own paragraph, and
+    // Resolve takes them out.
+    var np = M.newProject({ name: 'Notes', checklists: ['reqs', 'spec'], profile: [] }, 'Ann', T), nq = M.newReq(np, { ref: 'REQ-001', text: 'Off' }, 'Ann'); np.reqs[nq.id] = nq; np.spec = {};
+    M.specSave(np, null, '# Loop * task\nIt runs. [It stops]{REQ-001}. Check: is it 100 ms?\ncheck: and the reset?\n- Check: the watchdog too\n- A step.\nCheck: flag this @req', 'Ann').forEach(function (r) { np.spec[r.id] = r; });
+    var nx = M.specAnalysis(np).sections[0];
+    eq(nx.counts, { linked: 1, std: 0, tag: 1, untraced: 2, note: 3 }, 'sentences and list items that start Check: are review notes, and @req still wins');
+    eq([nx.blocks.filter(function (b) { return b.type === 'p'; }).length, nx.gaps, nx.notes.length, nx.gist], [3, 3, 3, 'It runs.'], 'a Check: line starts its own paragraph; notes are not gaps and never the gist');
+    eq([M.specSummary(np).notes, M.specSummary(np).untraced], [3, 2], 'summary.spec counts notes apart from unlinked sentences');
+    var n3 = M.newProject({ name: 'N3', checklists: ['reqs', 'spec'], profile: [] }, 'Ann', T); n3.reqs[nq.id] = nq; n3.spec = {};
+    M.specSave(n3, null, '# A\nCheck: is [it off]{REQ-001} in time?', 'Ann').forEach(function (r) { n3.spec[r.id] = r; });
+    eq(M.specAnalysis(n3).undescribed, [nq.id], 'a link inside a note doesn’t describe its requirement');
+    var nbody = nx.sec.body, nu = function (re) { var hit; M.specBlocks(nbody, M.specContext(np)).forEach(function (b) { (b.units || []).forEach(function (u) { if (!hit && re.test(u.text)) hit = u; }); }); return hit; };
+    var mid = nu(/100 ms/), item = nu(/watchdog/), own = nu(/reset/), lines = nbody.split('\n').length;
+    eq(M.specRemoveUnit(nbody, mid.start, mid.end).split('\n')[0], 'It runs. [It stops]{q:' + nq.id + '}.', 'resolving a note in a paragraph takes out the sentence and its space');
+    var noItem = M.specRemoveUnit(nbody, item.start, item.end);
+    ok(noItem.indexOf('watchdog') < 0 && noItem.indexOf('\n- A step.') > 0 && noItem.split('\n').length === lines - 1, 'resolving a list-item note takes out its line', noItem);
+    eq(M.specRemoveUnit(nbody, own.start, own.end).split('\n').length, lines - 1, 'resolving a note on its own line takes out the line');
+    // Ranges, \| in cells, links in table rows, and Uses names with brackets (Chris, 2026-11-09).
+    var gp2 = M.newProject({ name: 'G', checklists: ['reqs', 'spec'], profile: [] }, 'Ann', T), gq = {};
+    ['REQ-044', 'REQ-045', 'REQ-047', 'REQ-063'].forEach(function (r) { var q = M.newReq(gp2, { ref: r, text: r }, 'Ann'); gp2.reqs[q.id] = q; gq[r] = q.id; });
+    var gctx = M.specContext(gp2), qs = function (refs) { return refs.map(function (r) { return 'q:' + gq[r]; }).join(','); };
+    eq(M.specFromEditor('[x]{REQ-044..REQ-063}', gctx), '[x]{' + qs(['REQ-044', 'REQ-045', 'REQ-047', 'REQ-063']) + '}', 'a range of refs is written out as every requirement in it that exists');
+    eq([M.specFromEditor('[x]{REQ-044–046, REQ-045}', gctx), M.specFromEditor('[x]{REQ-100..REQ-200}', gctx)], ['[x]{' + qs(['REQ-044', 'REQ-045']) + '}', '[x]{REQ-100..REQ-200}'], 'a short range and an en dash work, repeats go, and a range with nothing in it stays as typed');
+    gp2.spec = {}; M.specSave(gp2, null, '# A\n[x]{REQ-044..REQ-047}.', 'Ann').forEach(function (r) { gp2.spec[r.id] = r; });
+    eq(M.specSaveAll(gp2, M.specToText(gp2), 'Ann'), [], 'once a range is written out, Edit all round-trips it');
+    eq(M.specCells('| a \\| b | c |'), ['a | b', 'c'], 'a backslash before a bar keeps it inside the cell');
+    var tbody = '| Field | Req |\n| --- | --- |\n| temp | [°C]{REQ-044} |\n| hum | % |\n| raw | [x]{std} |';
+    var tb = M.specBlocks(tbody, gctx).filter(function (b) { return b.type === 'table'; })[0];
+    eq([tb.rows.length, tb.units.map(function (u) { return u.state; }), tb.units[0].text, tb.rowUnits[2]], [4, ['linked', 'std'], 'temp · °C', null], 'a table row with a mark counts like a sentence; rows without one are not counted');
+    var row = tb.units[0], ops = [['link', gq['REQ-045']], ['unlink', gq['REQ-044']], ['std', true], ['std', false], ['tag', true], ['phrase', { id: gq['REQ-047'], text: 'temp' }]];
+    eq(ops.map(function (o) { return M.specCells(M.specEdit(tbody, row.start, row.end, o[0], o[1]).split('\n')[2]).length; }), [2, 2, 2, 2, 2, 2], 'every edit on a table row keeps its cells');
+    eq(M.specEdit(tbody, row.start, row.end, 'tag', true), tbody, 'a table row is never flagged @req');
+    ok(M.specEdit(tbody, tb.units[1].start, tb.units[1].end, 'link', gq['REQ-047']).indexOf('| raw | [x]{q:' + gq['REQ-047'] + '} |') > 0, 'linking a standard row puts the link in its mark');
+    gp2.spec = {}; M.specSave(gp2, null, '# Frame * interface\n' + tbody, 'Ann').forEach(function (r) { gp2.spec[r.id] = r; });
+    var ga = M.specAnalysis(gp2);
+    eq([ga.sections[0].counts.linked, ga.sections[0].counts.std, ga.undescribed.indexOf(gq['REQ-044']) < 0], [1, 1, true], 'a linked row describes its requirement');
+    eq(M.specLinkItems('Sensor (ADC), "Bus, main", Relay'), [{ name: 'Sensor', label: 'ADC' }, { name: 'Bus, main', label: '' }, { name: 'Relay', label: '' }], 'brackets at the end of a Uses name read as a detail, and quotes hold a comma');
+    eq(M.specLinkText([{ name: 'Bus, main', label: '' }, { name: 'Sensor (ADC)', label: '' }]), '"Bus, main", "Sensor (ADC)"', 'a Uses name with a comma or brackets is written in quotes');
+    var up = M.newProject({ name: 'U', checklists: ['spec'], profile: [] }, 'Ann', T), upBy = function () { var o = {}; M.liveSpec(up).forEach(function (x) { o[x.title] = x; }); return o; };
+    up.spec = {}; M.specSave(up, null, '# Loop * task\nRuns.\nUses: Sensor (ADC), MCU (flash)\n## Sensor (ADC) * driver\nReads.\n## MCU * hardware\nRuns it.', 'Ann').forEach(function (r) { up.spec[r.id] = r; });
+    var ux = M.specAnalysis(up).sections[0];
+    eq([ux.uses.length, ux.edges.map(function (e) { return e.label; })], [2, ['', 'flash']], 'a Uses name names the heading with its brackets first ("Sensor (ADC)"), else the name before them ("MCU (flash)" is the MCU)');
+    M.specRename(up, upBy()['Sensor (ADC)'].id, 'Sensor', 'Ann').forEach(function (r) { up.spec[r.id] = r; });
+    M.specRename(up, upBy().MCU.id, 'Processor', 'Ann').forEach(function (r) { up.spec[r.id] = r; });
+    eq(M.specUsesItems(upBy().Loop.body), [{ name: 'Sensor', label: '' }, { name: 'Processor', label: 'flash' }], 'renaming either kind of heading follows into the Uses line, keeping a detail');
+    window.SIGNOFF_CONFIG.spec = { label: 'Description', kinds: [], links: ['Connects', 'Supplies'] };
+    eq(M.specLinkItems('"Sensor (ADC)" (I2C), MCU (UART)'), [{ name: 'Sensor (ADC)', label: 'I2C' }, { name: 'MCU', label: 'UART' }], 'with signal names (EE), a quoted name keeps its brackets and still takes a signal');
+    eq(M.specLinkText([{ name: 'Sensor (ADC)', label: 'I2C' }]), '"Sensor (ADC)" (I2C)', '… and is written back in quotes');
+    window.SIGNOFF_CONFIG.spec = { label: 'Description' };
+    // Kind labels and plurals.
+    eq([M.specKindPlural('hardware'), M.specKindPlural('task'), M.specKindLabel('driver')], ['Hardware', 'Tasks', 'Driver'], 'a kind reads in the singular and plural, and hardware has no plural');
+    window.SIGNOFF_CONFIG.spec = { label: 'Description', kinds: ['task', { id: 'hardware', label: 'Board', plural: 'Boards' }] };
+    eq([M.specKindPlural('hardware'), M.specKindLabel('hardware'), M.specKindPlural('task')], ['Boards', 'Board', 'Tasks'], 'config.spec.kinds can name a kind and its plural');
+    window.SIGNOFF_CONFIG.spec = { label: 'Description' };
+  })();
+
   // The Description tab is picked per review, like Requirements.
   (function () {
     var e = M.newProject({ name: 'Pick', checklists: ['schematic'], profile: [] }, 'Ann', T);
@@ -1130,7 +1251,7 @@
     eq(by.Buck.edges.map(function (e) { return e.word + ':' + a.ctx.secs[e.id].title + ':' + e.label; }), ['Supplies:MCU:3V3', 'Supplies:Relays:5V'], 'Supplies lines are edges with their rail');
     eq(by.USB.edges.map(function (e) { return e.word + ':' + e.label; }), ['Connects:USB'], 'Connects lines are edges with their signal');
     eq(by.Buck.parts, ['U7', 'L1', 'C1–C3'], 'a Parts line lists the reference designators');
-    eq(by.Buck.counts, { linked: 0, std: 0, tag: 0, untraced: 1 }, 'link and Parts lines are not counted as sentences');
+    eq(by.Buck.counts, { linked: 0, std: 0, tag: 0, untraced: 1, note: 0 }, 'link and Parts lines are not counted as sentences');
     eq(M.specUsesItems(by.Buck.sec.body, 'supplies'), [{ name: 'MCU', label: '3V3' }, { name: 'Relays', label: '5V' }], 'specUsesItems reads one link word');
     eq(M.specSetLine('Text.', 'connects', 'MCU (I2C)'), 'Text.\nConnects: MCU (I2C)', 'specSetLine writes the tool’s spelling of the word');
     put(M.specRename(ep, by.MCU.sec.id, 'Controller', 'Ann'));

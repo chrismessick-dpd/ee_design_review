@@ -363,7 +363,10 @@ written, and is never merged.
 - **`spec`.** The review's description (`project.spec`, Scribe where `config.spec` is
   on; Signoff FW for now): the top-level sections' gists, plus the level under them when there's only
   one top section (`depth` 0 or 1), and its gaps: untraced sentences, requirements nothing describes,
-  and sentences flagged `@req`. Left out while the description is empty or the review doesn't pick
+  and sentences flagged `@req`, and `notes`, the review notes (sentences that start `Check:`, counted
+  apart from `untraced`). A heading with only headings under it lists their titles as its gist; one with
+  nothing under it is left out (except a single top section). At most 40 gists, and `more` counts the
+  rest, left out when none (2026-11-09; it was 12 with no marker). Left out while the description is empty or the review doesn't pick
   Scribe, so other reviews keep their bytes. Signoff PL shows it as *What it does* in a Part's inspector. The format of `project.spec`
   is at *Description* in `model.js`; the design is in `fw_design_review/docs/scribe.md`.
   A tool's `config.spec.template` gives new reviews a starting description, chosen by profile
