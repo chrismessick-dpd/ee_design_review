@@ -15,7 +15,7 @@
 <div id="out"></div>
 <script>
 // Load the engine fresh on every run, so a browser cache never tests old code.
-['config', 'templates', 'model', 'github', 'workspace', 'demo'].forEach(function (n) { document.write('<script src="../assets/' + n + '.js?t=' + Date.now() + '"><\/script>'); });
+['config', 'templates', 'model', 'auth', 'github', 'workspace', 'demo'].forEach(function (n) { document.write('<script src="../assets/' + n + '.js?t=' + Date.now() + '"><\/script>'); });
 </script>
 <script>
 /* Unit tests for the model and the GitHub sync, run against a fake GitHub API.
@@ -1298,6 +1298,99 @@
     eq(M.liveSpec(sp).filter(function (x) { return x.title === 'MCU'; })[0].pos, { x: 120, y: 80 }, 'a block keeps its place through edits and Edit all');
   })();
   window.SIGNOFF_CONFIG.spec = TOOL_SPEC;
+
+  // ── Sign in with GitHub (auth.js), the tag, and the GitHub calls ──
+  // These use the real shared keys, so whatever this browser holds is put back afterward.
+  await (async function () {
+    var KEYS = ['signoff.token', 'signoff.auth', 'signoff.login'];
+    var kept = KEYS.map(function (k) { return [k, localStorage.getItem(k), sessionStorage.getItem(k)]; });
+    var realFetch = window.fetch, realAuth = window.SignoffAuth;
+    function restore() {
+      kept.forEach(function (r) {
+        if (r[1] === null) localStorage.removeItem(r[0]); else localStorage.setItem(r[0], r[1]);
+        if (r[2] === null) sessionStorage.removeItem(r[0]); else sessionStorage.setItem(r[0], r[2]);
+      });
+      window.fetch = realFetch; window.SignoffAuth = realAuth;
+    }
+    function signedInAs(login, token, expiresIn) {
+      sessionStorage.removeItem('signoff.token');
+      localStorage.setItem('signoff.token', token);
+      localStorage.setItem('signoff.login', login);
+      localStorage.setItem('signoff.auth', JSON.stringify({ v: 1, refresh: 'ghr_one', expiresAt: Date.now() + expiresIn, refreshExpiresAt: Date.now() + 864e5, name: '' }));
+    }
+    try {
+      // The tag follows the person, not the token, for a sign-in.
+      signedInAs('ann', 'ghu_first', 8 * 36e5);
+      var tagA = M.tokenTag('ghu_first');
+      eq(M.tokenTag('ghu_second'), tagA, 'a refreshed sign-in token keeps its tag (same person)');
+      localStorage.setItem('signoff.login', 'bob');
+      ok(M.tokenTag('ghu_second') !== tagA, 'another account signing in changes the tag');
+      ok(M.tokenTag('ghp_pasted') !== M.tokenTag('ghp_other'), 'pasted tokens are still tagged by the token');
+      localStorage.removeItem('signoff.auth');
+      ok(M.tokenTag('ghu_second') !== M.tokenTag('ghu_first'), 'a ghu_ token with no sign-in is tagged by the token');
+
+      // GitHub calls with a sign-in's token: the current one, and one refresh and retry on a 401.
+      var refreshes = 0, current = 'ghu_new', seen = [];
+      window.SignoffAuth = {
+        owns: function (t) { return /^ghu_/.test(t); },
+        token: function () { return Promise.resolve('ghu_stale'); },
+        refresh: function (failed) { refreshes++; seen.push('refresh:' + failed); return Promise.resolve(current); },
+      };
+      var gh401 = function (url, init) {
+        seen.push(init.headers.Authorization);
+        var good = init.headers.Authorization === 'Bearer ghu_new' || init.headers.Authorization === 'Bearer ghp_good';
+        return Promise.resolve(new Response(JSON.stringify(good ? { login: 'ann' } : { message: 'Bad credentials' }), { status: good ? 200 : 401 }));
+      };
+      var who = await new Signoff.GitHubAccount('ghu_old', gh401).user();
+      eq(who.login, 'ann', 'a call made with an old sign-in token succeeds after one refresh');
+      eq(seen, ['Bearer ghu_stale', 'refresh:ghu_stale', 'Bearer ghu_new'], 'it asks for the current token, refreshes the one GitHub refused, and retries once');
+      current = '';
+      var err = null; try { await new Signoff.GitHubAccount('ghu_old', gh401).user(); } catch (e) { err = e; }
+      ok(err && err.status === 401 && refreshes === 2, 'when the refresh signs out, the 401 comes back and there is no second retry');
+      refreshes = 0; err = null;
+      try { await new Signoff.GitHubAccount('ghp_bad', gh401).user(); } catch (e) { err = e; }
+      ok(err && err.status === 401 && refreshes === 0, 'a pasted token is never refreshed');
+      window.SignoffAuth = realAuth;
+
+      // The real auth.js: refreshes run one at a time across callers, and only one reaches the Worker.
+      var A = window.SignoffAuth;
+      ok(A && typeof A.refresh === 'function', 'auth.js loads');
+      if (A && A.status().available) {
+        signedInAs('ann', 'ghu_old', 10 * 6e4);   // 10 minutes left: due
+        var calls = 0;
+        window.fetch = function (url, init) {
+          if (String(url).indexOf('/refresh') < 0) return realFetch(url, init);
+          calls++;
+          var body = JSON.parse(init.body);
+          return new Promise(function (res) { setTimeout(res, 40); }).then(function () {
+            if (body.refresh_token !== 'ghr_one') return new Response(JSON.stringify({ error: 'bad_refresh_token' }), { status: 400 });
+            return new Response(JSON.stringify({ access_token: 'ghu_fresh', expires_in: 28800, refresh_token: 'ghr_two', refresh_token_expires_in: 15897600 }), { status: 200 });
+          });
+        };
+        var got = await Promise.all([A.token(), A.refresh(), A.refresh('ghu_old'), A.token()]);
+        eq(got, ['ghu_fresh', 'ghu_fresh', 'ghu_fresh', 'ghu_fresh'], 'four callers at once all get the refreshed token');
+        eq(calls, 1, 'and only one of them called the Worker');
+        eq(localStorage.getItem('signoff.login'), 'ann', 'a refresh keeps who is signed in');
+        eq(JSON.parse(localStorage.getItem('signoff.auth')).refresh, 'ghr_two', 'the new refresh token replaces the used one');
+        eq(await A.token(), 'ghu_fresh', 'a fresh token is used without calling the Worker');
+        eq(calls, 1, 'no refresh while the token has hours left');
+        ok(A.owns('ghu_anything') && !A.owns('ghp_pasted'), 'only ghu_ tokens belong to the sign-in');
+        localStorage.setItem('signoff.auth', JSON.stringify(Object.assign(JSON.parse(localStorage.getItem('signoff.auth')), { refresh: 'ghr_dead', expiresAt: Date.now() })));
+        eq(await A.refresh(), '', 'a refresh token GitHub refuses signs out');
+        ok(!localStorage.getItem('signoff.token') && !localStorage.getItem('signoff.auth') && !localStorage.getItem('signoff.login'), 'signing out clears the token, the refresh token, and the login');
+        signedInAs('ann', 'ghu_old', 10 * 6e4);
+        window.fetch = function () { return Promise.reject(new TypeError('offline')); };
+        err = null; try { await A.refresh(); } catch (e) { err = e; }
+        ok(err && err.code === 'unreachable' && localStorage.getItem('signoff.auth'), 'with the Worker unreachable, the refresh fails but stays signed in');
+        eq(await A.token(), 'ghu_old', 'and calls keep using the current token while it has time left');
+        localStorage.setItem('signoff.auth', JSON.stringify(Object.assign(JSON.parse(localStorage.getItem('signoff.auth')), { expiresAt: Date.now() - 1000 })));
+        err = null; try { await A.token(); } catch (e) { err = e; }
+        ok(err && err.code === 'unreachable', 'but not once it has expired');
+      } else {
+        ok(true, 'auth.js refresh tests skipped: open the tests on http://localhost:8774 to run them');
+      }
+    } finally { restore(); }
+  })();
 
   var failed = results.filter(function (r) { return !r.ok; });
   document.getElementById('out').innerHTML = results.map(function (r) {
