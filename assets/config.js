@@ -26,6 +26,8 @@
                    previews, docs/fabcheck-link.md); the overview shows one beside the ring.
                    demo.pictures names the demo reviews' pictures in assets/demo-previews/
                    (<id>-<key>.<ext>) and the Fabcheck demo run they open.
+   pincheck:       { dir }: where Pincheck stores the runs it sends to a board (pincheck/docs/
+                   send-to-signoff-ee.md); issues from Pincheck open them. Never revisions.
    runs:           the checker whose runs are stored next to a review (Fabcheck for Signoff EE):
                    { tool, dir }. The Revisions tab lists them and tags some as revisions;
                    without it the tab is hidden.
@@ -50,6 +52,7 @@ window.SIGNOFF_CONFIG = {
   "ids": { "project": "p", "comment": "c", "custom": "x" },
   "previews": { "dir": "fabcheck/" },
   "runs": { "tool": "fabcheck", "dir": "fabcheck/" },
+  "pincheck": { "dir": "pincheck/" },
   "templateOrder": ["schematic", "interfaces", "pcb", "assembly", "fab", "bringup"],
   "templatePrefixes": {},
   "defaultChecklists": ["schematic", "interfaces", "pcb", "assembly", "fab"],

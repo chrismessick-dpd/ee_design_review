@@ -7,6 +7,9 @@ Since 2026-11-03 **Fabcheck only writes** to a review's repo, once, at Send. Sig
 everything back: it lists the runs, tags revisions, downloads packages, and hands a run to Fabcheck
 in the browser. The design and Chris's decisions are in `pcb_dfm/docs/signoff-revisions.md`.
 
+Pincheck sends schematic findings the same way (Schematic Review checklist, `pincheck/<projectId>/`, Open in
+Pincheck through the same hand-off, no revisions): see `pincheck/docs/send-to-signoff-ee.md`.
+
 A run is reproducible: the same package, fab profile, board thickness (and variant), and
 Fabcheck version always give the same findings. So a run is identified by a small record,
 and the package is what's worth keeping.
