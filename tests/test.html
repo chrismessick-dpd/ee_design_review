@@ -333,6 +333,12 @@
   hub.makeRepo('ann/review-ee-board', { 'README.md': '#' }, ['ann', 'dan']);
   hub.makeRepo('ann/review-me-housing', { 'README.md': '#' }, ['ann', 'dan']);
   eq(await wsFor('dan', { prefix: 'review-ee-' }).account.listRepos('ann', 'review-ee-'), ['review-ee-board'], 'a discipline prefix keeps the other tool’s shared repos out');
+  // Every tool's shared repos are FTE repos too (sharedPrefixes), found by listing the owner's repos.
+  var suiteWs = wsFor('ann', { sharedPrefixes: ['review-ee-', 'review-me-'] }), others = await suiteWs.suiteShared();
+  ok(others.indexOf('ann/review-ee-board') >= 0 && others.indexOf('ann/review-me-housing') >= 0 && others.indexOf('ann/data') < 0, 'suiteShared lists every tool’s shared repos and nothing else');
+  var fr2 = suiteWs.fteRepos(annSt, others);
+  ok(fr2.indexOf('ann/review-me-housing') >= 0 && fr2.indexOf('ann/data') >= 0 && fr2.length === new Set(fr2).size, 'FTE repos take in the other tools’ shared repos, once each');
+  eq(await wsFor('ann').suiteShared(), [], 'no sharedPrefixes, no listing');
 
   // ── Hostile review files: a contractor can push any JSON to their project's repo ──
   var BAD = '"><img src=x onerror=alert(1)>';
