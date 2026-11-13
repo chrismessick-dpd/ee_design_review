@@ -42,7 +42,7 @@ window.SIGNOFF_CONFIG = {
     "toolRepo": "ee_design_review",
     "dataRepo": "ee_design_review_data",
     "prefix": "review-ee-",
-    "suite": ["me_design_review", "me_design_review_data", "fw_design_review", "fw_design_review_data", "signoff", "pcb_dfm", "signoff_pl", "signoff_pl_data"]
+    "suite": ["me_design_review", "me_design_review_data", "fw_design_review", "fw_design_review_data", "signoff", "pcb_dfm", "signoff_pl", "signoff_pl_data", "signoff_tickets"]
   },
   "ids": { "project": "p", "comment": "c", "custom": "x" },
   "previews": { "dir": "fabcheck/" },
