@@ -1100,6 +1100,11 @@
     eq(texts('It sets the gain. kff is added after.'), ['It sets the gain.', 'kff is added after.'], 'a sentence may start with a lowercase identifier');
     eq(texts('It trips above 22 V. The pump stops. Wait 5 min. Then retry. Max. The end.'), ['It trips above 22 V.', 'The pump stops.', 'Wait 5 min.', 'Then retry.', 'Max.', 'The end.'], 'V., min., and max. end a sentence before a capital');
     eq(texts('It trips at 22 V. A fault latches.'), ['It trips at 22 V.', 'A fault latches.'], 'a unit ends a sentence before a one-letter word');
+    // Ticket 4 (2026-11-13): @req right after the full stop is the sentence's own.
+    eq(states('MCU is from older designs.@req Uses UART to talk to the LIN transceiver.'), ['tag', 'untraced'], '@req right after a full stop flags that sentence only');
+    eq(texts('MCU is from older designs.@req Uses UART.'), ['MCU is from older designs.', 'Uses UART.'], '… and the next sentence starts after it');
+    eq(states('MCU is from older designs. @req Uses UART.'), ['untraced', 'tag'], '@req after a space starts the next sentence, as before');
+    eq(states('It ends here.@req'), ['tag'], '@req after the last full stop');
     eq(texts('Use no. 4, see Fig. 3, rev. B, and ref. REQ-004 here. LEDs, buttons, etc. The end.'), ['Use no. 4, see Fig. 3, rev. B, and ref. REQ-004 here.', 'LEDs, buttons, etc.', 'The end.'], 'No., Fig., rev., and ref. hold before a number, a letter, or a ref; etc. ends before a capital');
     eq(texts('A sensor, e.g. Linux reads it, cf. the table, a.k.a. the probe, vs. Windows. Done.'), ['A sensor, e.g. Linux reads it, cf. the table, a.k.a. the probe, vs. Windows.', 'Done.'], 'e.g., cf., a.k.a., and vs. never end a sentence');
     eq(texts('It is 0.5 °C at 36.7 Hz. Then etc. and so on. Is it on? It is.'), ['It is 0.5 °C at 36.7 Hz.', 'Then etc. and so on.', 'Is it on?', 'It is.'], 'decimals stay inside, etc. holds before a lowercase word, and a question mark ends a sentence');
@@ -1286,6 +1291,14 @@
     eq(M.specKinds(), ['power', 'connector', 'processor', 'output'], 'kinds come from config.spec.kinds');
     eq([M.specHeading('## 3V3 buck * power').kind, M.specHeading('## Control loop * task').kind], ['power', ''], 'a heading takes only the tool’s kinds');
     eq(M.specLinkItems('MCU (UART), Display board, Relays (RLY1/RLY2)'), [{ name: 'MCU', label: 'UART' }, { name: 'Display board', label: '' }, { name: 'Relays', label: 'RLY1/RLY2' }], 'link names carry a signal in brackets');
+    // Ticket 8 (2026-11-13): a direction ends the brackets.
+    eq(M.specLinkItems('MCU (UART, in), Bus (I2C, both ways), Relay (out), Fan (both), LED'), [{ name: 'MCU', label: 'UART', dir: 'in' }, { name: 'Bus', label: 'I2C', dir: 'both' }, { name: 'Relay', label: '', dir: 'out' }, { name: 'Fan', label: '', dir: 'both' }, { name: 'LED', label: '' }], 'a direction after the signal, or alone, and commas inside brackets don’t split items');
+    eq(M.specLinkText(M.specLinkItems('MCU (UART, in), Bus (I2C, both), LED (GPIO)')), 'MCU (UART, in), Bus (I2C, both ways), LED (GPIO)', 'directions write back, both as both ways');
+    eq(M.specLinkItems('Sensor (Input stage)'), [{ name: 'Sensor', label: 'Input stage' }], 'a signal name merely ending in a direction word isn’t one');
+    // Dragged label places (Chris, 2026-11-13): kept on the section, cleaned, and only when there are any.
+    var labSec = M.liveSpec({ spec: { a1: { id: 'a1', level: 2, title: 'A', body: '', labels: { 'b1|connects': { t: 1.7, x: 12.4, y: 'x' }, 'c1|connects': { t: 0.25, x: -8.6, y: 30 }, bad: 'no' } }, b1: { id: 'b1', level: 2, title: 'B', body: '' } } });
+    eq(labSec[0].labels, { 'c1|connects': { t: 0.25, x: -9, y: 30 } }, 'label places keep numbers only, rounded, with t from 0 to 1');
+    eq('labels' in labSec[1], false, 'a section with no dragged labels has no labels field');
     var ep = M.newProject({ name: 'Board', checklists: [], profile: [] }, 'Ann', T), put = function (recs) { recs.forEach(function (r) { ep.spec[r.id] = r; }); };
     ep.spec = {};
     put(M.specSave(ep, null, '# Board\n## Buck * power\nSteps down.\nParts: U7, L1, C1–C3\nSupplies: MCU (3V3), Relays (5V)\n## USB * connector\nConnects: MCU (USB)\n## MCU * processor\nRuns it.\nConnects: Relays\n## Relays * output\nSwitch.', 'Ann'));

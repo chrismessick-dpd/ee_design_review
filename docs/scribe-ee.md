@@ -18,7 +18,7 @@ export, and Signoff PL's *What it does* work as they do in FW.
 | --- | --- | --- |
 | A section is | a task, module, or driver | a subcircuit |
 | Kinds | product, task, module, driver, hardware, interface | power, connector, MCU, digital, analog, driver, protection, other |
-| Links | `Uses: Sensor driver` | `Connects: MCU (UART)` and `Supplies: MCU (3V3)`, each with an optional signal or rail name in brackets |
+| Links | `Uses: Sensor driver` | `Connects: MCU (UART)` and `Supplies: MCU (3V3)`, each with an optional signal or rail name in brackets, and on Connects an optional direction: `MCU (UART, in)`, `MCU (I2C, both ways)` |
 | Diagram | layers, top to bottom | signal flow, left to right, with power along the top |
 | Also | | `Parts: U7, L1, C1–C3`, the subcircuit's reference designators |
 
@@ -140,3 +140,28 @@ need"): there's one **+ Add block**, and the diagram is organized by **sections*
 - Should a block link to its schematic sheet?
 - Does the Display & Sensor Board get a demo description too?
 - Interfaces between boards (the FFC) could be shared with the display board's review.
+
+## Tickets from first use (2026-11-13)
+
+From a co-worker's first EE description (`signoff_tickets` 3 to 8; Chris approved each fix):
+
+- **`@req` right after a full stop** (`designs.@req Uses …`) belongs to the sentence before it, which
+  ends after the tag (`specSentences`). With a space it starts the next sentence, as before.
+- **A block added to an arranged diagram** (one where blocks have saved places) goes right of the last
+  block in its section, then further right or down until it covers no block (`specFlowHtml`). It used
+  to take the automatic layout's place, which could sit under a moved block.
+- **One line per pair of blocks.** A connection both blocks name (MCU `Connects: LIN Tcvr (UART)` and
+  LIN Tcvr `Connects: MCU (UART)`) draws once, with arrows at both ends; different signal names show as
+  "UART / TBD". The line's panel says so, and Delete removes both entries with one Undo.
+- **Direction.** A Connects item may end its brackets with `in`, `out`, or `both ways` (`model.specLinkDir`;
+  `dir` on link items and edges). Out, the default, is the arrow from the block whose line it is. The
+  line's panel has a Direction pick that writes it. Commas inside brackets no longer split items.
+- **Labels** sit at the middle of their line, or the nearest place along it that covers no block or
+  power flag; a line too short for its label (blocks side by side) puts it just below or above them, with
+  a dashed arrow back to the line. Chris then asked for them to drag: a label slides along its line
+  when dropped within 16 units of it, and anywhere else stays where it's dropped, with the arrow back to
+  its place on the line. The place is kept on the block whose link line it is, as
+  `labels['<other section id>|<link word>'] = { t, x, y }` (t along the line, 0 to 1; x, y the offset off
+  it), so it follows when blocks move (`model.specLabels`). Auto layout forgets them with the arrangement.
+- **Moving sections** shows: a grip beside a heading on pointing, a title on the heading, a "Drag a
+  heading to move its section" hint in the page's subline (pointers only), and a sentence in the guide.
