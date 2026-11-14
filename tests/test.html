@@ -693,6 +693,18 @@
   var cm = JSON.parse(hub.files('ann/custom-merge')['projects/d1.json']);
   ok(mergeCalls === 1 && cm.n === 3 && cm.meta.name === 'Merged' && !cm.summary, 'a store uses cfg.merge when given one');
 
+  // opts.edited (2026-11-13): a copy with no unsynced edits takes GitHub's file as it is and never
+  // writes it, even when merging or the summary would have changed it.
+  var edRemote = { id: 'd2', meta: { name: 'Theirs' }, n: 5 };
+  hub.makeRepo('ann/edited', { 'projects/d2.json': M.stableStringify(edRemote) }, ['ann']);
+  var edCalls = 0, edOpts = [], edFiles0 = JSON.stringify(hub.files('ann/edited'));
+  var edStore = new Signoff.GitHubStore({ owner: 'ann', repo: 'edited', branch: 'main', dataPath: '', token: 'tok-ann',
+    merge: function (a, b, o) { edCalls++; edOpts.push(o); return { id: 'd2', meta: { name: 'Merged' }, n: 99 }; } }, hub.fetchFor('tok-ann'));
+  var edRes = await edStore.sync({ d2: { id: 'd2', meta: { name: 'Stale' }, n: 1 } }, null, {}, { edited: function () { return false; } });
+  ok(edCalls === 0 && edRes.pushed === 0 && edRes.projects.d2.n === 5 && JSON.stringify(hub.files('ann/edited')) === edFiles0, 'an unedited copy takes GitHub’s file and writes nothing');
+  edRes = await edStore.sync({ d2: { id: 'd2', meta: { name: 'Mine' }, n: 1 } }, null, {}, { edited: function () { return true; }, mergeOpts: function (id) { return { base: { s: id } }; } });
+  ok(edCalls === 1 && edOpts[0].base.s === 'd2' && edRes.pushed === 1 && JSON.parse(hub.files('ann/edited')['projects/d2.json']).n === 99, 'an edited copy merges with its mergeOpts and is written');
+
   // patchRecords (Signoff PL writing requirements into a review): only those records change.
   var pdoc = JSON.parse(JSON.stringify(written2)); pdoc.futureKey = { kept: true };
   var pq = M.newReq(pdoc, { text: 'From PL', discipline: 'sys' }, 'pl'); pq.updatedAt = '2026-10-26T10:00:00Z'; pdoc.reqs[pq.id] = pq;
@@ -1214,6 +1226,30 @@
     eq(live(M.mergeProjects(legacy, L2)).length, 2, 'sections without history merge newer-wins');
     var built = JSON.parse(JSON.stringify(cp)); delete built.spec[loop.id].hist; built.spec[loop.id].updatedAt = '2032-01-01T00:00:00.000Z';
     eq(live(M.mergeProjects(A, built)).length, 2, 'an edited section and one with no history merge newer-wins, with no copy');
+    // A browser's stale copy (2026-11-13): Bo's sections as this browser last synced them, while Bo
+    // went on editing more than five times on GitHub, so his hist no longer reaches the stale one.
+    var stale = JSON.parse(JSON.stringify(B)), far = JSON.parse(JSON.stringify(B)), fr = far.spec[loop.id];
+    for (var fi = 0; fi < 7; fi++) { fr = M.specStamp(Object.assign({}, fr, { body: 'Bo edit ' + fi }), 'Bo'); fr.updatedAt = '2030-02-0' + (fi + 1) + 'T00:00:00.000Z'; }
+    far.spec[loop.id] = fr;
+    eq(live(M.mergeProjects(stale, far)).length, 3, 'with the hist test alone, a stale copy past the window looks like a concurrent edit');
+    eq(live(M.mergeProjects(stale, far, { since: '￿' })), ['Firmware:It runs.', 'Loop:Bo edit 6'], 'a copy with no edits since it synced never makes a conflict copy');
+    eq(live(M.mergeProjects(stale, far, { since: '2030-01-05T00:00:00.000Z' })), ['Firmware:It runs.', 'Loop:Bo edit 6'], 'sections stamped before the last pull are synced: no copy');
+    eq(live(M.mergeProjects(A, B, { since: '2029-12-31T00:00:00.000Z' })), live(ab), 'an edit made here since the last pull still keeps a conflict copy');
+    // Three ways against the base this browser last pulled (opts.base).
+    var b0 = M.specBase(B), lid = loop.id;
+    eq(live(M.mergeProjects(stale, far, { base: b0 })), ['Firmware:It runs.', 'Loop:Bo edit 6'], 'base: a section still as pulled takes GitHub’s, however far it moved');
+    var mine = JSON.parse(JSON.stringify(B)); mine.spec[lid] = M.specStamp(Object.assign({}, B.spec[lid], { body: 'Mine, clock behind.' }), 'Ann'); mine.spec[lid].updatedAt = '2029-06-01T00:00:00.000Z';
+    eq(live(M.mergeProjects(mine, B, { base: b0 })), ['Firmware:It runs.', 'Loop:Mine, clock behind.'], 'base: an edit made only here is kept even when this clock stamped it older');
+    eq(live(M.mergeProjects(mine, far, { base: b0 })).length, 3, 'base: a section edited on both sides keeps a conflict copy');
+    var same = JSON.parse(JSON.stringify(far)); same.spec[lid] = Object.assign({}, far.spec[lid], { updatedAt: '2030-03-01T00:00:00.000Z', updatedBy: 'Ann' });
+    eq(live(M.mergeProjects(same, far, { base: b0 })).length, 2, 'base: both sides wrote the same text, so no copy');
+    var stale2 = M.mergeLocalCopies({ c: stale }, { c: far }, { since: function () { return '￿'; } }).projects.c;
+    eq(live(stale2), ['Firmware:It runs.', 'Loop:Bo edit 6'], 'another tab’s newer copy merges into a synced one with no copy');
+    // Comments made in one go keep one order, so the summary's recent list doesn't churn.
+    var tie = M.newProject({ name: 'Ties', checklists: [], profile: [] }, 'Ann', T);
+    ['c3', 'c1', 'c2'].forEach(function (id) { tie.comments[id] = { id: id, item: '', text: id, author: 'Ann', at: '2030-01-01T00:00:00.000Z', updatedAt: '2030-01-01T00:00:00.000Z' }; });
+    var tie2 = JSON.parse(JSON.stringify(tie)); tie2.comments = { c2: tie.comments.c2, c1: tie.comments.c1, c3: tie.comments.c3 };
+    eq([M.liveComments(tie).map(function (c) { return c.id; }), M.liveComments(tie2).map(function (c) { return c.id; })], [['c1', 'c2', 'c3'], ['c1', 'c2', 'c3']], 'comments at the same moment sort by id, whatever order the file lists them in');
     // Phrase links.
     var body = 'The loop switches the heat relay [quickly]{std} every second.';
     eq(M.specEdit(body, 0, body.length, 'phrase', { id: 'q1', text: 'heat relay' }), 'The loop switches the [heat relay]{q:q1} [quickly]{std} every second.', 'phrase wraps just those words');
