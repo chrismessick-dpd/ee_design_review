@@ -828,6 +828,40 @@
   try { await rvStore.readVerified('data/fabcheck/prv/packages/' + rvKey + '/gone.zip', got.zip.sha256); } catch (e) { why = e.code; }
   eq(why, 'missing', 'a missing zip is reported as missing');
 
+  // A big zip stored in parts (GitHub drops any upload that runs past about a minute).
+  var bigZip = new Uint8Array(Signoff.GitHubStore.PART_BYTES * 2 + 1234);
+  for (var bi = 0; bi < bigZip.length; bi += 997) bigZip[bi] = bi % 251;
+  var bigPath = 'data/fabcheck/prv/packages/' + rvKey + '/BIG-A_manufacturing.zip';
+  var bigParts = Signoff.GitHubStore.splitParts(bigPath, bigZip);
+  eq(bigParts.map(function (p) { return p.path.slice(-4) + ':' + p.bytes.length; }), ['.001:' + Signoff.GitHubStore.PART_BYTES, '.002:' + Signoff.GitHubStore.PART_BYTES, '.003:1234'], 'splitParts cuts a big file into numbered parts');
+  ok(Signoff.GitHubStore.splitParts(bigPath, rvZipBytes) === null, 'a small file is not split');
+  var bigRec = { path: bigPath, name: 'BIG-A_manufacturing.zip', sha256: await Signoff.github.sha256Hex(bigZip), size: bigZip.length, root: 'BIG-A_manufacturing', files: [],
+    parts: bigParts.map(function (p) { return { path: p.path, size: p.bytes.length }; }) };
+  var blobPosts = 0, cutOnce = true, flakyFetch = function (url, o) {
+    if (/\/git\/blobs$/.test(url) && o && o.method === 'POST') { blobPosts++; if (cutOnce) { cutOnce = false; return Promise.reject(new TypeError('Failed to fetch')); } }
+    return hub.fetchFor('tok-ann')(url, o);
+  };
+  var bigStore = new Signoff.GitHubStore({ owner: 'ann', repo: 'rv', branch: 'main', dataPath: 'data', token: 'tok-ann' }, flakyFetch);
+  var bigPut = await bigStore.putFiles(bigParts.concat([{ path: 'data/fabcheck/prv/runs/r7.json', text: JSON.stringify(rvRun('r7', '2026-10-30T10:00:00.000Z', null, bigRec)) }]), {});
+  ok(bigPut.pushed === 4 && blobPosts === 5, 'an upload cut off once is tried again, and the parts are stored');
+  var bigListed = await rvStore.listRuns('data/fabcheck/prv/');
+  var bigRun = M.cleanRun(bigListed.runs.filter(function (r) { return r.data.run.id === 'r7'; })[0].data);
+  eq(bigRun.zip.parts.map(function (p) { return p.rel; }), bigParts.map(function (p) { return p.path.replace('data/fabcheck/prv/', ''); }), 'cleanRun keeps the parts relative to the run folder');
+  var bigRead = await rvStore.readVerified(bigRun.zip.parts.map(function (p) { return 'data/fabcheck/prv/' + p.rel; }), bigRun.zip.sha256, bigListed.entries);
+  ok(bigRead.length === bigZip.length && bigRead[bigZip.length - 1] === bigZip[bigZip.length - 1] && bigRead[997 * 5000] === bigZip[997 * 5000], 'readVerified joins the parts and checks the whole SHA-256');
+  why = '';
+  try { await rvStore.readVerified([bigParts[0].path, bigParts[2].path], bigRun.zip.sha256, bigListed.entries); } catch (e) { why = e.code; }
+  eq(why, 'mismatch', 'parts joined wrong don’t match the SHA-256');
+  why = '';
+  try { await rvStore.readVerified([bigParts[0].path, bigPath + '.009'], bigRun.zip.sha256, bigListed.entries); } catch (e) { why = e.code; }
+  eq(why, 'missing', 'a missing part is reported as missing');
+  ok(M.zipParts(bigPath, [bigPath + '.001', bigPath + '.003']) === null && M.zipParts(bigPath, [{ path: 'evil/x.zip.001' }]) === null, 'parts that skip a number or rename the zip are refused');
+  ok(!('parts' in M.cleanRun(rvRun('r9', '2026-10-29T10:00:00.000Z', null, rvZip)).zip), 'a one-file zip has no parts');
+  var bigRev = M.newRevision(bigRun, { label: '4.1' }, 'Ann');
+  eq(bigRev.source.zip.parts, bigParts.map(function (p) { return p.path; }), 'a revision of a parted run keeps the parts');
+  eq(M.cleanRevision(JSON.parse(JSON.stringify(bigRev)), bigRev.id).source.zip.parts, bigRev.source.zip.parts, 'cleanRevision keeps them');
+  ok(!('parts' in v2.source.zip) && !('parts' in M.cleanRevision(JSON.parse(JSON.stringify(v2)), v2.id).source.zip), 'a revision of a one-file zip has no parts key');
+
   // ── History: recordDiff, historyRows, historyBlocks, and fileHistory (made-up review) ──
   var hv0 = M.newProject({ name: 'History board', checklists: ['schematic'] }, 'Ann', T), hid = Object.keys(M.checkIndex(hv0, T))[0];
   hv0.meta.updatedAt = '2030-02-01T09:00:00.000Z';

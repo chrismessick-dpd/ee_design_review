@@ -56,6 +56,15 @@ except the README, with its original path and its path in the zip. Signoff needs
 list a run's contents or to check a download. Runs stored earlier, and runs kept only in the
 browser, have no `zip`.
 
+`package.zip.parts` (since 2026-11-14) is on a zip over 4 MB: `[{ "path": "<zip path>.001", "size": … },
+…]`, numbered from `.001` in order. The zip itself is then not in the repo; readers join the parts
+(`readVerified` takes the list) and check the joined bytes against `sha256`. A list that skips a number
+or names another file is ignored (`model.zipParts`). Why: GitHub drops any one upload that runs past
+about a minute, whatever its size (measured 2026-11-14: a 20 MB blob sent in 54 s was stored, a 25 MB
+one at 76 s and a 3 MB one sent slowly over 80 s were refused, with a 401 "Bad credentials" that a
+browser sees as "Failed to fetch"). A 4 MB part takes about 11 s at 0.5 MB/s up. `putFiles` also sends
+blobs of 512 KB or more one at a time, and tries a cut-off upload twice more.
+
 `settings.rules` is a full copy of the fab rules the run used. Profiles can be edited (a
 fab house's capabilities change, or someone tweaks a limit), so re-running or reopening a
 run always uses this copy, never the profile as it is now. `profile` and `profileName` are
@@ -89,6 +98,7 @@ Layout inside the home repo (on `main`, under the data path):
 ```
 fabcheck/<projectId>/runs/<runId>.json             { "run": {…, "package": {…, "zip"}}, "findings": [ … compact … ] }
 fabcheck/<projectId>/packages/<key>/<root>.zip     the fab package (package.zip.path)
+fabcheck/<projectId>/packages/<key>/<root>.zip.001 …  or, over 4 MB, its parts (package.zip.parts)
 fabcheck/<projectId>/preview/…                     board pictures (below)
 ```
 
@@ -192,8 +202,10 @@ The records and the UI are described in the README (*Revisions*); in short:
 - **Reading:** `GitHubStore.listRuns('<dir>fabcheck/<projectId>/')` reads `runs/*.json` (direct
   children only), and `model.cleanRun` checks each: the run id, hashes, and the zip's place.
   A file counts only for the run its name says. `model.groupRuns` makes one row per package key.
-- **Download:** `GitHubStore.readVerified(path, package.zip.sha256)` reads the zip and refuses it
-  unless its SHA-256 matches; then it's saved as `package.zip.name`.
+- **Download:** `GitHubStore.readVerified(path, package.zip.sha256)` reads the zip (or, given its
+  parts' paths, joins them) and refuses it unless its SHA-256 matches; then it's saved as
+  `package.zip.name`. A revision of a parted run keeps `source.zip.parts` (the parts' full paths),
+  which Loom's *From a board* joins the same way.
 - **Tags** are `revisions` records in the project document (`source: { tool: 'fabcheck', run, at,
   package, zip }`), merged like every other record. Fabcheck doesn't know a run's tag when it
   sends, so its comments name the package; Signoff shows the tag beside *From Fabcheck* on an
