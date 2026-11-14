@@ -163,6 +163,14 @@ From a co-worker's first EE description (`signoff_tickets` 3 to 8; Chris approve
   its place on the line. The place is kept on the block whose link line it is, as
   `labels['<other section id>|<link word>'] = { t, x, y }` (t along the line, 0 to 1; x, y the offset off
   it), so it follows when blocks move (`model.specLabels`). Auto layout forgets them with the arrangement.
+  Then (Chris, 2026-11-13) the arrow back became a small dot on the line, which drags along the line (the
+  label stays put), and the dashed leader follows live while either the label or its dot drags. A label
+  dragged off its line keeps its dot where it last sat on the line.
+- **Lines and rails** (Chris, 2026-11-13: lines fanning out of one connector came in at odd angles, and the
+  arrowheads were big). Every line leaves and enters square to the block's side on a 12-unit straight stub
+  (`SPEC_STUB`), with the curve between the stubs, so its head always sits on a straight run; labels ride
+  the curve (`specRoute`'s `cd`). Heads are slim and notched, 9 units long, a fixed size however thick the
+  line. A power flag is a stem up to a bar, the rail symbol, not an arrow.
 - **Moving sections** shows: a grip beside a heading on pointing, a title on the heading, a "Drag a
   heading to move its section" hint in the page's subline (pointers only), and a sentence in the guide.
 
@@ -178,4 +186,6 @@ From a co-worker's first EE description (`signoff_tickets` 3 to 8; Chris approve
 - **Export** (the down arrow beside it) saves the whole diagram, whatever the zoom, in light colors and
   without handles, hit areas, beads, or selection: a PNG at twice size, an SVG with its styles inline, or a
   landscape sheet in the print view (Print or save as PDF) with a title block at the bottom right: the
-  review's name, project, client, number, revision, stage, date, who made it, and sheet 1 of 1.
+  review's name, project, client, number, revision, stage, date, who made it, and sheet 1 of 1. The
+  review's name is the Title across the top, and "Signoff EE block diagram" the Page beside Rev (Chris
+  swapped them, 2026-11-13), and the block is half its first size, its bottom right corner kept.
