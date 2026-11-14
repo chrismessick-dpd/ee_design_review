@@ -165,3 +165,17 @@ From a co-worker's first EE description (`signoff_tickets` 3 to 8; Chris approve
   it), so it follows when blocks move (`model.specLabels`). Auto layout forgets them with the arrangement.
 - **Moving sections** shows: a grip beside a heading on pointing, a title on the heading, a "Drag a
   heading to move its section" hint in the page's subline (pointers only), and a sentence in the guide.
+
+## Expanding and exporting the diagram (Chris, 2026-11-13)
+
+- **Expand** (the arrows at the card's top right, in EE's flow diagram and FW's layered map) fills the
+  window, on a phone too. There the wheel or a trackpad pinch zooms about the pointer, a middle or right
+  drag pans (Chris chose it: a plain drag on empty space still draws a section), and on a touch screen a
+  pinch zooms and one finger on empty space pans. Everything else works as on the page: a click opens the
+  block or line panel over the diagram, and its buttons step left of the panel. Fit shows the whole
+  diagram; Esc closes the panel first, then the expanded view. Closed, the card shows the whole diagram
+  as before. The view (`specZoom`, a viewBox) lives only while expanded.
+- **Export** (the down arrow beside it) saves the whole diagram, whatever the zoom, in light colors and
+  without handles, hit areas, beads, or selection: a PNG at twice size, an SVG with its styles inline, or a
+  landscape sheet in the print view (Print or save as PDF) with a title block at the bottom right: the
+  review's name, project, client, number, revision, stage, date, who made it, and sheet 1 of 1.
