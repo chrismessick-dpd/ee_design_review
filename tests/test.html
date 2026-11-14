@@ -828,6 +828,56 @@
   try { await rvStore.readVerified('data/fabcheck/prv/packages/' + rvKey + '/gone.zip', got.zip.sha256); } catch (e) { why = e.code; }
   eq(why, 'missing', 'a missing zip is reported as missing');
 
+  // ── History: recordDiff, historyRows, historyBlocks, and fileHistory (made-up review) ──
+  var hv0 = M.newProject({ name: 'History board', checklists: ['schematic'] }, 'Ann', T), hid = Object.keys(M.checkIndex(hv0, T))[0];
+  hv0.meta.updatedAt = '2030-02-01T09:00:00.000Z';
+  var hv1 = JSON.parse(JSON.stringify(hv0));
+  hv1.items[hid] = { status: 'pass', updatedAt: '2030-02-01T10:00:00.000Z', updatedBy: 'Ann' };
+  hv1.comments.c1 = { id: 'c1', item: hid, author: 'Ann', text: 'Looks right.', at: '2030-02-01T10:05:00.000Z', updatedAt: '2030-02-01T10:05:00.000Z', updatedBy: 'Ann' };
+  var hv2 = JSON.parse(JSON.stringify(hv1));
+  hv2.items[hid] = { status: 'issue', severity: 'major', updatedAt: '2030-02-01T15:00:00.000Z', updatedBy: 'Bo' };
+  hv2.comments.c1 = Object.assign({}, hv1.comments.c1, { deleted: true, updatedAt: '2030-02-01T15:01:00.000Z', updatedBy: 'Bo' });
+  var hd = M.recordDiff(hv1, hv2, T);
+  eq(hd.map(function (r) { return r.kind + ':' + r.by + ':' + r.deleted; }).sort(), ['check:Bo:false', 'comment:Bo:true'], 'recordDiff lists only the records whose stamp changed, by their own stamp');
+  eq([hd.filter(function (r) { return r.kind === 'check'; })[0].before.status, hd.filter(function (r) { return r.kind === 'check'; })[0].after.status], ['pass', 'issue'], 'recordDiff carries each record before and after');
+  eq(M.recordDiff(hv2, hv2, T), [], 'two equal versions have no changes');
+  eq(M.recordDiff(null, hv1, T).filter(function (r) { return r.before; }), [], 'with no earlier version, every record is new');
+  var hver = [{ doc: hv2, commit: { sha: 'c3' } }, { doc: hv1, commit: { sha: 'c2' } }, { doc: hv0, commit: { sha: 'c1' } }];
+  var hrows = M.historyRows(hver, T);
+  eq(hrows.map(function (r) { return r.kind + ':' + r.commit.sha; }), ['comment:c3', 'check:c3', 'comment:c2', 'check:c2'], 'historyRows: newest first, each change with the version that first had it; the oldest given is only a base');
+  eq(M.historyRows(hver, T, { complete: true }).length, 5, 'with the file’s first version given, its records count too');
+  var hb = M.historyBlocks(hrows, 2 * 3600e3);
+  eq(hb.map(function (b) { return b.by + ':' + b.rows.length; }), ['Bo:2', 'Ann:2'], 'historyBlocks folds a run by one person into a block');
+  eq(M.historyBlocks(hrows, 0).length, 4, 'gap 0: one block per change');
+  eq(M.historyBlocks(hrows, 60e3).map(function (b) { return b.rows.length; }), [2, 1, 1], 'rows further apart than the gap start a new block');
+
+  // fileHistory against a small fake of the commits and contents APIs.
+  var hfCalls = [], hfVers = [{ sha: 'cc3', file: JSON.stringify(hv2), date: '2030-02-01T15:02:00Z' }, { sha: 'cc2', file: JSON.stringify(hv1), date: '2030-02-01T10:06:00Z' }, { sha: 'cc1', file: null, date: '2030-02-01T09:01:00Z' }];
+  var hfFetch = async function (url) {
+    var u = url.replace('https://api.github.com/repos/ann/hist', ''); hfCalls.push(u);
+    var res = function (s, d) { return { ok: s < 300, status: s, text: async function () { return JSON.stringify(d); } }; };
+    if (/^\/commits\?/.test(u)) {
+      var pg = +/[?&]page=(\d+)/.exec(u)[1], pp = +/[?&]per_page=(\d+)/.exec(u)[1];
+      return res(200, hfVers.slice((pg - 1) * pp, pg * pp).map(function (v) { return { sha: v.sha, author: { login: 'ann' }, commit: { message: 'Review update', author: { name: 'Ann', date: v.date } } }; }));
+    }
+    var cm = /^\/contents\/(.+)\?ref=(\w+)$/.exec(u);
+    if (cm) {
+      var v = hfVers.filter(function (x) { return x.sha === cm[2]; })[0];
+      if (!v || v.file == null) return res(404, { message: 'Not Found' });
+      return res(200, { sha: await Signoff.github.gitBlobSha(v.file), encoding: 'base64', content: Signoff.github.b64Encode(v.file) });
+    }
+    return res(404, { message: 'Not Found: ' + u });
+  };
+  var hfStore = new Signoff.GitHubStore({ owner: 'ann', repo: 'hist', branch: 'main', dataPath: '', token: 'tok-ann' }, hfFetch);
+  var hfCache = {};
+  var hf1 = await hfStore.fileHistory('projects/' + hv0.id + '.json', { perPage: 2, cache: hfCache });
+  eq([hf1.versions.map(function (v) { return v.commit.sha; }), hf1.more, JSON.parse(hf1.versions[0].text).items[hid].status], [['cc3', 'cc2'], true, 'issue'], 'fileHistory: a page of versions, newest first, each read at its commit');
+  var hf2 = await hfStore.fileHistory('projects/' + hv0.id + '.json', { perPage: 2, page: 2, cache: hfCache });
+  eq([hf2.versions.length, hf2.versions[0].text, hf2.more], [1, null, false], 'a version without the file has text null, and a short page is the last');
+  var hfBefore = hfCalls.length;
+  await hfStore.fileHistory('projects/' + hv0.id + '.json', { perPage: 2, cache: hfCache });
+  eq(hfCalls.slice(hfBefore).filter(function (u) { return !/^\/commits\?/.test(u); }), [], 'versions read before cost no call: commits and blobs are cached by sha');
+
   // The hand-off entry, read back the way Fabcheck's takeHandoff reads it (same database, store, keyPath).
   await Signoff.handoff.put({ id: 'rtest-handoff', run: got.raw, findings: got.findings, zip: zbytes, at: M.now() }, true);
   var hoBack = await new Promise(function (res, rej) {
