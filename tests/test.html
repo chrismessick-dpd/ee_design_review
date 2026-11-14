@@ -1240,6 +1240,29 @@
     eq(live(M.mergeProjects(stale, far, { since: '￿' })), ['Firmware:It runs.', 'Loop:Bo edit 6'], 'a copy with no edits since it synced never makes a conflict copy');
     eq(live(M.mergeProjects(stale, far, { since: '2030-01-05T00:00:00.000Z' })), ['Firmware:It runs.', 'Loop:Bo edit 6'], 'sections stamped before the last pull are synced: no copy');
     eq(live(M.mergeProjects(A, B, { since: '2029-12-31T00:00:00.000Z' })), live(ab), 'an edit made here since the last pull still keeps a conflict copy');
+    // Resolving a copy in one step (specResolvePlan, specResolveApply).
+    var rSec = '> Makes 3.3 V.\nThe buck has 22 µF out. Ripple stays under [20 mV]{REQ-004} @req. Soft start limits inrush.\nParts: U7, C1–C3\n| Rail | V |\n| --- | --- |\n| 3V3 | 3.3 |';
+    var rCp = '> Makes 3.3 V.\nThe buck has 44 µF out. Ripple stays under [20 mV]{REQ-004} @req. It runs at 2.2 MHz.\nParts: U7, C1–C4\n| Rail | V |\n| --- | --- |\n| 3V3 | 3.3 |\n| 5V | 5.0 |';
+    var rPlan = M.specResolvePlan(rSec, rCp);
+    eq(rPlan.items.map(function (it) { return it.mode + ':' + it.text; }),
+      ['change:The buck has 44 µF out.', 'add:It runs at 2.2 MHz.', 'change:Parts: U7, C1–C4', 'add:| 5V | 5.0 |'],
+      'resolve plan: a sentence or line like one in the section changes it, anything else is new, and what both have is left out');
+    eq(M.specResolveApply(rSec, rPlan, []), rSec, 'resolve: nothing picked leaves the section byte for byte');
+    eq(M.specResolveApply(rSec, rPlan, [false, true, false, true]),
+      '> Makes 3.3 V.\nThe buck has 22 µF out. Ripple stays under [20 mV]{REQ-004} @req. It runs at 2.2 MHz. Soft start limits inrush.\nParts: U7, C1–C3\n| Rail | V |\n| --- | --- |\n| 3V3 | 3.3 |\n| 5V | 5.0 |',
+      'resolve: a new sentence goes after the one it followed in the copy, and a new table row after the row it followed');
+    eq(M.specResolveApply(rSec, rPlan, [true, false, true, false]).split('\n').slice(1, 3),
+      ['The buck has 44 µF out. Ripple stays under [20 mV]{REQ-004} @req. Soft start limits inrush.', 'Parts: U7, C1–C4'],
+      'resolve: a changed sentence or Parts: line replaces its match, and marks survive');
+    eq(M.specResolvePlan(rSec, rSec).items, [], 'resolve: a copy the same as the section has nothing to take');
+    eq(M.specResolvePlan('Parts: U7', 'Supplies: MCU (3V3)').items.map(function (it) { return it.mode; }), ['add'], 'resolve: a Supplies: line never changes a Parts: line');
+    // A resolve here (the section's edit and the copy's tombstone) syncs against GitHub's unchanged copy
+    // without making the copy again.
+    var rDoc = JSON.parse(JSON.stringify(ab)), rCopy = Object.keys(rDoc.spec).filter(function (k) { return rDoc.spec[k].conflictOf; })[0];
+    var rBase = M.specBase(rDoc), rMine = JSON.parse(JSON.stringify(rDoc)), rOrig = rMine.spec[rMine.spec[rCopy].conflictOf];
+    rMine.spec[rOrig.id] = M.specStamp(Object.assign({}, rOrig, { body: rOrig.body + ' Ann wrote this.' }), 'Cy');
+    rMine.spec[rCopy] = M.specStamp(Object.assign({}, rMine.spec[rCopy], { deleted: true }), 'Cy');
+    eq(live(M.mergeProjects(rMine, rDoc, { base: rBase })), ['Firmware:It runs.', 'Loop:Bo wrote this. Ann wrote this.'], 'resolve: syncing a resolved copy keeps it resolved');
     // Three ways against the base this browser last pulled (opts.base).
     var b0 = M.specBase(B), lid = loop.id;
     eq(live(M.mergeProjects(stale, far, { base: b0 })), ['Firmware:It runs.', 'Loop:Bo edit 6'], 'base: a section still as pulled takes GitHub’s, however far it moved');
