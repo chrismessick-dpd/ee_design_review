@@ -15,7 +15,7 @@
 <div id="out"></div>
 <script>
 // Load the engine fresh on every run, so a browser cache never tests old code.
-['config', 'templates', 'model', 'auth', 'github', 'workspace', 'demo'].forEach(function (n) { document.write('<script src="../assets/' + n + '.js?t=' + Date.now() + '"><\/script>'); });
+['config', 'templates', 'model', 'auth', 'github', 'workspace', 'demo', 'history'].forEach(function (n) { document.write('<script src="../assets/' + n + '.js?t=' + Date.now() + '"><\/script>'); });
 </script>
 <script>
 /* Unit tests for the model and the GitHub sync, run against a fake GitHub API.
@@ -911,6 +911,45 @@
   var hfBefore = hfCalls.length;
   await hfStore.fileHistory('projects/' + hv0.id + '.json', { perPage: 2, cache: hfCache });
   eq(hfCalls.slice(hfBefore).filter(function (u) { return !/^\/commits\?/.test(u); }), [], 'versions read before cost no call: commits and blobs are cached by sha');
+
+  // ── Version tags and Restore (assets/history.js, model.restorePlan) ──
+  var VT = window.SignoffHistory.tags;
+  eq(await hfStore.fileAt('projects/' + hv0.id + '.json', 'cc2').then(function (t) { return JSON.parse(t).items[hid].status; }), 'pass', 'fileAt reads a file as it was at a commit');
+  var tg1 = { tags: VT.set(hv2, { commit: 'abc1234', at: '2030-02-01T15:02:00Z' }, 'EVT build', 'Ann') };
+  eq(VT.list(tg1).map(function (t) { return [t.commit, t.note, t.updatedBy]; }), [['abc1234', 'EVT build', 'Ann']], 'a version is tagged with a note, as a record stamped by who tagged it');
+  var tg2 = { tags: VT.set(tg1, { commit: 'abc1234' }, 'EVT', 'Bo') };
+  eq([Object.keys(tg2.tags).length, VT.at(tg2, 'abc1234').note, VT.at(tg2, 'abc1234').id === VT.at(tg1, 'abc1234').id], [1, 'EVT', true], 'changing the note keeps the tag’s id');
+  var tg3 = { tags: VT.set(tg2, { commit: 'abc1234' }, null, 'Bo') };
+  eq([VT.list(tg3).length, Object.keys(tg3.tags).length, tg3.tags[VT.at(tg2, 'abc1234').id].deleted], [0, 1, true], 'removing a tag leaves a tombstone');
+  eq(VT.list({ tags: [{ commit: 'abc1234', note: 'x' }] }), [], 'tags that aren’t a map of records are ignored');
+  eq(VT.phrases(tg1, tg2).concat(VT.phrases(tg2, tg3)).map(function (x) { return x.verb; }), ['renamed a tag', 'removed the tag'], 'tag phrases name a renamed and a removed tag');
+  var tgA = JSON.parse(JSON.stringify(hv2)), tgB = JSON.parse(JSON.stringify(hv2));
+  tgA.tags = VT.set(tgA, { commit: 'aaaaaaa' }, 'Proto', 'Ann'); tgB.tags = VT.set(tgB, { commit: 'bbbbbbb' }, 'EVT', 'Bo');
+  eq(VT.list(M.mergeProjects(tgA, tgB)).map(function (t) { return t.note; }).sort(), ['EVT', 'Proto'], 'mergeProjects keeps tags from both copies, record by record');
+  ok(!('tags' in M.mergeProjects(hv1, hv2)) || M.mergeProjects(hv1, hv2).tags === undefined, 'a review without tags gets no tags key');
+  var tgC = JSON.parse(JSON.stringify(tgB)); tgC.tags = VT.set(tgC, { commit: 'bbbbbbb' }, null, 'Cy');
+  eq(VT.list(M.mergeProjects(tgB, tgC)), [], 'a removed tag stays removed when merged with the older copy');
+  eq(M.changesSince(tgA, '', T).filter(function (r) { return r.kind === 'tag'; }).map(function (r) { return r.label + ' ' + r.detail; }), ['“Proto” version aaaaaaa'], 'History lists a version tag as its own change');
+  // Restore: everything but comments goes back; what was added since is cleared.
+  var rsOld = JSON.parse(JSON.stringify(hv1)), rsNow = JSON.parse(JSON.stringify(hv2)), hid2 = Object.keys(M.checkIndex(hv0, T))[1];
+  rsOld.reqs.q1 = { id: 'q1', ref: 'REQ-001', text: 'Old text', updatedAt: '2030-02-01T10:00:00.000Z', updatedBy: 'Ann' };
+  rsNow.reqs.q1 = Object.assign({}, rsOld.reqs.q1, { text: 'New text', updatedAt: '2030-02-02T10:00:00.000Z', updatedBy: 'Bo' });
+  rsNow.reqs.q2 = { id: 'q2', ref: 'REQ-002', text: 'Added since', updatedAt: '2030-02-02T10:00:00.000Z', updatedBy: 'Bo' };
+  rsNow.items[hid2] = { status: 'pass', text: 'x', checklist: 'schematic', updatedAt: '2030-02-02T10:00:00.000Z', updatedBy: 'Bo' };
+  rsNow.comments.c2 = { id: 'c2', text: 'New comment', updatedAt: '2030-02-02T11:00:00.000Z', updatedBy: 'Bo' };
+  rsOld.spec = { s1: { id: 's1', title: 'Power', body: 'Old', updatedAt: '2030-02-01T10:00:00.000Z', updatedBy: 'Ann', hist: [] } };
+  rsNow.spec = { s1: Object.assign({}, rsOld.spec.s1, { body: 'New', updatedAt: '2030-02-02T10:00:00.000Z', updatedBy: 'Bo', hist: ['2030-02-01T10:00:00.000Z'] }) };
+  rsNow.tags = tgA.tags; rsNow.meta = Object.assign({}, rsNow.meta, { name: 'Renamed', archived: true, updatedAt: '2030-02-02T10:00:00.000Z', updatedBy: 'Bo' });
+  var rsBefore = JSON.parse(JSON.stringify(rsNow)), rsPlan = M.restorePlan(rsNow, rsOld, 'Cy');
+  var rsDone = M.restoreApply(JSON.parse(JSON.stringify(rsNow)), rsPlan);
+  eq([rsDone.items[hid].status, rsDone.items[hid2].status, rsDone.items[hid2].text, rsDone.reqs.q1.text, rsDone.reqs.q2.deleted, rsDone.spec.s1.body, rsDone.meta.name, rsDone.meta.archived],
+    ['pass', undefined, 'x', 'Old text', true, 'Old', 'History board', true], 'Restore puts checks, requirements, Scribe, and details back, clears what was added since, and keeps archived');
+  eq([rsDone.comments.c1.deleted, rsDone.comments.c2.text, VT.list(rsDone).length], [true, 'New comment', 1], 'Restore leaves comments and version tags as they are');
+  ok(Object.keys(rsPlan.maps).every(function (k) { return Object.keys(rsPlan.maps[k]).every(function (id) { return rsPlan.maps[k][id].updatedBy === 'Cy' && rsPlan.maps[k][id].updatedAt.slice(0, 4) === new Date().toISOString().slice(0, 4); }); }) && rsPlan.meta.updatedBy === 'Cy', 'Restore writes new edits, stamped now by who restored');
+  eq(rsDone.spec.s1.hist[0], '2030-02-02T10:00:00.000Z', 'a restored Scribe section follows on from the live one (its hist), so it isn’t a conflict copy');
+  var rsUndo = M.restoreApply(JSON.parse(JSON.stringify(rsDone)), M.restorePlan(rsDone, rsBefore, 'Cy'));
+  eq([rsUndo.items[hid].status, rsUndo.items[hid2].status, rsUndo.reqs.q1.text, rsUndo.reqs.q2.deleted, rsUndo.spec.s1.body, rsUndo.meta.name], ['issue', 'pass', 'New text', undefined, 'New', 'Renamed'], 'Restoring the review as it was before undoes it');
+  eq(M.restorePlan(rsNow, rsNow, 'Cy').count, 0, 'Restoring the same version changes nothing');
 
   // The hand-off entry, read back the way Fabcheck's takeHandoff reads it (same database, store, keyPath).
   await Signoff.handoff.put({ id: 'rtest-handoff', run: got.raw, findings: got.findings, zip: zbytes, at: M.now() }, true);

@@ -18,13 +18,14 @@ Read next:
 ## Rules
 
 - **Engine files**: `assets/model.js`, `auth.js` (Sign in with GitHub; `../signoff/docs/sign-in.md`), `github.js`, `workspace.js`, `app.js`, `demo.js`,
-  `specguide.js`, `styles.css`, and `tools/build.py`, `package.py`, `validate_templates.py`, `signoff.js`,
+  `specguide.js`, `history.js`, `styles.css`, and `tools/build.py`, `package.py`, `validate_templates.py`, `signoff.js`,
   `signoff_test.js`. Edit them only here. Then copy them to the other tools:
 
   | Tool | Command |
   | --- | --- |
   | Signoff ME and Signoff FW | `python tools/sync_engine.py` in `../me_design_review` and `../fw_design_review` |
-  | Fabcheck and Signoff PL | `python tools/sync_vendor.py` in `../pcb_dfm` and `../signoff_pl`, for `model.js`, `github.js`, and `styles.css` |
+  | Fabcheck and Signoff PL | `python tools/sync_vendor.py` in `../pcb_dfm` and `../signoff_pl`, for `model.js`, `github.js`, and `styles.css` (PL also `history.js`) |
+  | Loom | `python tools/sync_vendor.py` in `../loom`, for `model.js`, `github.js`, `auth.js`, and `history.js` |
   | Hub | `python tools/sync_suite_css.py` in `../signoff`, for `styles.css` |
 
   Anything specific to one tool goes in its `assets/config.js`, `index.html`, `templates/`, or
@@ -72,6 +73,26 @@ Read next:
    and FW (39 tests each, 2026-11-10).
 3. Sync the engine into ME, and vendor it into Fabcheck and PL where needed, then run their
    checks and tests.
+
+## History, version tags, and Version comparison (2026-11-14, Chris)
+
+`assets/history.js` (`window.SignoffHistory`) is the one History engine for the suite (Chris: "one engine for
+the history system", EE the reference, vendored to the rest): the History sheet (timeline, blocks, the pane,
+filters, Load older), version tags, and the Version comparison bar. Each tool passes an adapter: its rows
+(`M.historyRows` here, `P.historyRows` in PL, Loom's whole-document diff), how a change shows, and Revert or
+Restore. Used by EE, ME, FW (`historySheet` in `app.js`), Signoff PL, and Loom (both vendor it).
+- **Version tags** are records on the document, `tags: { <id>: { id, commit, note, at, updatedAt, updatedBy,
+  deleted } }`, merged like any other (`mergeProjects`, PL's `P.merge`; the CLI's `MAP_KEYS`). History shows a
+  tag on the changes of its commit, and lists tag edits as their own change (kind `tag`). Not in the demo (no git).
+- **Compare** reads the file at the tag's commit (`GitHubStore.fileAt`) and opens the bar (made by the engine
+  under `#demo-banner`; body `has-compare`, `on-tagged`). `current()` returns the copy while its tab shows, and
+  `touch()` refuses an edit to it (`HIST.compare.isCopy`, `refuse`, `reset`), so nothing reaches `projects`,
+  `dirty`, or a sync. Leaving the review ends it.
+- **Restore this version** (Chris: everything but comments): `model.restorePlan` / `restoreApply` put checks,
+  sections set aside, added checks, requirements, Scribe, and the details back as new edits, clear what was added
+  since, and keep comments, revision tags, version tags, and `archived`. Scribe sections follow on from the live
+  one's `hist`, so they aren't conflict copies. Undo in the toast restores the review as it was before. PL passes
+  `{ maps: ['nodes', 'reqs'] }`.
 
 ## State (2026-10-25)
 
