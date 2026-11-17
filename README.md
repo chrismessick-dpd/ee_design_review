@@ -148,11 +148,14 @@ names the checklist (Signoff EE: `bringup`; off in ME and FW) and the board has 
 Rework is a list of the changes made to the boards during bring-up, one record each, like a ticket:
 
 - **The record** (`project.rework`, merged one by one like checks and requirements; the CLI's
-  `MAP_KEYS` has it): `ref` (RW-001, numbered in order), `title`, `problem` (what's wrong), `fix` (the
-  rework), `parts`, `nets`, `status` (`planned`, `done`, `verified`, or `notneeded`), `next` (fix it in
+  `MAP_KEYS` has it): `ref` (RW-001, numbered in order), `title`, `problem` (what's wrong), `fix` (shown as
+  *Rework details*), `parts`, `nets`, `steps`, `status` (`planned`, `done`, `verified`, or `notneeded`), `next` (fix it in
   the next revision), `by` and `doneAt` (filled in when it's marked done or verified), `revision` (a
   tagged revision's id), and `pics`. History, Restore, the unsynced list, and `&item=<rework id>` deep
   links know it.
+- **Tech steps** (`steps: [{ id, text, pics }]`, 2026-11-16, Chris): step-by-step instructions for the
+  technician under Rework details, each with its own pictures; added, edited, moved up or down, and
+  deleted in the rework's pane. Pasting while a step's text is focused adds the picture to that step.
 - **Pictures** are pasted, dropped, or picked, scaled to 1920 px on the long side (PNG for
   screenshots, JPEG over about 900 KB, 2.5 MB at most), stored at once in the board's home repo at
   `rework/<board id>/<rework id>/<picture id>.png|jpg` with their SHA-256 in the record, and read back
@@ -162,8 +165,11 @@ Rework is a list of the changes made to the boards during bring-up, one record e
   discussion and `summary.recent`.
 - **Print for the tech** (2026-11-16, Chris): *Print for the tech* in a rework's pane prints that one;
   *Print* on the list prints the reworks the filter and search show, an index first and then one per
-  page. Each has its parts, nets, what's wrong, the rework, every picture, the discussion, Done and
-  Verified lines to sign, and a notes box. It uses the review report's paper (`drawReworkPrint`), and
+  page. A toggle picks **Detailed** (parts, nets, what's wrong, Rework details, the tech steps with their
+  pictures, the rework's pictures, the discussion, Done and Verified lines, and a notes box) or
+  **Technician instructions** (parts, nets, and the steps with their pictures and a box to tick each;
+  with no steps, Rework details and the rework's pictures; a Done line and notes). The choice is kept in
+  the browser (`rwPrintMode`). It uses the review report's paper (`drawReworkPrint`), and
   Print waits until the pictures have loaded.
 - **Next revision.** Reworks with `next` ticked are listed first under Revisions › *Next revision
   updates*, beside the `@revnotes` comments.

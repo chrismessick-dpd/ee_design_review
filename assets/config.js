@@ -32,7 +32,8 @@
                    bring-up reworks with pictures (model.js, Rework; Signoff EE: bringup; off in ME
                    and FW). demo.projects[].rework: made-up reworks for a demo board ({ ref, title,
                    status, next, by, done, at (fractions of the review period), problem, fix, parts,
-                   nets, pics: [{ id, type, w, h, name }] in assets/demo-previews/<id>.<ext>, comments }).
+                   nets, pics: [{ id, type, w, h, name }] in assets/demo-previews/<id>.<ext>, steps: [{ text, pics }],
+                   comments }).
    runs:           the checker whose runs are stored next to a review (Fabcheck for Signoff EE):
                    { tool, dir }. The Revisions tab lists them and tags some as revisions;
                    without it the tab is hidden.
@@ -234,7 +235,13 @@ window.SIGNOFF_CONFIG = {
             "problem": "K2 (the cool call) pulses for about 12 ms at power-up, and K1 sometimes chatters. The relay driver inputs float for about 40 ms after reset, before firmware sets the pins.",
             "fix": "Added a 100 kΩ 0402 pull-down from each driver input (the MCU side of R1 and R2) to ground, tacked onto the R1 and R2 pads. Rev C adds both resistors to the schematic.",
             "parts": "Q1, Q2, R1, R2, K1, K2", "nets": "RLY1, RLY2",
-            "pics": [{ "id": "rwdemo1a", "type": "image/svg+xml", "w": 640, "h": 420, "name": "pull-downs on R1 and R2.svg" }],
+            "steps": [
+              { "text": "Power the board off and unplug mains. Work at the ESD bench." },
+              { "text": "Tack a 100 kΩ 0402 resistor onto the MCU-side pad of R1, and run a short wire from its other end to the nearest ground via. Repeat on R2.",
+                "pics": [{ "id": "rwdemo1a", "type": "image/svg+xml", "w": 640, "h": 420, "name": "pull-downs on R1 and R2.svg" }] },
+              { "text": "Secure both wires with a dot of UV glue, then inspect for bridges under magnification." },
+              { "text": "Power up 20 times with the scope on both relay coils. Neither coil should pulse." }
+            ],
             "comments": [{ "by": "Morgan Lee", "at": 0.7, "text": "Scoped 20 power cycles on boards 3 and 7: no pulse on either coil. Marking verified." }] },
           { "ref": "RW-002", "title": "3.3 V ripple at the Wi-Fi module", "status": "done", "next": true, "by": "Morgan Lee", "done": 0.74, "at": 0.68,
             "problem": "48 mV peak to peak on the 3.3 V rail at U1 during transmit bursts, over the 30 mV the description allows.",

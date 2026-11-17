@@ -1006,7 +1006,10 @@
   ok(demo.some(function (d) { return Object.keys(d.items).some(function (k) { return d.items[k].status === 'issue'; }); }), 'demo has findings');
   var dwr = M.liveRework(demo[0]);
   eq(dwr.map(function (r) { return r.status; }).sort(), ['done', 'notneeded', 'planned', 'verified', 'verified'], 'the Main PCBA demo has reworks in every status');
-  ok(dwr.every(function (r) { return r.title && r.problem && r.fix; }) && dwr.filter(function (r) { return r.pics.length; }).length === 2 && !demo[1].rework, 'demo reworks are complete, two have pictures, and only the Main PCBA has them');
+  ok(dwr.every(function (r) { return r.title && r.problem && r.fix; }) && dwr.filter(function (r) { return r.pics.length || r.steps.some(function (s) { return s.pics.length; }); }).length === 2 && !demo[1].rework, 'demo reworks are complete, two have pictures, and only the Main PCBA has them');
+  eq(dwr[0].steps.map(function (s) { return s.pics.length; }), [0, 1, 0, 0], 'the first demo rework has four tech steps, one with a picture');
+  var wsBad = M.cleanRework({ steps: [{ id: 'ok1', text: 'Lift pin 3', pics: [{ id: 'p1', file: 'p1.png', type: 'image/png' }, { id: 'p2', file: '../x.png', type: 'image/png' }] }, { id: '../bad', text: 'x' }, 'nope'] }, 'w1');
+  eq(wsBad.steps.map(function (s) { return s.id + ':' + s.pics.length; }), ['ok1:1'], 'tech steps from a file keep only well-formed steps and pictures');
   ok(Object.keys(demo[0].comments).some(function (k) { return demo[0].comments[k].item === dwr[0].id; }), 'a demo rework has discussion');
   var DD = Signoff.config.demo;
   ok(demo.every(function (d, i) { return d.id === Signoff.demo.id(DD.projects[i].seed); }), 'demo projects have fixed ids (Signoff PL’s demo links to them)');
