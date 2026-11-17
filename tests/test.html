@@ -977,6 +977,8 @@
   wa.rework = {}; wa.rework[w1.id] = w1;
   var w2 = M.newRework(wa, { title: 'Bulk cap' }, 'Bob');
   eq(w2.ref, 'RW-002', 'the next rework number follows the highest');
+  var wgap = { rework: { a: { ref: 'RW-004' }, b: { ref: 'RW-007', deleted: true }, c: { ref: 'RW-009', deleted: true } } };
+  eq(M.nextReworkRef(wgap), 'RW-005', 'the next rework number follows the highest live one, skipping deleted reworks');
   wb.rework = {}; wb.rework[w2.id] = w2;
   var wm1 = M.mergeProjects(wa, wb), wm2 = M.mergeProjects(wb, wa);
   ok(wm1.rework[w1.id] && wm1.rework[w2.id], 'two people adding reworks at once: both kept');
