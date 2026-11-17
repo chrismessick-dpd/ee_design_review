@@ -169,7 +169,8 @@ Rework is a list of the changes made to the boards during bring-up, one record e
   pictures, the rework's pictures, the discussion, Done and Verified lines, and a notes box) or
   **Technician instructions** (parts, nets, and the steps with their pictures and a box to tick each;
   with no steps, Rework details and the rework's pictures; a Done line and notes). The choice is kept in
-  the browser (`rwPrintMode`). It uses the review report's paper (`drawReworkPrint`), and
+  the browser (`rwPrintMode`). Reworks marked Not needed are left out of Technician instructions (Chris, 2026-11-16;
+  Detailed keeps them), with a line saying how many; one printed on its own from its pane still prints. It uses the review report's paper (`drawReworkPrint`), and
   Print waits until the pictures have loaded.
 - **Next revision.** Reworks with `next` ticked are listed first under Revisions › *Next revision
   updates*, beside the `@revnotes` comments.
