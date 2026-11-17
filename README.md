@@ -160,6 +160,11 @@ Rework is a list of the changes made to the boards during bring-up, one record e
   picture takes it off the record; the file stays in the repo's history.
 - **Discussion** is ordinary comments with `item` set to the rework's id, so it shows in Recent
   discussion and `summary.recent`.
+- **Print for the tech** (2026-11-16, Chris): *Print for the tech* in a rework's pane prints that one;
+  *Print* on the list prints the reworks the filter and search show, an index first and then one per
+  page. Each has its parts, nets, what's wrong, the rework, every picture, the discussion, Done and
+  Verified lines to sign, and a notes box. It uses the review report's paper (`drawReworkPrint`), and
+  Print waits until the pictures have loaded.
 - **Next revision.** Reworks with `next` ticked are listed first under Revisions › *Next revision
   updates*, beside the `@revnotes` comments.
 - **Statuses** differ by glyph and outline as well as color: Planned is a dashed outline and an open
