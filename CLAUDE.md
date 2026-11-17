@@ -67,12 +67,20 @@ Read next:
 
 1. Run `python tools/build.py`. It validates the templates and stamps the version and `?v=`.
    `--check` verifies the stamp.
-2. Open `tests/test.html` over http. It should show PASS (401 tests, 2026-11-10; on port 8774 or 8771, or the
+2. Open `tests/test.html` over http. It should show PASS (491 tests, 2026-11-16; on port 8774 or 8771, or the
    sign-in refresh tests skip).
    If `tools/signoff.js` or anything it calls changed, run `node tools/signoff_test.js` here and in ME
    and FW (39 tests each, 2026-11-10).
 3. Sync the engine into ME, and vendor it into Fabcheck and PL where needed, then run their
    checks and tests.
+
+## Rework (2026-11-16, Chris)
+
+The Bring-up tab's **Checklist | Rework** switch (`config.rework.template`, EE only; Chris: no planning
+list, just rework). `project.rework` records, pictures under `rework/<board>/<rework>/` in the board's home
+repo, `summary.rework` counts for Signoff PL. Everything is in README *Rework*; the code is `model.js`
+*Rework* and `app.js` *Rework* (`reworkPage`, `renderReworkInspector`, `addReworkPics`). The demo's Main
+PCBA has five made-up reworks (`config.demo.projects[].rework`, pictures `assets/demo-previews/rwdemo*.svg`).
 
 ## History, version tags, and Version comparison (2026-11-14, Chris)
 

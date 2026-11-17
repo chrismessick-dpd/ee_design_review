@@ -141,6 +141,30 @@ section, but keeps the requirements, the same way a checklist's review state is 
     changed since PL read it is returned as a conflict, not overwritten.
 - **Deep link:** `index.html?project=<id>&req=<requirement id>` opens the requirement.
 
+## Rework
+
+The **Bring-up** tab has a **Checklist | Rework** switch (2026-11-16, Chris), on where `config.rework`
+names the checklist (Signoff EE: `bringup`; off in ME and FW) and the board has that checklist.
+Rework is a list of the changes made to the boards during bring-up, one record each, like a ticket:
+
+- **The record** (`project.rework`, merged one by one like checks and requirements; the CLI's
+  `MAP_KEYS` has it): `ref` (RW-001, numbered in order), `title`, `problem` (what's wrong), `fix` (the
+  rework), `parts`, `nets`, `status` (`planned`, `done`, `verified`, or `notneeded`), `next` (fix it in
+  the next revision), `by` and `doneAt` (filled in when it's marked done or verified), `revision` (a
+  tagged revision's id), and `pics`. History, Restore, the unsynced list, and `&item=<rework id>` deep
+  links know it.
+- **Pictures** are pasted, dropped, or picked, scaled to 1920 px on the long side (PNG for
+  screenshots, JPEG over about 900 KB, 2.5 MB at most), stored at once in the board's home repo at
+  `rework/<board id>/<rework id>/<picture id>.png|jpg` with their SHA-256 in the record, and read back
+  as `blob:` URLs. They move with the board when it's shared (`Workspace.checkerDirs`). Removing a
+  picture takes it off the record; the file stays in the repo's history.
+- **Discussion** is ordinary comments with `item` set to the rework's id, so it shows in Recent
+  discussion and `summary.recent`.
+- **Next revision.** Reworks with `next` ticked are listed first under Revisions › *Next revision
+  updates*, beside the `@revnotes` comments.
+- **Statuses** differ by glyph and outline as well as color: Planned is a dashed outline and an open
+  circle, Done one tick, Verified two ticks and a solid outline, Not needed lined through.
+
 ## Revisions
 
 The **Revisions** tab (after Findings) lists the Fabcheck runs stored with the board, and tags some
@@ -319,6 +343,7 @@ written, and is never merged.
   "revisions": [ { "label": "3.1", "status": "sent", "sentAt": "2026-10-21" }, { "label": "3.2", "status": "built", "sentAt": "" } ],
   "plPart": { "project": "pl…", "node": "n…", "at": "2026-11-08T10:00:00Z" },
   "kind": "assembly",
+  "rework": { "total": 5, "planned": 1, "done": 1, "verified": 2, "notneeded": 1, "next": 3 },
   "spec": { "gists": [ { "title": "Thermostat firmware", "gist": "…", "depth": 0 }, { "title": "Control loop", "gist": "…", "depth": 1 } ],
     "sections": 19, "untraced": 7, "undescribed": 1, "flagged": 2 },
   "at": "2026-10-24T18:36:53Z", "by": "Sam Patel"
@@ -356,6 +381,9 @@ written, and is never merged.
   from the Part. Signoff PL links that Part to the review at its next sync (`pl.js` `claimPlanned`;
   the earliest `at` wins). Left out when there's none, so other reviews keep their bytes. Loom
   writes the same field for harnesses.
+- **`rework`.** Counts of the board's bring-up reworks (see *Rework*) by status, and how many are
+  ticked for the next revision. Left out when there are none, so other reviews keep their bytes.
+  Signoff PL shows it in a board Part's inspector (2026-11-16, reader `CACHE_V` 11).
 - **`kind`.** `'assembly'` when the review is of an assembly rather than a single part
   (`meta.kind`, the *This part is* toggle in the details window, offered where `config.assemblies`
   is set: Signoff ME). Left out for a part, so other reviews keep their bytes. Signoff PL links such

@@ -28,6 +28,11 @@
                    (<id>-<key>.<ext>) and the Fabcheck demo run they open.
    pincheck:       { dir }: where Pincheck stores the runs it sends to a board (pincheck/docs/
                    send-to-signoff-ee.md); issues from Pincheck open them. Never revisions.
+   rework:         { template }: the checklist whose tab gets a Checklist | Rework switch, a list of
+                   bring-up reworks with pictures (model.js, Rework; Signoff EE: bringup; off in ME
+                   and FW). demo.projects[].rework: made-up reworks for a demo board ({ ref, title,
+                   status, next, by, done, at (fractions of the review period), problem, fix, parts,
+                   nets, pics: [{ id, type, w, h, name }] in assets/demo-previews/<id>.<ext>, comments }).
    runs:           the checker whose runs are stored next to a review (Fabcheck for Signoff EE):
                    { tool, dir }. The Revisions tab lists them and tags some as revisions;
                    without it the tab is hidden.
@@ -53,6 +58,7 @@ window.SIGNOFF_CONFIG = {
   "previews": { "dir": "fabcheck/" },
   "runs": { "tool": "fabcheck", "dir": "fabcheck/" },
   "pincheck": { "dir": "pincheck/" },
+  "rework": { "template": "bringup" },
   "templateOrder": ["schematic", "interfaces", "pcb", "assembly", "fab", "bringup"],
   "templatePrefixes": {},
   "defaultChecklists": ["schematic", "interfaces", "pcb", "assembly", "fab"],
@@ -223,6 +229,32 @@ window.SIGNOFF_CONFIG = {
             {"id": "xfcizrux3", "check": "ring", "severity": "minor", "section": "f-drl", "text": "Fabcheck: Annular ring 0.100 mm (3.9 mil) on ⌀0.3 mm (11.8 mil) via (+1 more)", "hint": "2 warnings from Fabcheck check \"ring\" on thermostat-main-pcba (SHA-256 ef0e0f5beddc…), fab profile \"Standard (quick-turn)\".\nDT-1042_Copper_Signal_Top.gbr. Required 0.130 mm (5.1 mil). Pad 0.500 mm (19.7 mil), ViaPad.\n\n• Annular ring 0.100 mm (3.9 mil) on ⌀0.3 mm (11.8 mil) via (54.00, 23.50 mm, DT-1042_Copper_Signal_Top.gbr)\n• Annular ring 0.100 mm (3.9 mil) on ⌀0.3 mm (11.8 mil) via (54.00, 23.50 mm, DT-1042_Copper_Signal_Bot.gbr)", "ref": "", "locations": [{"x": 54, "y": 23.5, "layer": "DT-1042_Copper_Signal_Top.gbr", "label": "Annular ring 0.100 mm (3.9 mil) on ⌀0.3 mm (11.8 mil) via"}, {"x": 54, "y": 23.5, "layer": "DT-1042_Copper_Signal_Bot.gbr", "label": "Annular ring 0.100 mm (3.9 mil) on ⌀0.3 mm (11.8 mil) via"}]},
             {"id": "xfcu17hl2", "check": "silk-pad", "severity": "minor", "section": "f-msk", "text": "Fabcheck: Silkscreen over exposed pad on top (+1 more)", "hint": "2 warnings from Fabcheck check \"silk-pad\" on thermostat-main-pcba (SHA-256 ef0e0f5beddc…), fab profile \"Standard (quick-turn)\".\nDT-1042_Legend_Top.gbr prints into a mask opening. The fab will clip it, or ink ends up on the pad.\n\n• Silkscreen over exposed pad on top (63.20, 3.50 mm, DT-1042_Legend_Top.gbr)\n• Silkscreen over exposed pad on top (66.70, 3.50 mm, DT-1042_Legend_Top.gbr)", "ref": "", "locations": [{"x": 63.2, "y": 3.5, "layer": "DT-1042_Legend_Top.gbr", "label": "Silkscreen over exposed pad on top"}, {"x": 66.7, "y": 3.5, "layer": "DT-1042_Legend_Top.gbr", "label": "Silkscreen over exposed pad on top"}], "res": "", "who": "A. Rivera", "by": "Morgan Lee", "notes": ["The D3/D4 polarity bars are printed on the cathode pads (see the assembly issue about the marks under the parts). Move them beside the LEDs."]},
             {"id": "xfci2mjt3", "check": "hole-edge", "severity": "minor", "section": "g-drc", "text": "Fabcheck: Plated hole 0.450 mm (17.7 mil) from the board edge (+1 more)", "hint": "2 warnings from Fabcheck check \"hole-edge\" on thermostat-main-pcba (SHA-256 ef0e0f5beddc…), fab profile \"Standard (quick-turn)\".\n⌀0.6 mm (24 mil) slot. Required 0.500 mm (19.7 mil) from drill wall to the outline or a cutout; closer holes can break out when the board is routed.\n\n• Plated hole 0.450 mm (17.7 mil) from the board edge (52.68, 1.25 mm)\n• Plated hole 0.450 mm (17.7 mil) from the board edge (61.32, 1.25 mm)", "ref": "", "locations": [{"x": 52.68, "y": 1.25, "layer": null, "label": "Plated hole 0.450 mm (17.7 mil) from the board edge"}, {"x": 61.32, "y": 1.25, "layer": null, "label": "Plated hole 0.450 mm (17.7 mil) from the board edge"}], "res": "waived", "who": "", "by": "Morgan Lee", "notes": ["USB-C shell slots, same as the copper-to-edge issue. Accepted by the fab."]}] },
+        "rework": [
+          { "ref": "RW-001", "title": "Relays pulse at power-up", "status": "verified", "next": true, "by": "Sam Patel", "done": 0.62, "at": 0.55,
+            "problem": "K2 (the cool call) pulses for about 12 ms at power-up, and K1 sometimes chatters. The relay driver inputs float for about 40 ms after reset, before firmware sets the pins.",
+            "fix": "Added a 100 kΩ 0402 pull-down from each driver input (the MCU side of R1 and R2) to ground, tacked onto the R1 and R2 pads. Rev C adds both resistors to the schematic.",
+            "parts": "Q1, Q2, R1, R2, K1, K2", "nets": "RLY1, RLY2",
+            "pics": [{ "id": "rwdemo1a", "type": "image/svg+xml", "w": 640, "h": 420, "name": "pull-downs on R1 and R2.svg" }],
+            "comments": [{ "by": "Morgan Lee", "at": 0.7, "text": "Scoped 20 power cycles on boards 3 and 7: no pulse on either coil. Marking verified." }] },
+          { "ref": "RW-002", "title": "3.3 V ripple at the Wi-Fi module", "status": "done", "next": true, "by": "Morgan Lee", "done": 0.74, "at": 0.68,
+            "problem": "48 mV peak to peak on the 3.3 V rail at U1 during transmit bursts, over the 30 mV the description allows.",
+            "fix": "Added a 22 µF 0805 capacitor across C12, next to U1's supply pin. Rev C moves C12 closer to U1 and adds the second capacitor.",
+            "parts": "U7, C12, U1", "nets": "+3V3",
+            "comments": [{ "by": "Morgan Lee", "at": 0.76, "text": "21 mV peak to peak now. Verify again after the overnight Wi-Fi soak." }] },
+          { "ref": "RW-003", "title": "USB-C CC pull-downs fitted at 51 kΩ", "status": "verified", "next": true, "by": "Sam Patel", "done": 0.48, "at": 0.45,
+            "problem": "A USB-C charger cable gave the board no 5 V. R14 and R15 were fitted at 51 kΩ (a BOM typo) instead of 5.1 kΩ, so the source never saw a sink.",
+            "fix": "Replaced R14 and R15 with 5.1 kΩ 1% on all ten boards. The BOM is fixed for rev C.",
+            "parts": "J3, R14, R15", "nets": "CC1, CC2",
+            "pics": [{ "id": "rwdemo3a", "type": "image/svg+xml", "w": 640, "h": 420, "name": "R14 and R15 replaced.svg" }] },
+          { "ref": "RW-004", "title": "Status LED too bright at night", "status": "notneeded", "next": false, "by": "", "at": 0.8,
+            "problem": "The status LED lights up a dark hallway.",
+            "fix": "Was going to raise R16 from 330 Ω to 1 kΩ. Not needed: firmware now dims the LED with PWM after 10 p.m.",
+            "parts": "R16", "nets": "LED_STATUS" },
+          { "ref": "RW-005", "title": "Bulk capacitance for Wi-Fi brownouts", "status": "planned", "next": false, "by": "", "at": 0.9,
+            "problem": "Board 5 reset twice during the Wi-Fi soak, each time during a transmit burst at the start of a firmware download.",
+            "fix": "Add 100 µF of bulk capacitance on the 3.3 V rail at U1 and repeat the soak on board 5.",
+            "parts": "U1, U7", "nets": "+3V3" }
+        ],
         "ratios": { "schematic": 0.95, "interfaces": 0.9, "pcb": 0.62, "assembly": 0.3, "fab": 0.1, "bringup": 0.35 },
         "fields": { "name": "Main PCBA", "project": "Smart Thermostat", "client": "Acme Climate", "board": "DT-1042", "revision": "B", "stage": "Pre-fab",
           "description": "Rev B review. Ten boards went to a quick-turn fab for the EVT build (revision B.1); what's still open goes into rev C. Wi-Fi module, mains-powered via an isolated AC/DC, two relay outputs.",

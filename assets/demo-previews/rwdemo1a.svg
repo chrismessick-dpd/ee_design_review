@@ -1,0 +1,34 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 420" width="640" height="420">
+  <!-- Made-up demo picture: two pull-down resistors tacked onto R1 and R2 on the thermostat's Main PCBA. -->
+  <defs>
+    <radialGradient id="light" cx="45%" cy="40%" r="75%"><stop offset="0" stop-color="#2f7d4f"/><stop offset="1" stop-color="#14402a"/></radialGradient>
+    <linearGradient id="pad" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f1e2a8"/><stop offset="1" stop-color="#b99a4a"/></linearGradient>
+    <linearGradient id="body" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#3a3a3a"/><stop offset="1" stop-color="#151515"/></linearGradient>
+  </defs>
+  <rect width="640" height="420" fill="url(#light)"/>
+  <g stroke="#3f9a63" stroke-width="10" fill="none" stroke-linecap="round" opacity="0.8">
+    <path d="M0 120 H170 L210 160 H330"/><path d="M0 300 H170 L210 260 H330"/>
+    <path d="M430 160 H520 L560 120 H640"/><path d="M430 260 H520 L560 300 H640"/>
+  </g>
+  <g>
+    <rect x="300" y="140" width="40" height="40" rx="4" fill="url(#pad)"/><rect x="420" y="140" width="40" height="40" rx="4" fill="url(#pad)"/>
+    <rect x="336" y="138" width="88" height="44" rx="5" fill="url(#body)"/><text x="380" y="167" font-family="monospace" font-size="16" fill="#ddd" text-anchor="middle">102</text>
+    <rect x="300" y="240" width="40" height="40" rx="4" fill="url(#pad)"/><rect x="420" y="240" width="40" height="40" rx="4" fill="url(#pad)"/>
+    <rect x="336" y="238" width="88" height="44" rx="5" fill="url(#body)"/><text x="380" y="267" font-family="monospace" font-size="16" fill="#ddd" text-anchor="middle">102</text>
+  </g>
+  <g font-family="sans-serif" font-size="18" fill="#f4f4f4" font-weight="600">
+    <text x="380" y="122" text-anchor="middle">R1</text><text x="380" y="314" text-anchor="middle">R2</text>
+  </g>
+  <!-- the tacked-on 0402 pull-downs and their wires to ground -->
+  <g>
+    <rect x="292" y="102" width="26" height="14" rx="2" fill="#2a2a2a" stroke="#c9b26b" stroke-width="3" transform="rotate(-30 305 109)"/>
+    <rect x="292" y="300" width="26" height="14" rx="2" fill="#2a2a2a" stroke="#c9b26b" stroke-width="3" transform="rotate(30 305 307)"/>
+    <path d="M314 98 C 270 60, 200 60, 150 70" stroke="#e0e0e0" stroke-width="3" fill="none"/>
+    <path d="M314 318 C 270 360, 200 360, 150 350" stroke="#e0e0e0" stroke-width="3" fill="none"/>
+    <circle cx="150" cy="70" r="7" fill="#c9b26b"/><circle cx="150" cy="350" r="7" fill="#c9b26b"/>
+  </g>
+  <g font-family="sans-serif" font-size="15" fill="#ffffff">
+    <rect x="40" y="380" width="560" height="28" rx="6" fill="#000" opacity="0.45"/>
+    <text x="320" y="399" text-anchor="middle">100 kΩ pull-downs to ground, on the MCU side of R1 and R2 (made-up demo picture)</text>
+  </g>
+</svg>

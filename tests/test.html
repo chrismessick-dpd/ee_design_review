@@ -966,10 +966,48 @@
   await Signoff.handoff.remove('rtest-handoff', true);
   ok(!(await Signoff.handoff.get('rtest-handoff', true)), 'the test hand-off entry is cleaned up');
 
+  // ── Rework (bring-up reworks, config.rework) ──
+  var wp = M.newProject({ name: 'Rework board', checklists: ['bringup'] }, 'Ann', T), wq = M.newProject({ name: 'No bring-up', checklists: ['fab'] }, 'Ann', T);
+  ok(M.reworkOn(wp) && !M.reworkOn(wq), 'Rework shows only on reviews with the Bring-up checklist');
+  ok(!('rework' in wp) && M.stableStringify(M.mergeProjects(JSON.parse(JSON.stringify(wp)), JSON.parse(JSON.stringify(wp)))) === M.stableStringify(wp), 'a review without reworks has no rework key, before or after a merge');
+  ok(!('rework' in M.projectSummary(wp, T)), 'no reworks: the summary has no rework field');
+  var w1 = M.newRework(wp, { title: 'Pull-downs', status: 'verified', next: true }, 'Ann');
+  eq(w1.ref, 'RW-001', 'the first rework is RW-001');
+  var wa = JSON.parse(JSON.stringify(wp)), wb = JSON.parse(JSON.stringify(wp));
+  wa.rework = {}; wa.rework[w1.id] = w1;
+  var w2 = M.newRework(wa, { title: 'Bulk cap' }, 'Bob');
+  eq(w2.ref, 'RW-002', 'the next rework number follows the highest');
+  wb.rework = {}; wb.rework[w2.id] = w2;
+  var wm1 = M.mergeProjects(wa, wb), wm2 = M.mergeProjects(wb, wa);
+  ok(wm1.rework[w1.id] && wm1.rework[w2.id], 'two people adding reworks at once: both kept');
+  eq(M.stableStringify(wm1), M.stableStringify(wm2), 'rework merge is order independent');
+  eq(M.liveRework(wm1).map(function (r) { return r.ref; }), ['RW-001', 'RW-002'], 'reworks list by number');
+  eq(M.projectSummary(wm1, T).rework, { total: 2, planned: 1, done: 0, verified: 1, notneeded: 0, next: 1 }, 'summary.rework counts reworks by status and for the next revision');
+  var wt = JSON.parse(JSON.stringify(wm1)); wt.rework[w2.id] = Object.assign({}, wt.rework[w2.id], { deleted: true, updatedAt: '2999-01-01T00:00:00Z' });
+  ok(M.mergeProjects(wm1, wt).rework[w2.id].deleted && M.liveRework(M.mergeProjects(wm1, wt)).length === 1, 'a deleted rework stays deleted through a merge');
+  var we = JSON.parse(JSON.stringify(wm1));
+  Object.assign(we.rework[w1.id], { status: '"><script>', doneAt: 'soon', next: 'yes', revision: '../x', pics: [
+    { id: 'abc123', file: 'abc123.png', type: 'image/png', w: 10, h: 10, sha256: 'NOPE' },
+    { id: 'zz', file: '../../evil.png', type: 'image/png' }, { id: 'yy', file: 'yy.gif', type: 'image/gif' }, 'x'] });
+  var wc = M.cleanRework(we.rework[w1.id], w1.id);
+  ok(wc.status === 'planned' && wc.doneAt === '' && wc.next === false && wc.revision === '', 'rework enums, dates, and links from a file are allowlisted');
+  eq(wc.pics.map(function (x) { return x.file + ':' + x.sha256; }), ['abc123.png:'], 'only well-formed rework pictures pass, named by their id');
+  eq(M.reworkPicPath('p1', w1.id, { file: 'abc123.png' }), 'rework/p1/' + w1.id + '/abc123.png', 'rework pictures live under rework/<review>/<rework>/');
+  eq(M.changesSince(wm1, '', T).filter(function (r) { return r.kind === 'rework'; }).map(function (r) { return r.label; }).sort(), ['RW-001 Pull-downs', 'RW-002 Bulk cap'], 'unsynced changes list reworks');
+  var wr0 = JSON.parse(JSON.stringify(wa)), wr1 = JSON.parse(JSON.stringify(wm1));
+  wr1.rework[w1.id] = Object.assign({}, wr1.rework[w1.id], { status: 'done', updatedAt: '2999-01-01T00:00:00Z' });
+  var wplan = M.restorePlan(wr1, wr0, 'Cy');
+  ok(wplan.maps.rework && wplan.maps.rework[w1.id].status === 'verified' && wplan.maps.rework[w2.id].deleted, 'Restore puts reworks back as they were and removes ones added since');
+  ok(M.recordDiff(wa, wm1, T).some(function (r) { return r.kind === 'rework' && r.id === w2.id && !r.before; }), 'History lists a new rework');
+
   // ── Demo ──
   var demo = Signoff.demo.projects(T);
   ok(demo.length === 2 && demo.every(function (d) { return Object.keys(d.items).length > 10; }), 'demo projects build');
   ok(demo.some(function (d) { return Object.keys(d.items).some(function (k) { return d.items[k].status === 'issue'; }); }), 'demo has findings');
+  var dwr = M.liveRework(demo[0]);
+  eq(dwr.map(function (r) { return r.status; }).sort(), ['done', 'notneeded', 'planned', 'verified', 'verified'], 'the Main PCBA demo has reworks in every status');
+  ok(dwr.every(function (r) { return r.title && r.problem && r.fix; }) && dwr.filter(function (r) { return r.pics.length; }).length === 2 && !demo[1].rework, 'demo reworks are complete, two have pictures, and only the Main PCBA has them');
+  ok(Object.keys(demo[0].comments).some(function (k) { return demo[0].comments[k].item === dwr[0].id; }), 'a demo rework has discussion');
   var DD = Signoff.config.demo;
   ok(demo.every(function (d, i) { return d.id === Signoff.demo.id(DD.projects[i].seed); }), 'demo projects have fixed ids (Signoff PL’s demo links to them)');
   demo.forEach(function (d, i) {
