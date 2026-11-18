@@ -828,6 +828,25 @@
   try { await rvStore.readVerified('data/fabcheck/prv/packages/' + rvKey + '/gone.zip', got.zip.sha256); } catch (e) { why = e.code; }
   eq(why, 'missing', 'a missing zip is reported as missing');
 
+  // A release's upload as the Releases tab writes it, read back as Download and Flasher read it.
+  var relBytes = new Uint8Array(Signoff.GitHubStore.PART_BYTES + 1234);
+  for (var rbi = 0; rbi < relBytes.length; rbi += 4093) relBytes[rbi] = rbi & 255;
+  var relSha = await Signoff.github.sha256Hex(relBytes);
+  var relRec = M.newRelease({ version: '2.0.0', state: 'released', file: { name: 'big.bin', size: relBytes.length, sha256: relSha, parts: Signoff.GitHubStore.splitParts('x', relBytes).length }, load: { via: 'usb', board: 'b1', base: '0x08000000' } }, 'Ann');
+  var relFiles = M.releaseFiles(rvStore.dataDir(), 'prv', relRec, relBytes, 'ann', Signoff.GitHubStore.splitParts);
+  var relPut = await rvStore.putFiles(relFiles, { message: 'release' });
+  ok(relPut.pushed === 3 && relRec.file.parts === 2, 'a release over PART_BYTES goes up as two parts and release.json, in one commit');
+  var relDir = 'data/releases/prv/' + relRec.id + '/';
+  var relJson = JSON.parse(new TextDecoder().decode(await rvStore.readBytes(relDir + 'release.json')));
+  eq(relJson.file.parts, ['releases/prv/' + relRec.id + '/big.bin.001', 'releases/prv/' + relRec.id + '/big.bin.002'], 'release.json lists the parts under the data folder');
+  var relBack = await rvStore.readVerified(relJson.file.parts.map(function (x) { return rvStore.dataDir() + x; }), relJson.file.sha256);
+  ok(relBack.length === relBytes.length && (await Signoff.github.sha256Hex(relBack)) === relSha, 'release.json’s parts, read and joined, give the file back (SHA-256 checked)');
+  var relBack2 = await rvStore.readVerified(M.releasePaths('prv', M.cleanRelease(relRec, relRec.id)).map(function (x) { return rvStore.dataDir() + x; }), relRec.file.sha256);
+  eq(relBack2.length, relBytes.length, 'the record’s own paths read the same file');
+  var relErr = '';
+  try { M.releaseFiles('', 'prv', Object.assign({}, relRec, { file: Object.assign({}, relRec.file, { parts: 0 }) }), relBytes, 'ann', Signoff.GitHubStore.splitParts); } catch (e) { relErr = e.message; }
+  ok(relErr, 'a record whose part count doesn’t match its file is refused before upload');
+
   // A big zip stored in parts (GitHub drops any upload that runs past about a minute).
   var bigZip = new Uint8Array(Signoff.GitHubStore.PART_BYTES * 2 + 1234);
   for (var bi = 0; bi < bigZip.length; bi += 997) bigZip[bi] = bi % 251;
@@ -1001,6 +1020,74 @@
   var wplan = M.restorePlan(wr1, wr0, 'Cy');
   ok(wplan.maps.rework && wplan.maps.rework[w1.id].status === 'verified' && wplan.maps.rework[w2.id].deleted, 'Restore puts reworks back as they were and removes ones added since');
   ok(M.recordDiff(wa, wm1, T).some(function (r) { return r.kind === 'rework' && r.id === w2.id && !r.before; }), 'History lists a new rework');
+
+  // ── Releases (config.releases, Signoff FW; fw_design_review/docs/releases.md) ──
+  var relCfgWas = Signoff.config.releases;
+  Signoff.config.releases = { flasher: '../flasher/index.html' };
+  try {
+    var rp = M.newProject({ name: 'Target', checklists: ['fab'] }, 'Ann', T);
+    ok(!('releases' in rp) && M.stableStringify(M.mergeProjects(JSON.parse(JSON.stringify(rp)), JSON.parse(JSON.stringify(rp)))) === M.stableStringify(rp), 'a review without releases has no releases key, before or after a merge');
+    ok(!('releases' in M.projectSummary(rp, T)), 'no releases: the summary has no releases field');
+    eq(M.nextReleaseVersion(rp), '1.0.0', 'the first release version is 1.0.0');
+    var SHA = 'a'.repeat(64);
+    var r1 = M.newRelease({ version: '0.9.0', state: 'released', file: { name: 'main-0.9.0.elf', size: 1000, sha256: SHA, parts: 0 }, load: { via: 'usb', board: 'tstat-main', base: '0x08000000' }, notes: 'First' }, 'Ann');
+    ok(r1.state === 'released' && r1.releasedAt === r1.createdAt.slice(0, 10) && r1.file.kind === 'elf' && !('base' in r1.load), 'a release made Released now is dated; an ELF keeps no base address');
+    var ra = JSON.parse(JSON.stringify(rp)), rb = JSON.parse(JSON.stringify(rp));
+    ra.releases = {}; ra.releases[r1.id] = r1;
+    eq(M.nextReleaseVersion(ra), '0.9.1', 'the next version follows the latest');
+    var r2 = M.newRelease({ version: '0.9.1', file: { name: 'main-0.9.1.hex', size: 5000000, sha256: SHA, parts: 2 }, load: { via: 'passthrough', board: 'tstat-display' } }, 'Bob');
+    r2.createdAt = '2999-01-01T00:00:00Z';
+    rb.releases = {}; rb.releases[r2.id] = r2;
+    var rm1 = M.mergeProjects(ra, rb), rm2 = M.mergeProjects(rb, ra);
+    ok(rm1.releases[r1.id] && rm1.releases[r2.id], 'two people adding releases at once: both kept');
+    eq(M.stableStringify(rm1), M.stableStringify(rm2), 'release merge is order independent');
+    eq(M.liveReleases(rm1).map(function (r) { return r.version; }), ['0.9.0', '0.9.1'], 'releases list oldest first');
+    eq(r2.state, 'draft', 'a new release starts as a draft');
+    eq(M.latestRelease(rm1).version, '0.9.0', 'the latest release skips drafts');
+    eq(M.latestRelease(rm1, true).version, '0.9.1', '…unless drafts are asked for');
+    var rs = M.projectSummary(rm1, T).releases;
+    eq(rs.map(function (r) { return [r.version, r.state, r.via, r.board, r.kind].join(' '); }), ['0.9.0 released usb tstat-main elf', '0.9.1 draft passthrough tstat-display hex'], 'summary.releases lists each release, how it loads, and its kind');
+    eq(rs[0].path, 'releases/' + rp.id + '/' + r1.id + '/release.json', 'summary.releases points at each release.json');
+    var rw = JSON.parse(JSON.stringify(rm1)); rw.releases[r1.id] = Object.assign({}, rw.releases[r1.id], { state: 'withdrawn', withdrawnWhy: 'Flicker' });
+    ok(M.projectSummary(rw, T).releases[0].withdrawnWhy === 'Flicker' && !('withdrawnWhy' in rs[1]), 'summary.releases says why a withdrawn release was withdrawn, and only then');
+    var rj = M.releaseJson(rp.id, r2, 'bob');
+    ok(rj.format === 1 && rj.review === rp.id && rj.version === '0.9.1' && rj.load.via === 'passthrough' && rj.publishedBy === 'bob' && !('state' in rj), 'release.json carries the file, the version, and how it loads, never the state');
+    var rpath = 'releases/' + rp.id + '/' + r2.id + '/main-0.9.1.hex';
+    eq(rj.file.parts, [rpath + '.001', rpath + '.002'], 'release.json lists a split file’s parts');
+    eq(M.releasePaths(rp.id, M.cleanRelease(r2, r2.id)), [rpath + '.001', rpath + '.002'], 'releasePaths gives the parts in order');
+    var big = new Uint8Array(Signoff.GitHubStore.PART_BYTES + 5);
+    eq(Signoff.GitHubStore.splitParts(rpath, big).map(function (x) { return x.path; }), M.fileParts(rpath, 2), 'fileParts names parts as splitParts stores them');
+    // How a build loads
+    eq(M.loadProblem(M.cleanLoad({ via: 'passthrough', board: 'tstat-display' }, 'bin'), 'bin').indexOf('.hex or .elf') > 0, true, 'a .bin can’t go through a passthrough');
+    ok(M.loadProblem(M.cleanLoad({ via: 'usb', board: 'x' }, 'bin'), 'bin') && !M.loadProblem(M.cleanLoad({ via: 'usb', base: '0x8000000' }, 'bin'), 'bin'), 'a .bin over USB needs its flash address');
+    eq(M.cleanLoad({ via: 'usb', base: '0x8000000' }, 'bin').base, '0x8000000', 'a base address is kept as hex');
+    eq(M.cleanLoad({ via: 'passthrough', board: 'a-board-id-over-16' }, 'hex').board, '', 'a passthrough board id is at most 16 characters (the bootloader’s INFO)');
+    eq(M.cleanLoad({ via: 'nope', board: 'Tstat-Main' }, 'elf'), { via: 'usb', board: 'tstat-main' }, 'how it loads is allowlisted; board ids are lowercase');
+    // The file's kind, from its bytes
+    var elfB = new Uint8Array([0x7f, 0x45, 0x4c, 0x46, 1, 1, 1, 0]), hexB = new TextEncoder().encode(':020000040800F2\n:00000001FF\n');
+    ok(M.sniffFirmware('a.elf', elfB).kind === 'elf' && M.sniffFirmware('a.hex', hexB).kind === 'hex' && M.sniffFirmware('a.bin', new Uint8Array([0, 1, 2])).kind === 'bin', 'ELF, HEX, and BIN files are told by their bytes');
+    ok(M.sniffFirmware('a.elf', hexB).error && M.sniffFirmware('a.hex', elfB).error && M.sniffFirmware('a.bin', elfB).error && M.sniffFirmware('a.txt', elfB).error && M.sniffFirmware('a.bin', new Uint8Array(0)).error,
+      'a file whose bytes don’t match its name, another kind, or an empty file is refused');
+    // From a file someone else wrote
+    var rc = M.cleanRelease({ version: 'x', state: '"><script>', file: { name: '../evil.elf', size: -4, sha256: 'NOPE', parts: 'lots' }, load: { via: 'usb', board: '<b>' }, source: { repo: 'a b', sha: 'zz', dirty: 'yes' }, releasedAt: 'soon' }, 'r1');
+    ok(rc.state === 'draft' && rc.file.name === '' && rc.file.size === 0 && rc.file.sha256 === '' && rc.file.parts === 0 && rc.load.board === '' && rc.source.repo === '' && rc.source.sha === '' && rc.source.dirty === false && rc.releasedAt === '',
+      'release states, file names, hashes, boards, and sources from a file are allowlisted');
+    var rbad = JSON.parse(JSON.stringify(rm1)); rbad.releases.zz = { version: '9', file: { name: '../x.elf', sha256: SHA } };
+    eq(M.liveReleases(rbad).length, 2, 'a release without a usable file isn’t listed');
+    var rt = JSON.parse(JSON.stringify(rm1)); rt.releases[r2.id] = Object.assign({}, rt.releases[r2.id], { deleted: true, updatedAt: '2999-01-02T00:00:00Z' });
+    ok(M.mergeProjects(rm1, rt).releases[r2.id].deleted && M.liveReleases(M.mergeProjects(rm1, rt)).length === 1, 'a deleted release stays deleted through a merge');
+    // History, the unsynced list, and Restore
+    eq(M.changesSince(rm1, '', T).filter(function (r) { return r.kind === 'release'; }).map(function (r) { return r.label + ': ' + r.detail; }).sort(), ['Release 0.9.0: released', 'Release 0.9.1: draft'], 'unsynced changes list releases');
+    ok(M.recordDiff(ra, rm1, T).some(function (r) { return r.kind === 'release' && r.id === r2.id && !r.before; }), 'History lists a new release');
+    var rr1 = JSON.parse(JSON.stringify(rm1)); rr1.releases[r1.id] = Object.assign({}, rr1.releases[r1.id], { state: 'withdrawn', updatedAt: '2999-01-01T00:00:00Z' });
+    ok(!M.restorePlan(rr1, ra, 'Cy').maps.releases, 'Restore leaves releases as they are (like revision tags)');
+    ok(new Signoff.Workspace({ owner: 'o', dataRepo: 'd' }, '').checkerDirs().indexOf('releases/') >= 0, 'sharing moves releases/ with the review');
+    // The demo (Signoff FW's config has these; EE's demo has none)
+    ok(!Signoff.demo.projects(T).some(function (d) { return d.releases; }), 'EE’s demo boards have no releases');
+  } finally {
+    if (relCfgWas === undefined) delete Signoff.config.releases; else Signoff.config.releases = relCfgWas;
+  }
+  ok(new Signoff.Workspace({ owner: 'o', dataRepo: 'd' }, '').checkerDirs().indexOf('releases/') < 0, 'without config.releases, sharing has no releases/ folder');
 
   // ── Demo ──
   var demo = Signoff.demo.projects(T);

@@ -177,6 +177,32 @@ Rework is a list of the changes made to the boards during bring-up, one record e
 - **Statuses** differ by glyph and outline as well as color: Planned is a dashed outline and an open
   circle, Done one tick, Verified two ticks and a solid outline, Not needed lined through.
 
+## Releases (Signoff FW)
+
+The **Releases** tab (2026-11-17, Chris; on where `config.releases` is set: Signoff FW only) keeps builds
+of a target's firmware, which Flasher lists for flashing. The design and Chris's decisions are in
+`fw_design_review/docs/releases.md`.
+
+- **The record** (`project.releases`, merged one by one; History, the unsynced list, the CLI's `MAP_KEYS`,
+  and `&item=<release id>` deep links know it; Restore leaves it alone, like revision tags): `version`,
+  `state` (`draft`, `released`, or `withdrawn`), `file` (`name`, `kind` elf/hex/bin, `size`, `sha256`, and
+  `parts`, a count), `load` (`via` usb or passthrough, `board`, and `base` for a .bin), `source`, `notes`,
+  `releasedAt`, and `withdrawnWhy`.
+- **The files** are written once, in one commit, before the record: `releases/<review id>/<release id>/`
+  holds the file (or its parts, `<name>.001`, … over `GitHubStore.PART_BYTES`) and `release.json`
+  (format 1, `model.releaseJson`). They move with the target when it's shared (`Workspace.checkerDirs`).
+  Download reads them back with `readVerified` and refuses a file whose SHA-256 differs.
+- **Who.** FTEs add releases and change their state (Release, Withdraw with a reason, Edit notes, Delete a
+  draft); everyone on the target can download. Drafts are hidden from clients and contractors on the page
+  only: anyone with the repo can read the files.
+- **How it loads.** The details window names the target's board once (`meta.load`: its own USB or a
+  passthrough, and the board id); each new release copies it and can change it. A passthrough needs
+  addresses, so a .bin can't go through one, and a .bin over USB needs its flash address
+  (`model.loadProblem`). A passthrough's board id is the bootloader's INFO id: at most 16 lowercase
+  letters, digits, and dashes. The file's bytes must match its name (`model.sniffFirmware`).
+- **Open in Flasher** goes to `config.releases.flasher` with `?release=<review id>/<release id>`, and shows
+  only when that's set (Signoff FW sets it). Flasher's side: its README, *Releases from Signoff FW*.
+
 ## Revisions
 
 The **Revisions** tab (after Findings) lists the Fabcheck runs stored with the board, and tags some
@@ -396,6 +422,10 @@ written, and is never merged.
 - **`rework`.** Counts of the board's bring-up reworks (see *Rework*) by status, and how many are
   ticked for the next revision. Left out when there are none, so other reviews keep their bytes.
   Signoff PL shows it in a board Part's inspector (2026-11-16, reader `CACHE_V` 11).
+- **`releases`.** A firmware target's releases, oldest first (see *Releases*): `id`, `version`, `state`,
+  `releasedAt`, `via`, `board`, `kind`, `size`, `sha256`, `path` (its `release.json`, under the data
+  folder), and `withdrawnWhy` on a withdrawn one that says why. Left out when there are none. Signoff PL shows the released ones in a Part's inspector (reader
+  `CACHE_V` 12); Flasher lists them.
 - **`kind`.** `'assembly'` when the review is of an assembly rather than a single part
   (`meta.kind`, the *This part is* toggle in the details window, offered where `config.assemblies`
   is set: Signoff ME). Left out for a part, so other reviews keep their bytes. Signoff PL links such
