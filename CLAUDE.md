@@ -67,7 +67,7 @@ Read next:
 
 1. Run `python tools/build.py`. It validates the templates and stamps the version and `?v=`.
    `--check` verifies the stamp.
-2. Open `tests/test.html` over http. It should show PASS (522 tests, 2026-11-17; on port 8774 or 8771, or the
+2. Open `tests/test.html` over http. It should show PASS (524 tests, 2026-11-17; on port 8774 or 8771, or the
    sign-in refresh tests skip).
    If `tools/signoff.js` or anything it calls changed, run `node tools/signoff_test.js` here and in ME
    and FW (39 tests each, 2026-11-10).

@@ -514,6 +514,13 @@
   ok(!Object.keys(dataNow).some(function (k) { return k.indexOf(fdir) === 0; }), '…and removes them from the FTE data repo');
   var rm = await annWs.store(fsh.repo).putFiles([{ path: fdir + 'runs/r1.json', remove: true }], {});
   ok(rm.pushed === 1 && !hub.files(fsh.repo)[fdir + 'runs/r1.json'], 'putFiles deletes files');
+  // putFiles { head }: commit only on the head the caller read (Flasher's manifest edits).
+  var hs = annWs.store(fsh.repo), h0 = (await hs.snapshot()).head;
+  var hp = await hs.putFiles([{ path: 'm.json', text: '{"a":1}' }], { head: h0 });
+  ok(hp.pushed === 1 && hp.head && hp.head !== h0 && (await hs.snapshot()).head === hp.head, 'putFiles on the head it was given commits and says the new head');
+  var hErr = null;
+  try { await hs.putFiles([{ path: 'm.json', text: '{"a":2}' }], { head: h0 }); } catch (e) { hErr = e; }
+  ok(hErr && hErr.code === 'moved' && new TextDecoder().decode(hub.files(fsh.repo)['m.json']) === '{"a":1}', 'putFiles on a stale head refuses with code moved and writes nothing');
 
   // ── Store-level behaviour ──
   hub.makeRepo('ann/review-race', { 'README.md': '#' }, ['ann', 'bob']);
