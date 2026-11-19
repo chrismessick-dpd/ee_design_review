@@ -15,7 +15,7 @@
 <div id="out"></div>
 <script>
 // Load the engine fresh on every run, so a browser cache never tests old code.
-['config', 'templates', 'model', 'localstore', 'auth', 'github', 'workspace', 'demo', 'history'].forEach(function (n) { document.write('<script src="../assets/' + n + '.js?t=' + Date.now() + '"><\/script>'); });
+['config', 'templates', 'model', 'localstore', 'auth', 'github', 'workspace', 'demo', 'history', 'pptx', 'home'].forEach(function (n) { document.write('<script src="../assets/' + n + '.js?t=' + Date.now() + '"><\/script>'); });
 </script>
 <script>
 /* Unit tests for the model and the GitHub sync, run against a fake GitHub API.
@@ -1804,6 +1804,78 @@
         ok(true, 'auth.js refresh tests skipped: open the tests on http://localhost:8774 to run them');
       }
     } finally { restore(); }
+  })();
+
+  // ── Home page: Internal standards decks and .pptx in and out (assets/home.js, pptx.js; EE only) ──
+  await (async function () {
+    var X = window.SignoffPptx, Hm = window.SignoffHome && window.SignoffHome._test;
+    ok(X && Hm, 'pptx.js and home.js load');
+    eq(X.crc32(new TextEncoder().encode('123456789')).toString(16), 'cbf43926', 'CRC-32 matches the standard check value');
+    var bin = new Uint8Array([0, 1, 2, 250, 255]);
+    var z = await X.unzip(X.zip([{ path: 'a/é.txt', text: 'Grüße' }, { path: 'b.bin', bytes: bin }]));
+    eq(z.names, ['a/é.txt', 'b.bin'], 'a zip lists its entries, UTF-8 names kept');
+    eq(new TextDecoder().decode(await z.get('a/é.txt')), 'Grüße', 'a stored text entry reads back');
+    eq(Array.from(await z.get('b.bin')), [0, 1, 2, 250, 255], 'a stored binary entry reads back');
+    // A deflated entry, as PowerPoint writes them.
+    var raw = new TextEncoder().encode('deflate me '.repeat(50));
+    var def = new Uint8Array(await new Response(new Blob([raw]).stream().pipeThrough(new CompressionStream('deflate-raw'))).arrayBuffer());
+    var nm = new TextEncoder().encode('d.txt'), L = new DataView(new ArrayBuffer(30)), Cd = new DataView(new ArrayBuffer(46)), E = new DataView(new ArrayBuffer(22));
+    L.setUint32(0, 0x04034b50, true); L.setUint16(8, 8, true); L.setUint32(18, def.length, true); L.setUint32(22, raw.length, true); L.setUint16(26, nm.length, true);
+    Cd.setUint32(0, 0x02014b50, true); Cd.setUint16(10, 8, true); Cd.setUint32(20, def.length, true); Cd.setUint32(24, raw.length, true); Cd.setUint16(28, nm.length, true);
+    E.setUint32(0, 0x06054b50, true); E.setUint16(8, 1, true); E.setUint16(10, 1, true); E.setUint32(12, 46 + nm.length, true); E.setUint32(16, 30 + nm.length + def.length, true);
+    var parts = [new Uint8Array(L.buffer), nm, def, new Uint8Array(Cd.buffer), nm, new Uint8Array(E.buffer)], tot = parts.reduce(function (n, a) { return n + a.length; }, 0), zb = new Uint8Array(tot), at = 0;
+    parts.forEach(function (a) { zb.set(a, at); at += a.length; });
+    eq(new TextDecoder().decode(await (await X.unzip(zb)).get('d.txt')), 'deflate me '.repeat(50), 'a deflated entry inflates');
+    var err = null; try { await X.unzip(new Uint8Array(40)); } catch (e) { err = e; }
+    ok(err && /zip/.test(err.message), 'a file that isn’t a zip is refused');
+
+    // Slides to items: footers, repeated text, and logos left out; the title placeholder or the top text box is the title.
+    var b = function (x, y) { return { x: x, y: y, cx: 10, cy: 10 }; };
+    var T = function (text, y, ph) { return { text: text, paras: text.split('\n'), ph: ph || '', b: b(0, y) }; };
+    var logo = { name: 'logo.png', path: 'ppt/media/logo.png', type: 'image/png', bytes: new Uint8Array(1), b: b(0, 0) };
+    var pic = function (n) { return { name: n, path: 'ppt/media/' + n, type: 'image/png', bytes: new Uint8Array(2), b: b(5, 5) }; };
+    var deck = { slides: [
+      { n: 1, texts: [T('Made-up standards', 1), T('By nobody', 2)], pics: [logo] },
+      { n: 2, texts: [T('Deck heading', 1), T('Pads', 3), T('Pads go on top.\n- Keep them square', 4), T('Footer line', 9), T('2', 9, 'sldNum')], pics: [logo, pic('p1.png')] },
+      { n: 3, texts: [T('Deck heading', 1), T('Body first', 4), T('Outline', 2, 'title'), T('Footer line', 9)], pics: [logo, { name: 'x.emf', path: 'ppt/media/x.emf', type: 'image/emf', bytes: new Uint8Array(1), b: b(1, 1) }] },
+      { n: 4, texts: [T('Deck heading', 1), T('Footer line', 9)], pics: [logo, pic('p2.png')] }
+    ] };
+    var its = X.toItems(deck);
+    eq(its.map(function (i) { return i.title; }), ['Made-up standards', 'Pads', 'Outline', ''], 'each slide’s title is its title placeholder, else its top text box, past the repeated deck heading');
+    eq(its[1].body, 'Pads go on top.\n- Keep them square', 'the other text boxes are the body, a line per paragraph');
+    eq(its[2].body, 'Body first', 'a title placeholder wins over a text box above it');
+    eq(its[0].common.slice().sort(), ['Deck heading', 'Footer line'], 'text on most slides is listed as left out');
+    eq(its.map(function (i) { return i.pics.map(function (p) { return p.name; }); }), [[], ['p1.png'], [], ['p2.png']], 'a picture on most slides (a logo) is left out');
+    eq(its[2].unshown, 1, 'a picture browsers can’t show is counted, not imported');
+    eq(its.map(function (i) { return i.skip; }), [true, false, false, false], 'the first slide starts unticked (a title slide)');
+
+    // Write, then read back: one title slide, then a slide per item.
+    var png = Uint8Array.from(atob('iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAYAAABytg0kAAAAFElEQVR4nGP8z8Dwn4GBgYGJAQoAKw0CAX7Qm8sAAAAASUVORK5CYII='), function (c) { return c.charCodeAt(0); });
+    var src = [{ title: 'Pads & <more>', body: 'One\n- two', pics: [{ bytes: png, type: 'image/png', w: 4, h: 3 }] }, { title: 'Text only', body: 'Just "text"', pics: [] },
+      { title: 'Two pictures', body: '', pics: [{ bytes: png, type: 'image/png', w: 2, h: 2 }, { bytes: png, type: 'image/jpeg', w: 2, h: 2 }] }];
+    var out = X.write({ title: 'Made-up deck', sub: 'test', items: src });
+    var zz = await X.unzip(out), bad = [];
+    for (var i = 0; i < zz.names.length; i++) if (/\.(xml|rels)$/.test(zz.names[i])) { var d = new DOMParser().parseFromString(new TextDecoder().decode(await zz.get(zz.names[i])), 'application/xml'); if (d.querySelector('parsererror')) bad.push(zz.names[i]); }
+    eq(bad, [], 'every XML part of an exported deck parses');
+    ok(zz.names.indexOf('[Content_Types].xml') >= 0 && zz.names.indexOf('ppt/theme/theme1.xml') >= 0 && zz.names.indexOf('ppt/slides/slide4.xml') >= 0, 'an export has its content types, theme, and a slide per item after the title slide');
+    var back = X.toItems(await X.read(out));
+    eq(back.map(function (i) { return [i.title, i.body, i.pics.length]; }), [['Made-up deck', 'test', 0], ['Pads & <more>', 'One\n- two', 1], ['Text only', 'Just "text"', 0], ['Two pictures', '', 2]], 'an exported deck imports back as the same items');
+
+    // Decks as stored: tidied, and changed by operations on the copy at the head.
+    var dk = Hm.cleanDeck({ title: 'F', items: [{ id: 'aaaa1111', title: 'One', body: 'x', pics: [{ file: 'images/footprints/aaaa1111-p1.png', type: 'image/png', w: 2, h: 2 }, { file: '../evil.png' }, { file: 'images/x/y.exe' }] },
+      { id: 'BAD ID', title: 'no' }, { id: 'bbbb2222', title: 7 }], extra: 1 }, 'footprints');
+    eq(dk.items.map(function (i) { return i.id; }), ['aaaa1111', 'bbbb2222'], 'a stored deck keeps only items with good ids');
+    eq(dk.items[0].pics.map(function (p) { return p.file; }), ['images/footprints/aaaa1111-p1.png'], 'and only pictures under images/');
+    ok(dk.format === 'signoff.standards/1' && dk.extra === undefined && dk.items[1].title === '7', 'unknown fields are dropped and text stays text');
+    var d2 = Hm.applyOps(JSON.parse(JSON.stringify(dk)), [{ op: 'add', item: { id: 'cccc3333', title: 'Three', body: '', pics: [] }, at: 1 }, { op: 'move', id: 'aaaa1111', by: 1 },
+      { op: 'update', id: 'bbbb2222', fields: { title: 'Two' } }], 'ann', '2026-11-19T00:00:00.000Z');
+    eq(d2.items.map(function (i) { return i.title; }), ['Three', 'One', 'Two'], 'add at a place, move, and update apply in order');
+    ok(d2.items[0].updatedBy === 'ann' && d2.items[2].updatedAt === '2026-11-19T00:00:00.000Z' && d2.updatedBy === 'ann', 'changed items and the deck are stamped');
+    eq(Hm.applyOps(d2, [{ op: 'remove', id: 'aaaa1111' }], 'bo', 'z').items.map(function (i) { return i.id; }), ['cccc3333', 'bbbb2222'], 'remove takes the item out');
+    err = null; try { Hm.applyOps(Hm.cleanDeck({}, 'footprints'), [{ op: 'update', id: 'gone1234', fields: {} }], 'a', 'b'); } catch (e) { err = e; }
+    ok(err && /deleted/.test(err.message), 'editing an item deleted elsewhere is refused, not recreated');
+    eq(Hm.bodyHtml('One <b>\n- a\n- b\nTwo'), '<p>One &lt;b&gt;</p><ul><li>a</li><li>b</li></ul><p>Two</p>', 'item text: paragraphs, bullets, and escaping');
+    ok(Hm.demoDeck('footprints').items.length > 0 && Hm.demoDeck('schematics').items.length > 0, 'both demo decks have made-up items');
   })();
 
   var failed = results.filter(function (r) { return !r.ok; });

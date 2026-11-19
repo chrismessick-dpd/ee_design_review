@@ -28,6 +28,8 @@
                    (<id>-<key>.<ext>) and the Fabcheck demo run they open.
    pincheck:       { dir }: where Pincheck stores the runs it sends to a board (pincheck/docs/
                    send-to-signoff-ee.md); issues from Pincheck open them. Never revisions.
+   home:           EE only: the home page (assets/home.js) the sidebar logo opens: tools, and the
+                   Internal standards decks kept in the private repo home.repo (decks/<id>.json, images/).
    rework:         { template }: the checklist whose tab gets a Checklist | Rework switch, a list of
                    bring-up reworks with pictures (model.js, Rework; Signoff EE: bringup; off in ME
                    and FW). demo.projects[].rework: made-up reworks for a demo board ({ ref, title,
@@ -52,7 +54,7 @@ window.SIGNOFF_CONFIG = {
     "toolRepo": "ee_design_review",
     "dataRepo": "ee_design_review_data",
     "prefix": "review-ee-",
-    "suite": ["me_design_review", "me_design_review_data", "fw_design_review", "fw_design_review_data", "signoff", "pcb_dfm", "signoff_pl", "signoff_pl_data", "signoff_tickets", "loom_data", "flasher_data"],
+    "suite": ["me_design_review", "me_design_review_data", "fw_design_review", "fw_design_review_data", "signoff", "pcb_dfm", "signoff_pl", "signoff_pl_data", "signoff_tickets", "loom_data", "flasher_data", "ee_standards"],
     "sharedPrefixes": ["review-ee-", "review-me-", "review-fw-", "review-pl-", "review-loom-", "review-flasher-"]
   },
   "ids": { "project": "p", "comment": "c", "custom": "x" },
@@ -67,6 +69,7 @@ window.SIGNOFF_CONFIG = {
   "defaultStage": "Schematic",
   "legacyTabs": ["schematic", "interfaces", "pcb", "assembly", "fab"],
   "pl": { "tool": "ee", "dataRepo": "signoff_pl_data" },
+  "home": { "repo": "ee_standards", "decks": [{ "id": "footprints", "title": "Footprints", "cat": "Layout" }, { "id": "schematics", "title": "Schematics", "cat": "Schematic" }] },
   "spec": {"label": "Scribe", "layout": "flow", "parts": true, "guide": 7, "kinds": [], "links": ["Connects", "Supplies"]},
   "words": {
     "unit": "board",
