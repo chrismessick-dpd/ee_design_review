@@ -1589,6 +1589,13 @@
     var growSec = M.liveSpec({ spec: { g1: { id: 'g1', level: 2, title: 'G', body: '', grow: { l: -5, t: 'x', r: 12.6, b: 40 } }, g2: { id: 'g2', level: 2, title: 'H', body: '', grow: { l: 0, t: 0 } } } });
     eq(growSec[0].grow, { l: 0, t: 0, r: 13, b: 40 }, 'a resized section keeps how far each edge grew, rounded, never under 0');
     eq('grow' in growSec[1], false, 'a section grown by nothing has no grow field');
+    var rtSec = M.liveSpec({ spec: { r1: { id: 'r1', level: 2, title: 'R', body: '',
+      ports: { 'b1|connects': { side: 't', t: 0.6417 }, 'c1|connects': { side: 'x', t: 0.5 }, 'd1|connects': { side: 'l', t: 3 } },
+      routes: { 'b1|connects': { v: [250.04, '70', 300], a: 'r', b: 'q' }, 'c1|connects': { v: ['x'] }, 'd1|connects': { mode: 'behind', v: 'no' } } },
+      r2: { id: 'r2', level: 2, title: 'S', body: '', ports: {}, routes: { a: null } } } });
+    eq(rtSec[0].ports, { 'b1|connects': { side: 't', t: 0.642 }, 'd1|connects': { side: 'l', t: 1 } }, 'ports keep a known side and t from 0 to 1');
+    eq(rtSec[0].routes, { 'b1|connects': { v: [250, 70, 300], a: 'r', b: 'l' }, 'd1|connects': { mode: 'behind' } }, 'routes keep numbers, known sides, and behind');
+    eq('ports' in rtSec[1] || 'routes' in rtSec[1], false, 'empty ports and routes leave no field');
     var ep = M.newProject({ name: 'Board', checklists: [], profile: [] }, 'Ann', T), put = function (recs) { recs.forEach(function (r) { ep.spec[r.id] = r; }); };
     ep.spec = {};
     put(M.specSave(ep, null, '# Board\n## Buck * power\nSteps down.\nParts: U7, L1, C1–C3\nSupplies: MCU (3V3), Relays (5V)\n## USB * connector\nConnects: MCU (USB)\n## MCU * processor\nRuns it.\nConnects: Relays\n## Relays * output\nSwitch.', 'Ann'));

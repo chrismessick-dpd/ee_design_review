@@ -44,7 +44,7 @@ words in the text differ by tool.
   its middle. An unlabeled link draws plain.
 - **Building it works the same way.** *Add a block* (a chip per kind above the diagram) adds a
   subcircuit, optionally connected from or supplied by a block, with its signal or rail; its column
-  follows from its links. Dragging from the dot on a block's right edge to another adds a Connects link
+  follows from its links. Dragging from the dot on a block's top-right corner (its right edge before 2026-11-18) to another adds a Connects link
   (Supplies from a power block). The block panel lists Connects and Supplies with their names (click a
   name to change it), what connects into or supplies the block, and its Parts. Blocks aren't dragged
   between columns (their place comes from their links); change a kind in the panel.
@@ -189,3 +189,31 @@ From a co-worker's first EE description (`signoff_tickets` 3 to 8; Chris approve
   review's name, project, client, number, revision, stage, date, who made it, and sheet 1 of 1. The
   review's name is the Title across the top, and "Signoff EE block diagram" the Page beside Rev (Chris
   swapped them, 2026-11-13), and the block is half its first size, its bottom right corner kept.
+
+## Section sizes and routed lines (Chris, 2026-11-18)
+
+- **Section boxes resize** by grips on their edges and corners (`specGrips`, `flowResize`). A section keeps
+  `grow: { l, t, r, b }`, how far each edge reaches past the fit around its blocks (never under 0,
+  `model.specGrow`). A resize freezes the arrangement as a move does; Auto layout forgets it.
+- **Lines route as Loom's wires** (Chris: Loom owns the engine). `assets/vendor/route.js` and `connect.js` are
+  Loom's, copied unchanged by `tools/sync_routing.py` (`build.py` fails while they're stale; ME and FW get them
+  through `sync_engine.py`). Change the engine in Loom, check its `tests/golden.js`, then sync. Only EE's flow
+  diagram uses it; FW's layered map keeps its curves (Chris).
+  - **Ports.** Each end of a drawn line (connections and supply arrows; power flags stay flags, Chris) has a port
+    on its block's edge. Unmoved, it sits on the side facing the other block, spread along that side in the order
+    of the blocks the ports go to; dragged, it slides round the edge on a 10-unit grid and is kept on its block,
+    `ports['<other id>|<word>'] = { side: 'l' | 'r' | 't' | 'b', t }`. A port on the top or bottom runs out to a lead
+    point past the edge, then turns either way (Loom's `termsRect`). A moved port routes its line afresh.
+  - **Shapes.** A drag on a line's straight run moves it (Shift breaks it at the grab, Ctrl is off the grid, it
+    snaps straight within 5 steps), a double-click adds a bend, and the shape is kept on the line's from-block as
+    Loom's record, `routes['<to id>|<word>'] = { v, a, b, mode }`. A click without moving still opens the line's
+    panel, which has **Reset route** once a line is shaped or a port moved. A shape whose blocks moved apart so it
+    no longer fits routes afresh (not written; the record stays until Reset or Auto layout).
+  - **Moves.** While a block or section drags, its lines re-route live (`flowLive`, the engine's fast mode); a
+    shaped line with both blocks moving carries its shape along, and the drop writes it shifted.
+  - **Nothing derived is written**: auto ports and routes stay in memory (`specFlowLast`), so an unedited tab never
+    looks edited. `model.cleanSection` keeps `ports` and `routes` only when there are any (`specPorts`,
+    `specRoutes`, bounded and allowlisted).
+  - **Labels** ride the routed line: a kept label's `t` is now a share of the line's length (it was the old
+    curve's parameter), so labels dragged before 2026-11-18 sit a little off where they were.
+  - The connect dot moved to each block's top-right corner, clear of the ports (Chris).

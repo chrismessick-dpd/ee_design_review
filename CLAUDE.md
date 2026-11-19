@@ -30,6 +30,10 @@ Read next:
 
   Anything specific to one tool goes in its `assets/config.js`, `index.html`, `templates/`, or
   `tests/`.
+- **Loom's routing engine** (2026-11-18, Chris: Loom owns it): `assets/vendor/route.js` and `connect.js` are
+  Loom's, copied by `python tools/sync_routing.py` (`build.py` fails while stale), and synced on into ME and FW
+  with the engine. Never edit them here. Scribe's flow diagram routes its lines with them
+  (`docs/scribe-ee.md`, *Section sizes and routed lines*).
 - **Check IDs** are never renumbered or reused. Reviews store their state by ID. Bump a template's
   `version` when its wording changes.
 - **Review data** syncs straight to `main` without pull requests. That's deliberate:
