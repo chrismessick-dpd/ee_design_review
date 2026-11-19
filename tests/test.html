@@ -711,6 +711,15 @@
   ok(edCalls === 0 && edRes.pushed === 0 && edRes.projects.d2.n === 5 && JSON.stringify(hub.files('ann/edited')) === edFiles0, 'an unedited copy takes GitHub’s file and writes nothing');
   edRes = await edStore.sync({ d2: { id: 'd2', meta: { name: 'Mine' }, n: 1 } }, null, {}, { edited: function () { return true; }, mergeOpts: function (id) { return { base: { s: id } }; } });
   ok(edCalls === 1 && edOpts[0].base.s === 'd2' && edRes.pushed === 1 && JSON.parse(hub.files('ann/edited')['projects/d2.json']).n === 99, 'an edited copy merges with its mergeOpts and is written');
+  // 2026-11-19: a cache that says the file is unchanged doesn't mean the local copy holds it. An edited copy
+  // older than its cache is merged with GitHub's file, never written over it.
+  var stRemote = { id: 'd3', meta: { name: 'Newer' }, n: 7 }, stText = M.stableStringify(stRemote);
+  hub.makeRepo('ann/stale', { 'projects/d3.json': stText }, ['ann']);
+  var stSha = await (async function () { var t = new TextEncoder().encode(stText), h = new TextEncoder().encode('blob ' + t.length + '\0'), all = new Uint8Array(h.length + t.length); all.set(h); all.set(t, h.length); return Array.from(new Uint8Array(await crypto.subtle.digest('SHA-1', all))).map(function (b) { return b.toString(16).padStart(2, '0'); }).join(''); })();
+  var stSeen = [], stStore = new Signoff.GitHubStore({ owner: 'ann', repo: 'stale', branch: 'main', dataPath: '', token: 'tok-ann',
+    merge: function (a, b) { stSeen.push(b ? b.n : null); return { id: 'd3', meta: { name: 'Merged' }, n: (a ? a.n : 0) + (b ? b.n : 0) }; } }, hub.fetchFor('tok-ann'));
+  await stStore.sync({ d3: { id: 'd3', meta: { name: 'Old' }, n: 1 } }, null, { 'projects/d3.json': { sha: stSha } }, { edited: function () { return true; } });
+  ok(stSeen[0] === 7 && JSON.parse(hub.files('ann/stale')['projects/d3.json']).n === 8, 'an edited copy older than its cache is merged with GitHub’s file, not written over it');
 
   // patchRecords (Signoff PL writing requirements into a review): only those records change.
   var pdoc = JSON.parse(JSON.stringify(written2)); pdoc.futureKey = { kept: true };
@@ -1591,10 +1600,10 @@
     eq('grow' in growSec[1], false, 'a section grown by nothing has no grow field');
     var rtSec = M.liveSpec({ spec: { r1: { id: 'r1', level: 2, title: 'R', body: '',
       ports: { 'b1|connects': { side: 't', t: 0.6417 }, 'c1|connects': { side: 'x', t: 0.5 }, 'd1|connects': { side: 'l', t: 3 } },
-      routes: { 'b1|connects': { v: [250.04, '70', 300], a: 'r', b: 'q' }, 'c1|connects': { v: ['x'] }, 'd1|connects': { mode: 'behind', v: 'no' } } },
+      routes: { 'b1|connects': { v: [250.04, '70', 300], a: 'r', b: 'q' }, 'c1|connects': { v: ['x'] }, 'd1|connects': { mode: 'behind', v: 'no' }, 'e1|connects': { v: [40], a: 'r', b: 'l', tr: true }, 'f1|connects': { v: [40], tr: 'yes' } } },
       r2: { id: 'r2', level: 2, title: 'S', body: '', ports: {}, routes: { a: null } } } });
     eq(rtSec[0].ports, { 'b1|connects': { side: 't', t: 0.642 }, 'd1|connects': { side: 'l', t: 1 } }, 'ports keep a known side and t from 0 to 1');
-    eq(rtSec[0].routes, { 'b1|connects': { v: [250, 70, 300], a: 'r', b: 'l' }, 'd1|connects': { mode: 'behind' } }, 'routes keep numbers, known sides, and behind');
+    eq(rtSec[0].routes, { 'b1|connects': { v: [250, 70, 300], a: 'r', b: 'l' }, 'd1|connects': { mode: 'behind' }, 'e1|connects': { v: [40], a: 'r', b: 'l', tr: true }, 'f1|connects': { v: [40], a: 'r', b: 'l' } }, 'routes keep numbers, known sides, behind, and an upright route (tr: true only)');
     eq('ports' in rtSec[1] || 'routes' in rtSec[1], false, 'empty ports and routes leave no field');
     var ep = M.newProject({ name: 'Board', checklists: [], profile: [] }, 'Ann', T), put = function (recs) { recs.forEach(function (r) { ep.spec[r.id] = r; }); };
     ep.spec = {};
