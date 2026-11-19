@@ -15,7 +15,7 @@
 <div id="out"></div>
 <script>
 // Load the engine fresh on every run, so a browser cache never tests old code.
-['config', 'templates', 'model', 'auth', 'github', 'workspace', 'demo', 'history'].forEach(function (n) { document.write('<script src="../assets/' + n + '.js?t=' + Date.now() + '"><\/script>'); });
+['config', 'templates', 'model', 'localstore', 'auth', 'github', 'workspace', 'demo', 'history'].forEach(function (n) { document.write('<script src="../assets/' + n + '.js?t=' + Date.now() + '"><\/script>'); });
 </script>
 <script>
 /* Unit tests for the model and the GitHub sync, run against a fake GitHub API.
@@ -117,6 +117,43 @@
   ok(ext.projects['renamed-there'] && ext.projects['renamed-there'].id === other.id && Object.keys(ext.projects).length === 2, 'projects match by id, not slug');
   ok(!M.mergeLocalCopies(ext.projects, { 'shared-tab': theirsDoc }).changed, 'nothing new from the other tab means no write back');
   eq(M.mergeProjects(got, theirsDoc).custom.xfab1.source.tool, 'fabcheck', 'mergeProjects passes the source field through');
+
+  // ── The local store (assets/localstore.js, 2026-11-19): reviews in IndexedDB ──
+  await (async function () {
+    var ns = 'signoff.test-local.', name = SignoffLocal.dbName(ns);
+    await new Promise(function (r) { var q = indexedDB.deleteDatabase(name); q.onsuccess = q.onerror = q.onblocked = function () { r(); }; });
+    ['projects', 'dirty', 'homes', 'cache2', 'bases'].forEach(function (k) { localStorage.removeItem(ns + k); });
+    // What older code left in localStorage is read, and its keys go only once the reviews are read back.
+    var a = { id: 'pa', slug: 'a', meta: { name: 'A' }, n: 1 }, b = { id: 'pb', slug: 'b', meta: { name: 'B' }, n: 2 };
+    localStorage.setItem(ns + 'projects', JSON.stringify({ a: a, b: b }));
+    localStorage.setItem(ns + 'dirty', JSON.stringify({ pa: '2026-11-19T00:00:00Z' }));
+    localStorage.setItem(ns + 'cache2', JSON.stringify({ 'o/r': { 'projects/pa.json': { sha: 'x' } } }));
+    var st = new (Object.getPrototypeOf(SignoffLocal.store(ns)).constructor)(ns);   // a fresh store, as a new page has
+    var d = await st.load();
+    eq([d.backend, Object.keys(d.projects).length], ['idb', 0], 'local store: a new database starts empty, on IndexedDB');
+    var leg = st.legacy();
+    eq([Object.keys(leg.projects), leg.dirty, leg.cache2['o/r']['projects/pa.json'].sha], [['a', 'b'], { pa: '2026-11-19T00:00:00Z' }, 'x'], 'local store: what older code left in localStorage is read');
+    ok(await st.save({ projects: leg.projects, dirty: leg.dirty, cache2: leg.cache2 }), 'local store: the reviews and their sync record save in one transaction');
+    // A key changed by another writer since it was read is left for the next pass.
+    localStorage.setItem(ns + 'dirty', JSON.stringify({ pa: '2026-11-19T00:00:00Z', pb: '2026-11-19T01:00:00Z' }));
+    ok(await st.clearLegacy(leg, leg.projects), 'local store: the legacy keys clear once the reviews read back the same');
+    eq([localStorage.getItem(ns + 'projects'), localStorage.getItem(ns + 'cache2'), !!localStorage.getItem(ns + 'dirty')], [null, null, true], 'local store: a key another writer changed since is kept');
+    var st2 = new (Object.getPrototypeOf(SignoffLocal.store(ns)).constructor)(ns);
+    var heard = [];
+    st2.onChange(function (m) { heard.push(m); });
+    var d2 = await st2.load();
+    eq([Object.keys(d2.projects).sort(), d2.projects.b.n, d2.cache2['o/r']['projects/pa.json'].sha], [['a', 'b'], 2, 'x'], 'local store: a new page loads what was saved');
+    // Only what changed is written, a review gone from the map is deleted, and other pages hear of it.
+    var c2 = Object.assign({}, d2.projects.a, { n: 5 });
+    ok(await st.save({ projects: { a: c2 } }), 'local store: a save with one review changed and one gone');
+    await new Promise(function (r) { setTimeout(r, 150); });
+    var d3 = await st2.load();
+    eq([Object.keys(d3.projects), d3.projects.a.n], [['a'], 5], 'local store: the changed review is written and the one gone is deleted');
+    eq(heard.length ? [heard[0].slugs, heard[0].removed] : null, [['a'], ['b']], 'local store: another page hears which reviews changed and which went');
+    localStorage.removeItem(ns + 'dirty');
+    if (st.db) st.db.close(); if (st2.db) st2.db.close();
+    await new Promise(function (r) { var q = indexedDB.deleteDatabase(name); q.onsuccess = q.onerror = q.onblocked = function () { r(); }; });
+  })();
 
   // ── Token fingerprint (how each tool notices the shared token changed) ──
   var tagA = M.tokenTag('ghp_example_token_a');
