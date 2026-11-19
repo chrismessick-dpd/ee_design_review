@@ -720,6 +720,22 @@
     merge: function (a, b) { stSeen.push(b ? b.n : null); return { id: 'd3', meta: { name: 'Merged' }, n: (a ? a.n : 0) + (b ? b.n : 0) }; } }, hub.fetchFor('tok-ann'));
   await stStore.sync({ d3: { id: 'd3', meta: { name: 'Old' }, n: 1 } }, null, { 'projects/d3.json': { sha: stSha } }, { edited: function () { return true; } });
   ok(stSeen[0] === 7 && JSON.parse(hub.files('ann/stale')['projects/d3.json']).n === 8, 'an edited copy older than its cache is merged with GitHub’s file, not written over it');
+  // And an unedited one: the cache line is trusted only for the copy it was recorded with (fp).
+  hub.makeRepo('ann/fp', { 'projects/d4.json': M.stableStringify({ id: 'd4', meta: { name: 'Four' }, n: 4 }) }, ['ann']);
+  var fpReads = 0, fpFetch = hub.fetchFor('tok-ann'), fpStore = new Signoff.GitHubStore({ owner: 'ann', repo: 'fp', branch: 'main', dataPath: '', token: 'tok-ann' },
+    function (u, o) { if (/\/git\/blobs\/|\/contents\//.test(String(u))) fpReads++; return fpFetch(u, o); });
+  var no = function () { return false; };
+  var fp1 = await fpStore.sync({}, null, {}, { edited: no });
+  ok(fp1.cache['projects/d4.json'].fp, 'a synced project’s cache line carries the fingerprint of the copy it was recorded with');
+  fpReads = 0;
+  var fp2 = await fpStore.sync(fp1.projects, null, fp1.cache, { edited: no });
+  ok(fpReads === 0 && fp2.projects.d4.n === 4, 'the copy the line was recorded with isn’t read again');
+  fpReads = 0;
+  var fp3 = await fpStore.sync({ d4: { id: 'd4', meta: { name: 'Four' }, n: 1 } }, null, fp1.cache, { edited: no });
+  ok(fpReads > 0 && fp3.projects.d4.n === 4 && fp3.pushed === 0, 'a copy older than its cache line is read again and takes GitHub’s, writing nothing');
+  fpReads = 0;
+  var fp4 = await fpStore.sync(fp1.projects, null, { 'projects/d4.json': { sha: fp1.cache['projects/d4.json'].sha } }, { edited: no });
+  ok(fpReads > 0 && fp4.projects.d4.n === 4, 'a cache line from before fingerprints is read again once');
 
   // patchRecords (Signoff PL writing requirements into a review): only those records change.
   var pdoc = JSON.parse(JSON.stringify(written2)); pdoc.futureKey = { kept: true };
