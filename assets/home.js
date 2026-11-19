@@ -426,13 +426,28 @@
       '<g fill="#ff453a" fill-opacity=".9"><rect x="70" y="52" width="26" height="40" rx="3"/><rect x="144" y="52" width="26" height="40" rx="3"/></g>' +
       '<g fill="#8e8e93" fill-opacity=".55"><rect x="73" y="55" width="20" height="34" rx="2"/><rect x="147" y="55" width="20" height="34" rx="2"/></g>' +
       '<g stroke="#e5e5ea" stroke-width="1.4"><path d="M114 72h12M120 66v12"/></g><circle cx="120" cy="72" r="4" fill="none" stroke="#e5e5ea" stroke-width="1.4"/></svg>',
+    // A made-up op-amp buffer on a schematic sheet: a divider with its filter cap into +, the output fed back to
+    // -, then a series resistor out to a net label (Chris, 2026-11-19: "something notional like this op-amp circuit").
     schematics: '<svg viewBox="0 0 240 150" aria-hidden="true"><ellipse cx="120" cy="130" rx="86" ry="7" fill="#000" style="opacity:var(--art-shadow)"/>' +
       '<rect x="40" y="18" width="160" height="106" rx="5" fill="#f7f4ea" stroke="#c9c2ad"/>' +
-      '<rect x="96" y="38" width="48" height="66" rx="2" fill="#fff6d6" stroke="#7a1c14" stroke-width="2"/>' +
-      '<g stroke="#7a1c14" stroke-width="2" stroke-linecap="round"><path d="M84 50h12M84 64h12M84 78h12M84 92h12M144 50h12M144 64h12M144 78h12"/></g>' +
-      '<g fill="none" stroke="#1f6f3a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M84 50H58v-14M84 78H64M84 92H54v12M156 50h26M156 64h18v20M156 78h10"/><path d="M50 104h8M52 108h4"/></g>' +
-      '<g fill="#8a8370" fill-opacity=".75"><rect x="102" y="46" width="14" height="3" rx="1.5"/><rect x="102" y="60" width="10" height="3" rx="1.5"/><rect x="102" y="74" width="16" height="3" rx="1.5"/><rect x="124" y="60" width="14" height="3" rx="1.5"/></g>' +
-      '<rect x="170" y="84" width="8" height="16" rx="1" fill="none" stroke="#1f6f3a" stroke-width="2"/><circle cx="64" cy="78" r="2.4" fill="#1f6f3a"/></svg>'
+      // wires
+      '<g fill="none" stroke="#2a4fa8" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round">' +
+        '<path d="M176 24v6M176 48v8M176 62v6M176 86v18"/>' +          // the divider's column, top rail to ground
+        '<path d="M140 62h36M160 62v14M160 84v20h16"/>' +              // + input to the divider node; the cap down to ground
+        '<path d="M140 78h8v20h-48v-28"/>' +                           // - input fed back from the output
+        '<path d="M106 70h-6M100 70h-6M76 70H66"/></g>' +              // output through the series resistor to the label
+      // the op-amp, pointing left (output on the left, as drawn)
+      '<path d="M140 50v40l-34-20z" fill="#fff6d6" stroke="#7a1c14" stroke-width="2" stroke-linejoin="round"/>' +
+      '<g stroke="#7a1c14" stroke-width="1.6" stroke-linecap="round"><path d="M130 62h6M133 59v6M130 78h6"/></g>' +
+      // resistors (zigzags) and the cap
+      '<g fill="none" stroke="#7a1c14" stroke-width="1.6" stroke-linejoin="round"><path d="M176 30l4 2-8 4 8 4-8 4 8 4-4 2"/>' +
+        '<path d="M176 68l4 2-8 4 8 4-8 4 8 4-4 2"/><path d="M94 70l-2-4-4 8-4-8-4 8-4-8-2 4"/><path d="M154 76h12M154 84h12" stroke-width="2"/></g>' +
+      // junction dots, the top rail, ground, and the net label
+      '<g fill="#2a4fa8"><circle cx="176" cy="62" r="2.2"/><circle cx="160" cy="62" r="2.2"/><circle cx="100" cy="70" r="2.2"/><circle cx="176" cy="104" r="2.2"/></g>' +
+      '<path d="M168 24h16" stroke="#2a4fa8" stroke-width="2" stroke-linecap="round"/>' +
+      '<g stroke="#2a4fa8" stroke-width="1.6" stroke-linecap="round"><path d="M168 104h16M171 108h10M174 112h4"/></g>' +
+      '<path d="M66 64h-14l-6 6 6 6h14z" fill="#fff6d6" stroke="#b8860b" stroke-width="1.6" stroke-linejoin="round"/>' +
+      '<g fill="#8a8370" fill-opacity=".75"><rect x="54" y="68.5" width="9" height="3" rx="1.5"/><rect x="186" y="36" width="10" height="3" rx="1.5"/><rect x="186" y="76" width="10" height="3" rx="1.5"/><rect x="80" y="58" width="10" height="3" rx="1.5"/></g></svg>'
   };
 
   function homePage() {
