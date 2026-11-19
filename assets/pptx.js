@@ -11,7 +11,8 @@
    An item's group goes out as a small text box named "Signoff group" over its title, and comes back in as the
    item's group (nesting under another item doesn't go out). Import: a slide's item title is its title placeholder, or (decks exported from Google Slides have no
    placeholders) its first text box from the top; the other text boxes are the body, a line per paragraph,
-   "- " before bulleted ones. Text that repeats on most slides (the deck's own title, a footer, a
+   with levels, bullets, numbered lines, and bold, italic, and struck runs as item text (window.SignoffText,
+   below; export writes them back the same way). Text that repeats on most slides (the deck's own title, a footer, a
    classification line) and footer, date, and slide-number placeholders are left out, and so is a picture
    on most slides (a logo). Export writes one title slide, then a slide per item: its title, its text on the
    left, and its pictures on the right (the whole width without pictures). The CSP allows only this site's
@@ -19,6 +20,106 @@
    writer stores entries uncompressed (pictures are compressed already). */
 (function () {
   'use strict';
+
+  // ── Item text (2026-11-19, Chris: bold, italic, strikethrough, bullets, and numbered lists) ──
+  // An item's text stays plain text, a line per paragraph. Two leading spaces (or a tab) per level, up to MAXLV;
+  // "- " (or "• ", "* ") starts a bullet and "# " a numbered line, numbered 1., 1.1, 1.1.1 by level. Inline:
+  // **bold**, *italic*, and ~~struck~~; a marker counts only when it's closed later in the line, and a backslash
+  // keeps the next \ * ~ # - • as itself. Home's editor, its views, and .pptx in and out all go through this.
+  var MAXLV = 5;
+  function closes(s, from, tok) {
+    for (var j = from; j < s.length; j++) {
+      if (s[j] === '\\') { j++; continue; }
+      if (tok === '*') { if (s.substr(j, 2) === '**') { j++; continue; } if (s[j] === '*') return true; }
+      else if (s.substr(j, 2) === tok) return true;
+    }
+    return false;
+  }
+  // "a **b** c" -> [{ t: 'a ', b, i, s }, …]
+  function runs(s) {
+    s = String(s || '');
+    var out = [], st = { b: false, i: false, s: false }, buf = '';
+    function flush() { if (buf) { var l = out[out.length - 1]; if (l && l.b === st.b && l.i === st.i && l.s === st.s) l.t += buf; else out.push({ t: buf, b: st.b, i: st.i, s: st.s }); } buf = ''; }
+    for (var i = 0; i < s.length; i++) {
+      var ch = s[i];
+      if (ch === '\\' && /[\\*~#\-•]/.test(s[i + 1] || '')) { buf += s[++i]; continue; }
+      var two = s.substr(i, 2), mk = two === '**' ? 'b' : two === '~~' ? 's' : ch === '*' ? 'i' : '';
+      if (mk) {
+        var tok = mk === 'i' ? '*' : two;
+        if (st[mk] || closes(s, i + tok.length, tok)) { flush(); st[mk] = !st[mk]; i += tok.length - 1; continue; }
+      }
+      buf += ch;
+    }
+    flush();
+    return out;
+  }
+  function escText(t) { return String(t).replace(/[\\*~]/g, '\\$&'); }
+  // Runs back to text with markers.
+  function runsText(rs) {
+    var s = '', st = { b: false, i: false, s: false }, M = { b: '**', i: '*', s: '~~' };
+    rs.forEach(function (r) {
+      if (!r.t) return;
+      ['s', 'i', 'b'].forEach(function (k) { if (st[k] && !r[k]) { s += M[k]; st[k] = false; } });
+      ['b', 'i', 's'].forEach(function (k) { if (!st[k] && r[k]) { s += M[k]; st[k] = true; } });
+      s += escText(r.t);
+    });
+    ['s', 'i', 'b'].forEach(function (k) { if (st[k]) s += M[k]; });
+    return s;
+  }
+  // { kind: 'p' | 'b' | 'n', lv, runs } -> one line of text ('' for an empty one).
+  function lineText(l) {
+    var rs = (l.runs || []).map(function (r) { return { t: String(r.t).replace(/\u00a0/g, ' ').replace(/\n/g, ' '), b: !!r.b, i: !!r.i, s: !!r.s }; });
+    while (rs.length && !rs[0].t.replace(/^\s+/, '')) rs.shift();
+    if (rs.length) rs[0].t = rs[0].t.replace(/^\s+/, '');
+    while (rs.length && !rs[rs.length - 1].t.replace(/\s+$/, '')) rs.pop();
+    if (rs.length) rs[rs.length - 1].t = rs[rs.length - 1].t.replace(/\s+$/, '');
+    var body = runsText(rs);
+    if (!body) return '';
+    var lv = Math.max(0, Math.min(MAXLV, +l.lv || 0)), kind = l.kind === 'b' || l.kind === 'n' ? l.kind : 'p';
+    if (kind === 'p' && /^[-•#]\s/.test(body)) body = '\\' + body;   // a paragraph that only looks like a list line
+    return new Array(lv + 1).join('  ') + (kind === 'b' ? '- ' : kind === 'n' ? '# ' : '') + body;
+  }
+  // Text -> lines: null for an empty one, else { kind, lv, text, runs, num } (num on numbered lines).
+  function lines(text) {
+    var out = [], c = [];
+    String(text || '').replace(/\r/g, '').split('\n').forEach(function (raw) {
+      var m = /^([ \t]*)([\s\S]*)$/.exec(raw), sp = m[1].replace(/\t/g, '  ').length, t = m[2].replace(/\s+$/, '');
+      if (!t) { out.push(null); return; }
+      var kind = 'p', k = /^([-•*]|#)\s+/.exec(t);
+      if (k) { kind = k[1] === '#' ? 'n' : 'b'; t = t.slice(k[0].length); }
+      var lv = Math.min(MAXLV, Math.floor(sp / 2)), l = { kind: kind, lv: lv, text: t, runs: runs(t) };
+      if (kind === 'n') {
+        c.length = lv + 1;
+        for (var i = 0; i < lv; i++) c[i] = c[i] || 0;
+        c[lv] = (c[lv] || 0) + 1;
+        var path = c.filter(function (n) { return n > 0; });
+        l.num = path.join('.') + (path.length === 1 ? '.' : '');
+      } else c.length = Math.min(c.length, kind === 'b' ? lv + 1 : lv);
+      out.push(l);
+    });
+    return out;
+  }
+  function plain(line) { var l = lines(line).filter(Boolean)[0]; return l ? l.runs.map(function (r) { return r.t; }).join('') : ''; }
+  function escHtml(s) { return String(s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
+  function runsHtml(rs, tags) {
+    tags = tags || { b: 'strong', i: 'em', s: 's' };
+    return rs.map(function (r) {
+      var h = escHtml(r.t);
+      if (r.s) h = '<' + tags.s + '>' + h + '</' + tags.s + '>';
+      if (r.i) h = '<' + tags.i + '>' + h + '</' + tags.i + '>';
+      if (r.b) h = '<' + tags.b + '>' + h + '</' + tags.b + '>';
+      return h;
+    }).join('');
+  }
+  // The text as HTML for the views: a <p> per line, list lines with their bullet or number, indented by level.
+  function html(text) {
+    return lines(text).filter(Boolean).map(function (l) {
+      var cls = (l.kind === 'p' ? '' : 'std-li') + (l.lv ? ' std-lv' + l.lv : '');
+      var mk = l.kind === 'b' ? '<span class="std-mk" aria-hidden="true">•</span>' : l.kind === 'n' ? '<span class="std-mk">' + l.num + '</span>' : '';
+      return '<p' + (cls.trim() ? ' class="' + cls.trim() + '"' : '') + '>' + mk + (l.kind === 'p' ? runsHtml(l.runs) : '<span>' + runsHtml(l.runs) + '</span>') + '</p>';
+    }).join('');
+  }
+  window.SignoffText = { MAXLV: MAXLV, lines: lines, runs: runs, runsText: runsText, lineText: lineText, plain: plain, html: html, runsHtml: runsHtml };
 
   // ── Zip ──────────────────────────────────────────────────
   var CRC = (function () {
@@ -121,15 +222,29 @@
     var x = all(el, 'off')[0], e = all(el, 'ext')[0];
     return { x: x ? +x.getAttribute('x') || 0 : 0, y: x ? +x.getAttribute('y') || 0 : 0, cx: e ? +e.getAttribute('cx') || 0 : 0, cy: e ? +e.getAttribute('cy') || 0 : 0 };
   }
-  function paraText(p) {
-    var s = '';
+  // A paragraph as item text lines (a line break in it starts another): its level, bullet or number, and runs
+  // with bold, italic, and strikethrough as markers. A numbered line is PowerPoint's own numbering, or a number
+  // and a tab (Signoff's export), or "1. " / "1) " typed.
+  function on(v) { return v === '1' || v === 'true'; }
+  function paraLines(p) {
+    var pr = kid(p, 'pPr'), lv = pr ? Math.min(window.SignoffText.MAXLV, +pr.getAttribute('lvl') || 0) : 0;
+    var kind = pr && kid(pr, 'buAutoNum') ? 'n' : pr && kid(pr, 'buChar') ? 'b' : 'p';
+    var segs = [[]];
     Array.prototype.forEach.call(p.children, function (c) {
-      if (c.localName === 'r' || c.localName === 'fld') { var t = kid(c, 't'); if (t) s += t.textContent; }
-      else if (c.localName === 'br') s += '\n';
+      if (c.localName === 'r' || c.localName === 'fld') {
+        var t = kid(c, 't'), rp = kid(c, 'rPr'), st = rp ? rp.getAttribute('strike') || '' : '';
+        if (t) segs[segs.length - 1].push({ t: t.textContent.replace(/ /g, ' '), b: !!rp && on(rp.getAttribute('b')), i: !!rp && on(rp.getAttribute('i')), s: !!st && st !== 'noStrike' });
+      } else if (c.localName === 'br') segs.push([]);
     });
-    return s.replace(/ /g, ' ').replace(/[ \t]+$/gm, '');
+    return segs.map(function (rs, k) {
+      var l = { kind: k ? 'p' : kind, lv: lv, runs: rs };
+      if (l.kind === 'p' && rs.length) {
+        var m = /^\s*(\d+(?:\.\d+)*\.?\t+|\d+[.)][ \t]+)/.exec(rs[0].t);
+        if (m) { l.kind = 'n'; l.runs = [Object.assign({}, rs[0], { t: rs[0].t.slice(m[0].length) })].concat(rs.slice(1)); }
+      }
+      return window.SignoffText.lineText(l);
+    }).filter(Boolean);
   }
-  function bulleted(p) { var pr = kid(p, 'pPr'); return !!(pr && (kid(pr, 'buChar') || kid(pr, 'buAutoNum'))); }
   function mimeOf(name) {
     var ext = (name.split('.').pop() || '').toLowerCase();
     return { png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg', gif: 'image/gif', bmp: 'image/bmp', webp: 'image/webp', svg: 'image/svg+xml', tif: 'image/tiff', tiff: 'image/tiff', emf: 'image/emf', wmf: 'image/wmf' }[ext] || 'application/octet-stream';
@@ -162,7 +277,8 @@
           else if (c.localName === 'sp') {
             var ph = all(c, 'ph')[0], body = kid(c, 'txBody');
             if (!body) return;
-            var paras = kids(body, 'p').map(function (p) { var t = paraText(p).trim(); return t ? (bulleted(p) ? '- ' : '') + t : ''; }).filter(Boolean);
+            var paras = [];
+            kids(body, 'p').forEach(function (p) { paras = paras.concat(paraLines(p)); });
             if (!paras.length) return;
             var nv = all(c, 'cNvPr')[0];
             texts.push({ text: paras.join('\n'), paras: paras, ph: ph ? (ph.getAttribute('type') || 'body') : '', name: nv ? nv.getAttribute('name') || '' : '', b: box(c) });
@@ -201,14 +317,14 @@
       var titled = texts.filter(function (t) { return t.ph === 'title' || t.ph === 'ctrTitle'; })[0] || texts[0];
       var lines = [], title = '';
       if (titled) {
-        title = titled.paras[0].replace(/^- /, '');
+        title = window.SignoffText.plain(titled.paras[0]);
         lines = titled.paras.slice(1);
       }
       texts.forEach(function (t) { if (t !== titled) lines = lines.concat(t.paras); });
       var pics = s.pics.filter(function (p) { return !(many && picSeen[p.path] >= need) && SHOWN[p.type]; }).sort(byPlace)
         .map(function (p) { return { name: p.name, type: p.type, bytes: p.bytes }; });
       var skipped = s.pics.length - pics.length;
-      return { slide: s.n, title: title, body: lines.join('\n'), group: grp ? grp.paras[0] : '', pics: pics, unshown: s.pics.filter(function (p) { return !SHOWN[p.type]; }).length, logos: skipped };
+      return { slide: s.n, title: title, body: lines.join('\n'), group: grp ? window.SignoffText.plain(grp.paras[0]) : '', pics: pics, unshown: s.pics.filter(function (p) { return !SHOWN[p.type]; }).length, logos: skipped };
     }).map(function (it, i) { it.skip = i === 0 && slides.length > 1; it.common = common; return it; });   // the first slide is usually the deck's title
   }
 
@@ -235,6 +351,25 @@
         return '<a:p><a:pPr' + (bullet ? ' marL="285750" indent="-285750"><a:buFont typeface="Arial"/><a:buChar char="•"/></a:pPr>' : '><a:buNone/></a:pPr>') +
           (text ? '<a:r><a:rPr lang="en-US" sz="' + sz + '"' + (bold ? ' b="1"' : '') + ' dirty="0"><a:solidFill><a:srgbClr val="' + color + '"/></a:solidFill></a:rPr><a:t>' + x(text) + '</a:t></a:r>' : '') +
           '<a:endParaRPr lang="en-US" sz="' + sz + '" dirty="0"/></a:p>';
+      }).join('') + '</p:txBody></p:sp>';
+  }
+  // An item's text as a text box: bullets as bullets, numbered lines with their number (PowerPoint's own numbering
+  // has no 1.1), each level indented, and bold, italic, and struck runs.
+  function bodyBox(id, name, b, body, sz, color) {
+    var STEP = 342900, HANG = 285750;
+    var ps = window.SignoffText.lines(body).filter(Boolean);
+    function run(r) {
+      return '<a:r><a:rPr lang="en-US" sz="' + sz + '"' + (r.b ? ' b="1"' : '') + (r.i ? ' i="1"' : '') + (r.s ? ' strike="sngStrike"' : '') + ' dirty="0"><a:solidFill><a:srgbClr val="' + color + '"/></a:solidFill></a:rPr><a:t>' + x(r.t) + '</a:t></a:r>';
+    }
+    return '<p:sp><p:nvSpPr><p:cNvPr id="' + id + '" name="' + x(name) + '"/><p:cNvSpPr txBox="1"/><p:nvPr/></p:nvSpPr>' +
+      '<p:spPr>' + xfrm(b) + '<a:prstGeom prst="rect"><a:avLst/></a:prstGeom><a:noFill/></p:spPr>' +
+      '<p:txBody><a:bodyPr wrap="square" lIns="0" tIns="0" rIns="0" bIns="0" anchor="t"><a:normAutofit/></a:bodyPr><a:lstStyle/>' +
+      ps.map(function (l) {
+        var list = l.kind !== 'p', mar = l.lv * STEP + (list ? HANG : 0);
+        var pPr = '<a:pPr marL="' + mar + '" indent="' + (list ? -HANG : 0) + '"' + (l.lv ? ' lvl="' + l.lv + '"' : '') + '>' +
+          (l.kind === 'b' ? '<a:buFont typeface="Arial"/><a:buChar char="•"/>' : '<a:buNone/>') + '</a:pPr>';
+        var rs = l.kind === 'n' ? [{ t: l.num + '\t' }].concat(l.runs) : l.runs;
+        return '<a:p>' + pPr + rs.map(run).join('') + '<a:endParaRPr lang="en-US" sz="' + sz + '" dirty="0"/></a:p>';
       }).join('') + '</p:txBody></p:sp>';
   }
   function picShape(id, rid, b, name) {
@@ -275,9 +410,8 @@
       if (it.group) shapes.push(textBox(id++, GROUP, { x: M, y: 137160, cx: W - 2 * M, cy: 228600 }, [it.group], 1100, true, '00727F'));
       shapes.push(textBox(id++, 'Title', { x: M, y: 365760, cx: W - 2 * M, cy: 640080 }, [it.title || 'Untitled'], 2800, true, '1D1D1F'));
       var top = 1188720, bottom = H - M;
-      var bodyBox = pics.length ? { x: M, y: top, cx: 4206240, cy: bottom - top } : { x: M, y: top, cx: W - 2 * M, cy: bottom - top };
-      var lines = String(it.body || '').split('\n').map(function (s) { return s.trim(); }).filter(Boolean);
-      if (lines.length) shapes.push(textBox(id++, 'Text', bodyBox, lines, 1600, false, '3A3A3C'));
+      var textArea = pics.length ? { x: M, y: top, cx: 4206240, cy: bottom - top } : { x: M, y: top, cx: W - 2 * M, cy: bottom - top };
+      if (window.SignoffText.lines(it.body).some(Boolean)) shapes.push(bodyBox(id++, 'Text', textArea, it.body, 1600, '3A3A3C'));
       var area = { x: M + 4206240 + 365760, y: top, cx: W - M - (M + 4206240 + 365760), cy: bottom - top };
       grid(pics.length, area).forEach(function (cell, k) {
         var p = pics[k], name = 'image' + (media.length + 1) + '.' + EXT[p.type];

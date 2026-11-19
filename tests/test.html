@@ -1874,7 +1874,21 @@
     eq(Hm.applyOps(d2, [{ op: 'remove', id: 'aaaa1111' }], 'bo', 'z').items.map(function (i) { return i.id; }), ['cccc3333', 'bbbb2222'], 'remove takes the item out');
     err = null; try { Hm.applyOps(Hm.cleanDeck({}, 'footprints'), [{ op: 'update', id: 'gone1234', fields: {} }], 'a', 'b'); } catch (e) { err = e; }
     ok(err && /deleted/.test(err.message), 'editing an item deleted elsewhere is refused, not recreated');
-    eq(Hm.bodyHtml('One <b>\n- a\n- b\nTwo'), '<p>One &lt;b&gt;</p><ul><li>a</li><li>b</li></ul><p>Two</p>', 'item text: paragraphs, bullets, and escaping');
+    var BUL = '<span class="std-mk" aria-hidden="true">•</span>';
+    eq(Hm.bodyHtml('One <b>\n- a\n- b\nTwo'), '<p>One &lt;b&gt;</p><p class="std-li">' + BUL + '<span>a</span></p><p class="std-li">' + BUL + '<span>b</span></p><p>Two</p>', 'item text: paragraphs, bullets, and escaping');
+    // Formatting (2026-11-19): bold, italic, strikethrough, bullets, and numbered lists, 1.1 by level.
+    var TX = window.SignoffText;
+    eq(Hm.bodyHtml('a **b** *i* ~~s~~ 5 * 3 and **x'), '<p>a <strong>b</strong> <em>i</em> <s>s</s> 5 * 3 and **x</p>', 'inline marks; a marker that isn’t closed stays as typed');
+    eq(TX.lines('# One\n  # One a\n    # deep\n  # One b\n  - note\n  # One c\n# Two\nText\n# Again').filter(Boolean).map(function (l) { return l.num || l.kind; }),
+      ['1.', '1.1', '1.1.1', '1.2', 'b', '1.3', '2.', 'p', '1.'], 'numbered lines count by level; a plain paragraph restarts them');
+    eq(Hm.bodyHtml('  - x'), '<p class="std-li std-lv1">' + BUL + '<span>x</span></p>', 'two spaces are a level');
+    var lt = [{ kind: 'p', lv: 0, runs: [{ t: '- not a list, 5 * 3 ~ \\ ' }] }, { kind: 'n', lv: 2, runs: [{ t: 'bold ', b: true }, { t: 'both', b: true, i: true }, { t: ' gone', s: true }] }].map(TX.lineText);
+    eq(lt, ['\\- not a list, 5 \\* 3 \\~ \\\\', '    # **bold *both***~~ gone~~'], 'lines to text: markers, levels, and escapes');
+    eq(TX.lines(lt.join('\n')).map(function (l) { return [l.kind, l.lv, l.runs]; }), [['p', 0, [{ t: '- not a list, 5 * 3 ~ \\', b: false, i: false, s: false }]],
+      ['n', 2, [{ t: 'bold ', b: true, i: false, s: false }, { t: 'both', b: true, i: true, s: false }, { t: ' gone', b: false, i: false, s: true }]]], 'and back, the same');
+    var fbody = 'Intro with **bold**, *italic*, and ~~struck~~ words\n- A bullet\n  - Under it\n# First\n  # First a\n# Second';
+    var fout = X.write({ title: 'Made-up deck', items: [{ title: 'Formatted', body: fbody, pics: [] }] });
+    eq((await X.toItems(await X.read(fout)))[1].body, fbody, 'bold, italic, strikethrough, bullets, levels, and numbered lines go out to .pptx and come back');
     // Sections FTEs make: listed from the repo, named and labeled, deleted and put back.
     eq(Hm.slug('Layout rules & DFM!'), 'layout-rules-dfm', 'a new section’s id starts from its name');
     eq(Hm.deckPaths({ 'decks/footprints.json': 1, 'decks/layout-rules-ab12.json': 1, 'decks/Bad Name.json': 1, 'images/x/y.png': 1, 'README.md': 1 }).sort(), ['footprints', 'layout-rules-ab12'], 'every decks/<id>.json is a section; other files and bad names aren’t');

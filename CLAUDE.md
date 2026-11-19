@@ -96,7 +96,11 @@ one item on the right; the default) or **Slides** (`#standards/<deck>`, `#standa
 Rows). An item may carry `group` (a heading) and `parent` (another top-level item, one level
 deep; the parent's group wins), set in the Edit window (Group, Under), written only when set; `outline()` in
 `home.js` builds the tree from them. A group goes out to .pptx as a small text box named "Signoff group" and
-comes back on import; nesting doesn't. Everyone signed in reads; FTEs add, edit, move, delete
+comes back on import; nesting doesn't. An item's text is formatted as you type in the Edit window (2026-11-19,
+Chris: `richText` in `home.js`, buttons under the box for bold, italic, strikethrough, bullets, numbered lists, and
+indent; Tab and Shift+Tab on list lines) but stored as plain text with markers (`**b**`, `*i*`, `~~s~~`, `- `
+bullets, `# ` numbered, two spaces a level, numbered 1., 1.1, 1.1.1), parsed by `window.SignoffText` in `pptx.js`
+for the views and for .pptx, which carries it both ways (runs, bullets, levels, numbers as text and a tab). Everyone signed in reads; FTEs add, edit, move, delete
 (with Undo), and import and export .pptx. Not engine files: `assets/home.js`, `home.css`, and `pptx.js` (zip
 in and out without a library: the CSP allows only this site's scripts).
 - **Storage:** the private repo `config.home.repo` (`ee_standards`), `decks/<id>.json` (`signoff.standards/1`)

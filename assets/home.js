@@ -530,18 +530,249 @@
     if (u) u.addEventListener('click', function () { pick = null; draw(); });
   }
 
-  // Text: a line per paragraph, "- " lines as bullets.
-  function bodyHtml(text) {
-    var lines = String(text || '').split('\n'), out = '', list = false;
-    lines.forEach(function (l) {
-      var t = l.trim();
-      if (!t) { if (list) { out += '</ul>'; list = false; } return; }
-      var b = /^[-•*]\s+/.test(t);
-      if (b && !list) { out += '<ul>'; list = true; }
-      if (!b && list) { out += '</ul>'; list = false; }
-      out += b ? '<li>' + esc(t.replace(/^[-•*]\s+/, '')) + '</li>' : '<p>' + esc(t) + '</p>';
+  // Text: a line per paragraph, with bullets, numbered lines (1., 1.1, 1.1.1), levels, and bold, italic, and
+  // struck runs (window.SignoffText in pptx.js, shared with .pptx in and out).
+  function bodyHtml(text) { return window.SignoffText.html(text); }
+
+  // ── The Edit window's text box (2026-11-19, Chris: word-processing buttons, formatted as you type) ──
+  // A contenteditable box, a <div class="std-line"> per line (data-k p, b, or n; data-lv 0 to MAXLV; data-n the
+  // number shown), with the buttons under it: Bold, Italic, Strikethrough, Bullets, Numbered list, Outdent, and
+  // Indent. Tab and Shift+Tab indent and outdent list lines, Enter continues a list (on an empty list line it ends
+  // it), Backspace at a list line's start drops its bullet. The text is stored as plain text with markers
+  // (SignoffText), read in with toText and written out with fromText. Undo and Redo are its own (line changes
+  // aren't the browser's edits), as snapshots.
+  var RT_BTN = [
+    ['bold', 'Bold (Ctrl+B)', '<b>B</b>'],
+    ['italic', 'Italic (Ctrl+I)', '<i>I</i>'],
+    ['strike', 'Strikethrough (Ctrl+Shift+X)', '<s>S</s>'],
+    ['b', 'Bullets (Ctrl+Shift+8)', '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><circle cx="3" cy="4" r="1" fill="currentColor" stroke="none"/><circle cx="3" cy="8" r="1" fill="currentColor" stroke="none"/><circle cx="3" cy="12" r="1" fill="currentColor" stroke="none"/><path d="M6.5 4h7M6.5 8h7M6.5 12h7"/></svg>'],
+    ['n', 'Numbered list, 1.1 by level (Ctrl+Shift+7)', '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M6.5 4h7M6.5 8h7M6.5 12h7"/><text x="0.5" y="5.6" font-size="5" fill="currentColor" stroke="none" font-family="sans-serif">1</text><text x="0.5" y="9.6" font-size="5" fill="currentColor" stroke="none" font-family="sans-serif">2</text><text x="0.5" y="13.6" font-size="5" fill="currentColor" stroke="none" font-family="sans-serif">3</text></svg>'],
+    ['out', 'Outdent (Shift+Tab)', '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M7 4h7M7 8h7M7 12h7M4.5 5.5L2 8l2.5 2.5"/></svg>'],
+    ['in', 'Indent (Tab)', '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M7 4h7M7 8h7M7 12h7M2 5.5L4.5 8 2 10.5"/></svg>']
+  ];
+  function richText(text, label) {
+    var T = window.SignoffText, MAXLV = T.MAXLV;
+    var wrap = document.createElement('div');
+    wrap.className = 'std-rt';
+    wrap.innerHTML = '<div class="std-ed input" id="std-text" contenteditable="true" role="textbox" aria-multiline="true" aria-label="' + esc(label || 'Text') + '" spellcheck="true"></div>' +
+      '<div class="std-rt-bar" role="toolbar" aria-label="Text formatting">' + RT_BTN.map(function (b, k) {
+        return (k === 3 || k === 5 ? '<span class="std-rt-sep"></span>' : '') + '<button type="button" class="icon-btn std-rt-btn" data-rt="' + b[0] + '" title="' + esc(b[1]) + '" aria-label="' + esc(b[1].replace(/ \(.*$/, '')) + '">' + b[2] + '</button>';
+      }).join('') + '</div>';
+    var ed = wrap.firstChild, bar = wrap.lastChild;
+
+    function lineEl(l) {
+      var d = document.createElement('div');
+      d.className = 'std-line';
+      d.dataset.k = l ? l.kind : 'p'; d.dataset.lv = l ? l.lv : 0;
+      d.innerHTML = l && l.runs.length ? T.runsHtml(l.runs, { b: 'b', i: 'i', s: 's' }) : '<br>';
+      return d;
+    }
+    function fromText(t) {
+      ed.innerHTML = '';
+      var ls = T.lines(t);
+      while (ls.length && !ls[ls.length - 1]) ls.pop();
+      if (!ls.length) ls = [null];
+      ls.forEach(function (l) { ed.appendChild(lineEl(l)); });
+      renumber();
+    }
+    // The box's lines back to text. Lenient about what the browser made: text straight in the box, nested blocks,
+    // and <br>s between text all start lines; bold, italic, and strikethrough by tag or by style.
+    function toText() {
+      var out = [], cur = null;
+      function begin(el) { cur = { kind: el && el.dataset.k || 'p', lv: +(el && el.dataset.lv) || 0, runs: [] }; out.push(cur); }
+      function walk(node, f, el) {
+        Array.prototype.forEach.call(node.childNodes, function (n) {
+          if (n.nodeType === 3) { if (!cur) begin(el); cur.runs.push({ t: n.nodeValue, b: f.b, i: f.i, s: f.s }); return; }
+          if (n.nodeType !== 1) return;
+          var tag = n.localName, st = n.style || {};
+          if (tag === 'br') { if (n.nextSibling) { cur = null; begin({ dataset: { k: 'p', lv: el && el.dataset.lv } }); } return; }
+          if (tag === 'div' || tag === 'p' || tag === 'li') { var own = n.classList.contains('std-line') ? n : el; cur = null; begin(own); walk(n, f, own); cur = null; return; }
+          var g = {
+            b: f.b || tag === 'b' || tag === 'strong' || /^(bold|[6-9]00)$/.test(st.fontWeight || ''),
+            i: f.i || tag === 'i' || tag === 'em' || st.fontStyle === 'italic',
+            s: f.s || tag === 's' || tag === 'strike' || tag === 'del' || /line-through/.test(st.textDecoration || st.textDecorationLine || '')
+          };
+          walk(n, g, el);
+        });
+      }
+      walk(ed, { b: false, i: false, s: false }, null);
+      return out.map(T.lineText).join('\n').replace(/\n+$/, '');
+    }
+    function lines() { return Array.prototype.slice.call(ed.children); }
+    // Keep every child a line, and number the numbered ones.
+    function renumber() {
+      var stray = Array.prototype.some.call(ed.childNodes, function (n) { return !(n.nodeType === 1 && n.localName === 'div'); });
+      if (stray) {
+        var at = caret(), keep = Array.prototype.slice.call(ed.childNodes), line = null;
+        keep.forEach(function (n) {
+          if (n.nodeType === 1 && n.localName === 'div') { line = null; return; }
+          if (!line) { line = document.createElement('div'); line.className = 'std-line'; line.dataset.k = 'p'; line.dataset.lv = 0; ed.insertBefore(line, n); }
+          line.appendChild(n);
+        });
+        if (at) place(at);
+      }
+      if (!ed.children.length) ed.appendChild(lineEl(null));
+      var c = [];
+      lines().forEach(function (d) {
+        d.classList.add('std-line');
+        var k = d.dataset.k === 'b' || d.dataset.k === 'n' ? d.dataset.k : 'p', lv = Math.max(0, Math.min(MAXLV, +d.dataset.lv || 0));
+        d.dataset.k = k; d.dataset.lv = lv;
+        if (k === 'n') {
+          c.length = lv + 1;
+          for (var i = 0; i < lv; i++) c[i] = c[i] || 0;
+          c[lv] = (c[lv] || 0) + 1;
+          var path = c.filter(function (n) { return n > 0; });
+          d.dataset.n = path.join('.') + (path.length === 1 ? '.' : '');
+        } else {
+          delete d.dataset.n;
+          if (d.textContent.trim() || k === 'b') c.length = Math.min(c.length, k === 'b' ? lv + 1 : lv);
+        }
+      });
+    }
+    function lineOf(node) { while (node && node.parentNode !== ed) node = node.parentNode; return node && node.parentNode === ed ? node : null; }
+    // The caret as (line, characters into it), which survives rebuilding the box.
+    function caret() {
+      var sel = getSelection();
+      if (!sel.rangeCount || !ed.contains(sel.anchorNode)) return null;
+      var r = sel.getRangeAt(0), l = lineOf(r.startContainer);
+      if (!l) return { line: 0, off: 0 };
+      var pre = document.createRange(); pre.selectNodeContents(l); pre.setEnd(r.startContainer, r.startOffset);
+      return { line: lines().indexOf(l), off: pre.toString().length };
+    }
+    function place(at) {
+      var ls = lines(), l = ls[Math.max(0, Math.min(at.line, ls.length - 1))];
+      if (!l) return;
+      var left = at.off, tw = document.createTreeWalker(l, NodeFilter.SHOW_TEXT), n, r = document.createRange();
+      r.setStart(l, 0);
+      while ((n = tw.nextNode())) { if (left <= n.nodeValue.length) { r.setStart(n, left); break; } left -= n.nodeValue.length; r.setStart(n, n.nodeValue.length); }
+      r.collapse(true);
+      var sel = getSelection(); sel.removeAllRanges(); sel.addRange(r);
+    }
+    function picked() {
+      var sel = getSelection();
+      if (!sel.rangeCount || !ed.contains(sel.anchorNode)) return [];
+      var r = sel.getRangeAt(0), a = lineOf(r.startContainer), b = lineOf(r.endContainer), ls = lines();
+      if (!a || !b) return [];
+      return ls.slice(ls.indexOf(a), ls.indexOf(b) + 1);
+    }
+
+    // Undo and Redo: snapshots, a typing run (to 600 ms of quiet) as one step.
+    var undo = [], redo = [], last = null, timer = 0;
+    function snap() { return { html: ed.innerHTML, at: caret() }; }
+    function settle() { clearTimeout(timer); timer = 0; last = snap(); }
+    function restore(x) { ed.innerHTML = x.html; renumber(); if (x.at) place(x.at); }
+    function step(from, to) {
+      if (timer) settle();
+      if (!from.length) return;
+      to.push(last); restore(from.pop()); last = snap(); state();
+    }
+    function lineOp(fn) {
+      if (timer) settle();
+      var at = caret(); undo.push(last); redo = [];
+      fn(); renumber();
+      if (at) place(at);
+      last = snap(); state();
+    }
+    function setKind(k) {
+      lineOp(function () {
+        var ls = picked(), all = ls.length && ls.every(function (l) { return l.dataset.k === k; });
+        ls.forEach(function (l) { l.dataset.k = all ? 'p' : k; });
+      });
+    }
+    function shift(by, listsOnly) {
+      var ls = picked();
+      if (listsOnly && !ls.some(function (l) { return l.dataset.k !== 'p'; })) return false;
+      lineOp(function () { ls.forEach(function (l) { l.dataset.lv = Math.max(0, Math.min(MAXLV, (+l.dataset.lv || 0) + by)); }); });
+      return true;
+    }
+    function inline(cmd) {
+      ed.focus();
+      document.execCommand('styleWithCSS', false, false);
+      document.execCommand(cmd === 'strike' ? 'strikeThrough' : cmd, false, null);
+    }
+    function act(a) {
+      if (a === 'bold' || a === 'italic' || a === 'strike') inline(a);
+      else if (a === 'b' || a === 'n') setKind(a);
+      else if (a === 'in') shift(1);
+      else if (a === 'out') shift(-1);
+    }
+    // The buttons light up for what's under the caret.
+    function state() {
+      var ls = picked(), on = {};
+      if (ls.length) {
+        try { on.bold = document.queryCommandState('bold'); on.italic = document.queryCommandState('italic'); on.strike = document.queryCommandState('strikeThrough'); } catch (e) { /* not supported: no lights */ }
+        on.b = ls.every(function (l) { return l.dataset.k === 'b'; });
+        on.n = ls.every(function (l) { return l.dataset.k === 'n'; });
+      }
+      Array.prototype.forEach.call(bar.querySelectorAll('[data-rt]'), function (b) {
+        var k = b.dataset.rt;
+        if (k in on || !ls.length) { b.classList.toggle('on', !!on[k]); b.setAttribute('aria-pressed', on[k] ? 'true' : 'false'); }
+      });
+    }
+
+    bar.addEventListener('mousedown', function (e) { if (e.target.closest('[data-rt]')) e.preventDefault(); });   // keep the selection
+    bar.addEventListener('click', function (e) {
+      var b = e.target.closest('[data-rt]');
+      if (!b || ed.getAttribute('contenteditable') !== 'true') return;
+      if (!picked().length) { ed.focus(); place({ line: lines().length - 1, off: 1e9 }); }
+      act(b.dataset.rt); state();
     });
-    return out + (list ? '</ul>' : '');
+    ed.addEventListener('beforeinput', function (e) {
+      if (e.inputType === 'historyUndo') { e.preventDefault(); step(undo, redo); }
+      else if (e.inputType === 'historyRedo') { e.preventDefault(); step(redo, undo); }
+    });
+    ed.addEventListener('input', function () {
+      if (!timer) { undo.push(last); if (undo.length > 200) undo.shift(); redo = []; }
+      clearTimeout(timer); timer = setTimeout(settle, 600);
+      renumber(); state();
+    });
+    ed.addEventListener('keydown', function (e) {
+      var mod = e.ctrlKey || e.metaKey, k = e.key.toLowerCase();
+      if (mod && !e.altKey && k === 'z') { e.preventDefault(); if (e.shiftKey) step(redo, undo); else step(undo, redo); return; }
+      if (mod && !e.altKey && k === 'y') { e.preventDefault(); step(redo, undo); return; }
+      if (mod && !e.shiftKey && (k === 'b' || k === 'i')) { e.preventDefault(); inline(k === 'b' ? 'bold' : 'italic'); state(); return; }
+      if (mod && e.shiftKey && k === 'x') { e.preventDefault(); inline('strike'); state(); return; }
+      if (mod && e.shiftKey && (e.code === 'Digit8' || e.code === 'Digit7')) { e.preventDefault(); setKind(e.code === 'Digit8' ? 'b' : 'n'); return; }
+      if (e.key === 'Tab' && !mod && !e.altKey) { if (shift(e.shiftKey ? -1 : 1, true)) e.preventDefault(); return; }
+      var sel = getSelection(), l = picked();
+      if (l.length !== 1 || !sel.isCollapsed) return;
+      l = l[0];
+      var at = caret();
+      if (e.key === 'Enter' && !e.shiftKey && l.dataset.k !== 'p' && !l.textContent.trim()) {   // an empty list line ends the list
+        e.preventDefault();
+        lineOp(function () { if (+l.dataset.lv > 0) l.dataset.lv = +l.dataset.lv - 1; else l.dataset.k = 'p'; });
+      } else if (e.key === 'Backspace' && at && at.off === 0 && (l.dataset.k !== 'p' || +l.dataset.lv > 0)) {
+        e.preventDefault();
+        lineOp(function () { if (l.dataset.k !== 'p') l.dataset.k = 'p'; else l.dataset.lv = +l.dataset.lv - 1; });
+      } else if (e.key === 'Enter' && e.shiftKey) {   // no line breaks inside a line: a new line, as Enter
+        e.preventDefault(); document.execCommand('insertParagraph', false, null);
+      }
+    });
+    // Text pastes as plain text (pictures go to the window's own paste, which adds them).
+    ed.addEventListener('paste', function (e) {
+      var cd = e.clipboardData;
+      if (!cd || Array.prototype.some.call(cd.items || [], function (x) { return x.kind === 'file'; })) return;
+      var t = cd.getData('text/plain');
+      e.preventDefault(); e.stopPropagation();
+      if (!t) return;
+      t.replace(/\r/g, '').split('\n').forEach(function (part, k) {
+        if (k) document.execCommand('insertParagraph', false, null);
+        if (part) document.execCommand('insertText', false, part);
+      });
+    });
+    ed.addEventListener('drop', function (e) { if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length) return; e.preventDefault(); e.stopPropagation(); });
+    function onSel() { if (document.activeElement === ed) state(); }
+    document.addEventListener('selectionchange', onSel);
+
+    fromText(text || '');
+    last = snap();
+    state();
+    return {
+      el: wrap, box: ed,
+      value: toText,
+      disable: function (off) { ed.setAttribute('contenteditable', off ? 'false' : 'true'); Array.prototype.forEach.call(bar.querySelectorAll('button'), function (b) { b.disabled = !!off; }); },
+      done: function () { clearTimeout(timer); document.removeEventListener('selectionchange', onSel); }
+    };
   }
   function picsHtml(it, cls) {
     return (it.pics || []).map(function (p, k) {
@@ -898,14 +1129,19 @@
     if (itemId && !it) return;
     var newId = it ? it.id : rid(8);
     var kept = it ? it.pics.slice() : [], added = [];
-    var w = sheet('<div class="sheet-head"><h2>' + (it ? 'Edit item' : 'Add item') + '</h2><p>' + esc(deckDef(deckId).title) + '. A line of text is a paragraph; start a line with “- ” for a bullet.</p></div>' +
+    var w = sheet('<div class="sheet-head"><h2>' + (it ? 'Edit item' : 'Add item') + '</h2><p>' + esc(deckDef(deckId).title) + '. Format the text with the buttons under it; Tab and Shift+Tab indent and outdent list lines, numbered 1.1 and 1.1.1 by level.</p></div>' +
       '<div class="sheet-body"><div class="field"><label for="std-title">Title</label><input class="input" id="std-title" maxlength="200" value="' + esc(it ? it.title : '') + '"></div>' +
-      '<div class="field"><label for="std-text">Text</label><textarea class="input" id="std-text" rows="7">' + esc(it ? it.body : '') + '</textarea></div>' +
+      '<div class="field"><span class="field-label" id="std-text-label">Text</span><div id="std-rt"></div></div>' +
       placeFields(d, it) +
       '<div class="field"><span class="field-label">Pictures</span><div class="std-edit-pics" id="std-pics"></div>' +
       '<label class="btn std-add-pic">' + ICON.plus + 'Add pictures<input type="file" accept="image/*" multiple hidden id="std-file"></label> <span class="note">or paste or drop them here</span></div></div>' +
       '<div class="sheet-foot"><span class="std-status note" id="std-status"></span><span class="spacer"></span><button class="btn" data-x="cancel">Cancel</button><button class="btn btn-primary" data-x="save">' + (it ? 'Save' : 'Add') + '</button></div>', 'wide');
     var box = $('#std-pics', w), under = $('#std-under', w), grp = $('#std-group', w);
+    var rt = richText(it ? it.body : '', 'Text');
+    $('#std-rt', w).replaceWith(rt.el);
+    $('#std-text-label', w).addEventListener('click', function () { rt.box.focus(); });
+    var close = w.close;
+    w.close = function () { rt.done(); close(); };
     function placeState() { var p = under.value; grp.disabled = !!p; grp.placeholder = p ? 'Follows the item it’s under' : 'e.g. Copper layers'; }
     under.addEventListener('change', placeState); placeState();
     function drawPics() {
@@ -932,7 +1168,7 @@
     w.addEventListener('drop', function (e) { e.preventDefault(); addFiles(e.dataTransfer && e.dataTransfer.files); });
     $('[data-x="cancel"]', w).onclick = function () { added.forEach(function (p) { URL.revokeObjectURL(p.url); }); w.close(); };
     $('[data-x="save"]', w).onclick = function () {
-      var title = $('#std-title', w).value.trim(), body = $('#std-text', w).value.replace(/\r/g, '').replace(/\s+$/, '');
+      var title = $('#std-title', w).value.trim(), body = rt.value().replace(/\s+$/, '');
       if (!title && !body && !kept.length && !added.length) { $('#std-status', w).textContent = 'Give it a title, some text, or a picture.'; return; }
       var ups = added.map(function (p) { return picRecord(deckId, newId, p); });
       var pics = kept.concat(ups.map(function (u) { return u.rec; }));
@@ -941,6 +1177,7 @@
         : [{ op: 'add', item: { id: newId, title: title, body: body, group: group, parent: parent, pics: pics }, at: after == null ? null : after }];
       w.dataset.busy = '1';
       Array.prototype.forEach.call(w.querySelectorAll('button, input, textarea, select'), function (b) { b.disabled = true; });
+      rt.disable(true);
       $('#std-status', w).textContent = 'Saving…';
       change(deckId, ops, ups.map(function (u) { return u.upload; }), (it ? 'Edit' : 'Add') + ' "' + (title || 'Untitled') + '" in ' + deckDef(deckId).title).then(function () {
         w.close(); toast(it ? 'Saved' : 'Added');
@@ -948,6 +1185,7 @@
       }, function (e) {
         delete w.dataset.busy;
         Array.prototype.forEach.call(w.querySelectorAll('button, input, textarea, select'), function (b) { b.disabled = false; });
+        rt.disable(false);
         placeState();
         $('#std-status', w).textContent = 'Couldn’t save: ' + e.message;
       });
