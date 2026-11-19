@@ -1887,9 +1887,24 @@
     var back = Hm.applyOps(Hm.cleanDeck(null, 'layout-rules-ab12'), [{ op: 'restore', deck: d2 }], 'bo', 'z');
     eq(back.items.map(function (i) { return i.id; }), d2.items.map(function (i) { return i.id; }), 'Undo of Delete section puts every item back');
     location.hash = '#standards/layout-rules-ab12/slides/3';
-    eq(Hm.route(), { deck: 'layout-rules-ab12', slide: 3 }, 'a made section has its own route');
+    eq(Hm.route(), { deck: 'layout-rules-ab12', slide: 3, tree: false, sel: '' }, 'a made section has its own route');
+    location.hash = '#standards/footprints/tree/aaaa1111';
+    eq(Hm.route(), { deck: 'footprints', slide: 0, tree: true, sel: 'aaaa1111' }, 'Tree has its own route, with the item it shows');
     location.hash = '#standards/Bad Id'; eq(Hm.route(), { deck: null }, 'a bad section id is no route');
     history.replaceState(null, '', location.pathname + location.search);
+    // Where items sit (Rows and Tree): a group, and one level of nesting under another item.
+    var placed = Hm.cleanDeck({ items: [{ id: 'aaaa1111', title: 'A', group: '  Copper  ' }, { id: 'bbbb2222', title: 'B', parent: 'aaaa1111', group: '' },
+      { id: 'cccc3333', title: 'C', parent: 'cccc3333' }, { id: 'dddd4444', title: 'D', parent: '../x' }] }, 'footprints');
+    eq(placed.items.map(function (i) { return [i.group || '', i.parent || '']; }), [['Copper', ''], ['', 'aaaa1111'], ['', ''], ['', '']], 'group is trimmed text, parent a good id and not the item itself; both only when set');
+    eq(Object.keys(placed.items[1]).join(','), 'id,title,body,parent,pics,updatedAt,updatedBy', 'an item keeps its keys in stored order');
+    var ol = Hm.outline([{ id: 'p1', title: 'Top layer', group: 'Copper' }, { id: 'p2', title: 'Silkscreen', group: 'Docs' }, { id: 'p3', title: 'Bottom layer', parent: 'p1', group: 'Docs' },
+      { id: 'p4', title: 'Grandchild', parent: 'p3' }, { id: 'p5', title: 'Orphan', parent: 'gone', group: 'Copper' }, { id: 'p6', title: 'Loose' }]);
+    eq(ol.groups.map(function (g) { return [g.name, g.tops.map(function (i) { return i.id; }), g.count]; }), [['Copper', ['p1', 'p5'], 3], ['Docs', ['p2'], 1], ['', ['p4', 'p6'], 2]],
+      'groups come in order; a nested item sits under its parent (the parent’s group wins); a missing or nested parent leaves an item top-level');
+    eq(ol.kids('p1').map(function (i) { return i.id; }), ['p3'], 'a parent lists the items under it');
+    ok(ol.grouped && !Hm.outline([{ id: 'q1', title: 'x' }]).grouped, 'a deck without groups shows plain rows');
+    var gout = X.write({ title: 'Made-up deck', items: [{ title: 'Top layer', body: 'Pads', group: 'Copper layers', pics: [] }, { title: 'Notes', body: 'x', pics: [] }] });
+    eq(X.toItems(await X.read(gout)).slice(1).map(function (i) { return [i.title, i.body, i.group]; }), [['Top layer', 'Pads', 'Copper layers'], ['Notes', 'x', '']], 'an item’s group goes out to .pptx and comes back on import');
     ok(Hm.demoDeck('footprints').items.length > 0 && Hm.demoDeck('schematics').items.length > 0, 'both demo decks have made-up items');
   })();
 

@@ -86,8 +86,13 @@ Pincheck, Loom, and Flasher with the hub's art from `../signoff/assets/tool-art.
 description, a second click opens it) and Internal standards: one tile per section (deck). `config.home.decks`
 (Footprints and Schematics) are built in, always shown, renamed but never deleted; every other `decks/<id>.json`
 in the repo is a section an FTE made with the **+ New section** tile (id: the name's slug and 4 random
-characters; name and optional label; Rename and Delete section on its page, Undo after a delete; 2026-11-19, Chris). A deck is a list of items (title, text, pictures) shown as a list or as slides
-(`#standards/<deck>`, `#standards/<deck>/slides/<n>`). Everyone signed in reads; FTEs add, edit, move, delete
+characters; name and optional label; Rename and Delete section on its page, Undo after a delete; 2026-11-19, Chris). A deck is a list of items (title, text, pictures) shown as **Rows** (one line each, opening in place,
+under folding group headings), **Tree** (groups and nesting on the left, one item on the right), or **Slides**
+(`#standards/<deck>`, `#standards/<deck>/tree[/<item>]`, `#standards/<deck>/slides/<n>`; Chris, 2026-11-19, from
+`lab/standards-views.html`). An item may carry `group` (a heading) and `parent` (another top-level item, one level
+deep; the parent's group wins), set in the Edit window (Group, Under), written only when set; `outline()` in
+`home.js` builds both views from them. A group goes out to .pptx as a small text box named "Signoff group" and
+comes back on import; nesting doesn't. Everyone signed in reads; FTEs add, edit, move, delete
 (with Undo), and import and export .pptx. Not engine files: `assets/home.js`, `home.css`, and `pptx.js` (zip
 in and out without a library: the CSP allows only this site's scripts).
 - **Storage:** the private repo `config.home.repo` (`ee_standards`), `decks/<id>.json` (`signoff.standards/1`)
@@ -96,8 +101,9 @@ in and out without a library: the CSP allows only this site's scripts).
   items stay (Undo puts the item back).
 - **Import:** a slide's title is its title placeholder or its top text box; text and pictures on most slides
   (deck title, footer, logo) and footer placeholders are left out; the first slide starts unticked.
-- **Demo:** two made-up decks in memory (`demoDeck`). Real standards never go in this repo.
-- Tests: the *Home page* block in `tests/test.html` (589 in all).
+- **Demo:** two made-up decks in memory (`demoDeck`, `DEMO`): the lab's Footprints (14 items in four groups, Top and
+  Bottom nested) and Schematics (6), with SVG pictures drawn into PNGs for export. Real standards never go in this repo.
+- Tests: the *Home page* block in `tests/test.html` (596 in all).
 
 ## Releases (2026-11-17, Chris)
 

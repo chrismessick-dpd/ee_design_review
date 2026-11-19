@@ -22,7 +22,8 @@
    copy in a tab is never written back. Pictures of deleted items stay in the repo (Undo puts the item back).
    Nothing is kept in localStorage: decks and pictures live in memory for the page's life.
 
-   Routes: #standards/<deck> (the list), #standards/<deck>/slides/<n> (slide n, from 1).
+   Routes: #standards/<deck> (Rows), #standards/<deck>/tree[/<item>] (Tree), #standards/<deck>/slides/<n> (slide n,
+   from 1). Items may carry group (a heading) and parent (another item, one level); see outline().
 
    window.SignoffHome: mount(el, ctx), reset(), leave(), busy(), and _test (pure helpers for tests/test.html).
    ctx: { demo, fte, login, toast(text, action), goHome(), note }: note is app.js's own HTML (already escaped), the
@@ -75,12 +76,16 @@
     if (d.cat != null && d.cat !== '') out.cat = String(d.cat).slice(0, 40);   // the label over the tile's name; only when set
     if (d.createdAt) out.createdAt = String(d.createdAt);
     out.items =(Array.isArray(d.items) ? d.items : []).filter(function (it) { return it && typeof it === 'object' && /^[a-z0-9]{4,16}$/.test(it.id || ''); }).map(function (it) {
-        return {
-          id: it.id, title: String(it.title || ''), body: String(it.body || ''),
-          pics: (Array.isArray(it.pics) ? it.pics : []).filter(function (p) { return p && /^images\/[a-z0-9-]+\/[a-z0-9-]+\.(png|jpg|gif|webp)$/.test(p.file || ''); })
+        var o = { id: it.id, title: String(it.title || ''), body: String(it.body || '') };
+        // Where it sits (2026-11-19, Chris: Rows and Tree): a group heading, and one level of nesting under another
+        // item. Only written when set.
+        if (it.group != null && String(it.group).trim()) o.group = String(it.group).trim().slice(0, 60);
+        if (/^[a-z0-9]{4,16}$/.test(it.parent || '') && it.parent !== it.id) o.parent = it.parent;
+        return Object.assign(o, {
+          pics:(Array.isArray(it.pics) ? it.pics : []).filter(function (p) { return p && /^images\/[a-z0-9-]+\/[a-z0-9-]+\.(png|jpg|gif|webp)$/.test(p.file || ''); })
             .map(function (p) { return { file: p.file, type: EXT[p.type] ? p.type : 'image/png', w: +p.w || 0, h: +p.h || 0, name: String(p.name || '') }; }),
           updatedAt: String(it.updatedAt || ''), updatedBy: String(it.updatedBy || '')
-        };
+        });
       });
     out.updatedAt = String(d.updatedAt || ''); out.updatedBy = String(d.updatedBy || '');
     return out;
@@ -316,6 +321,13 @@
   }
   function picBytesOf(file) {
     if (picBytes[file]) return Promise.resolve(picBytes[file]);
+    // The demo's made-up pictures are SVG: drawn into a PNG, so an exported demo deck holds real PNGs.
+    if (ctx.demo && /^data:image\/svg/.test(DEMO_PICS[file] || '')) {
+      return new Promise(function (res, rej) { var im = new Image(); im.onload = function () { res(im); }; im.onerror = rej; im.src = DEMO_PICS[file]; }).then(function (im) {
+        var cv = document.createElement('canvas'); cv.width = 800; cv.height = 520; cv.getContext('2d').drawImage(im, 0, 0, 800, 520);
+        return new Promise(function (res) { cv.toBlob(res, 'image/png'); });
+      }).then(function (b) { return b.arrayBuffer(); }).then(function (ab) { return (picBytes[file] = new Uint8Array(ab)); });
+    }
     return picUrl(file).then(function (u) { return picBytes[file] || fetch(u).then(function (r) { return r.arrayBuffer(); }).then(function (ab) { return (picBytes[file] = new Uint8Array(ab)); }); });
   }
   // Fill every <img data-pic> under root.
@@ -352,9 +364,9 @@
   var el = null;
   var pick = null;            // the selected tool tile on the home page
   function route() {
-    var m = /^#standards\/([a-z0-9-]+)(?:\/slides\/(\d+))?$/.exec(location.hash || '');
+    var m = /^#standards\/([a-z0-9-]+)(?:\/slides\/(\d+)|\/(tree)(?:\/([a-z0-9]{4,16}))?)?$/.exec(location.hash || '');
     if (!m || !ID_RE.test(m[1])) return { deck: null };
-    return { deck: m[1], slide: m[2] ? Math.max(1, +m[2]) : 0 };
+    return { deck: m[1], slide: m[2] ? Math.max(1, +m[2]) : 0, tree: !!m[3], sel: m[4] || '' };
   }
   function go(hash, replace) {
     var url = location.pathname + location.search + (hash || '');
@@ -521,6 +533,98 @@
     print: '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M4.5 6V2.5h7V6M4.5 11H3a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v3a1 1 0 0 1-1 1h-1.5M4.5 9h7v4.5h-7z"/></svg>'
   };
 
+  // ── Rows, Tree, and Slides (2026-11-19, Chris: rows and tree from lab/standards-views.html, the old big-card
+  // list dropped) ──
+  // The outline of a deck: groups in the order their first item comes, each with its top-level items, and the
+  // items nested one level under each. An item sits under its parent wherever the parent is (the parent's group
+  // wins); a parent that's missing, itself nested, or the item itself is ignored, so the item is top-level.
+  function outline(items) {
+    var byId = {}, kids = {}, groups = [], at = {};
+    items.forEach(function (it) { byId[it.id] = it; });
+    function par(it) { var p = it.parent && byId[it.parent]; return p && p !== it && !(p.parent && byId[p.parent] && byId[p.parent] !== p) ? p : null; }
+    items.forEach(function (it) { var p = par(it); if (p) (kids[p.id] = kids[p.id] || []).push(it); });
+    items.forEach(function (it) {
+      if (par(it)) return;
+      var g = it.group || '';
+      if (!at[g]) { at[g] = { name: g, tops: [], count: 0 }; groups.push(at[g]); }
+      at[g].tops.push(it); at[g].count += 1 + (kids[it.id] || []).length;
+    });
+    return { groups: groups, grouped: groups.some(function (g) { return g.name; }), kids: function (id) { return kids[id] || []; }, parent: par, byId: byId };
+  }
+  function groupName(g) { return g.name || 'Other'; }
+  function firstLine(text) { var l = String(text || '').split('\n').filter(function (x) { return x.trim(); })[0] || ''; return l.replace(/^[-•*]\s+/, ''); }
+  // "Documentation › Top overlay": where an item sits.
+  function crumbOf(o, it) {
+    var p = o.parent(it), g = (p || it).group;
+    return [g].concat(p ? [p.title || 'Untitled'] : []).filter(Boolean);
+  }
+  function crumbHtml(parts) { return parts.length ? '<span class="std-crumb">' + parts.map(esc).join('<span class="std-sep" aria-hidden="true">›</span>') + '</span>' : ''; }
+  var CHEV = '<svg class="std-chev" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 4l4 4-4 4"/></svg>';
+  var rowOpen = {}, shut = {}, treeSel = {};   // per page life: open rows, folded groups and tree nodes, the tree's pick
+  function mainHtml(it, n) {
+    return '<div class="std-item-main' + (it.pics.length ? '' : ' no-pic') + '"><div class="std-body">' + (bodyHtml(it.body) || '<p class="note">No text.</p>') + '</div>' +
+      (it.pics.length ? '<div class="std-item-pics">' + it.pics.map(function (p) { return '<button class="std-pic-btn" data-std-go="' + n + '" title="Show as a slide">' + picsHtml({ title: it.title, pics: [p] }, 'std-item-pic') + '</button>'; }).join('') + '</div>' : '') + '</div>';
+  }
+  function itemActs(items, it, i) {
+    if (!ctx.fte) return '';
+    return '<span class="std-acts"><button class="icon-btn" data-std-move="' + esc(it.id) + '" data-by="-1" title="Move up"' + (i ? '' : ' disabled') + '>' + ICON.up + '</button>' +
+      '<button class="icon-btn" data-std-move="' + esc(it.id) + '" data-by="1" title="Move down"' + (i < items.length - 1 ? '' : ' disabled') + '>' + ICON.down + '</button>' +
+      '<button class="icon-btn" data-std-edit="' + esc(it.id) + '" title="Edit">' + ICON.edit + '</button>' +
+      '<button class="icon-btn" data-std-del="' + esc(it.id) + '" title="Delete">' + ICON.del + '</button></span>';
+  }
+  function thumb(it) {
+    return it.pics.length ? '<img class="std-thumbnail" data-pic="' + esc(it.pics[0].file) + '" alt="" width="72" height="47" loading="lazy">' : '<span class="std-thumbnail none" aria-hidden="true">Text</span>';
+  }
+  function rowHtml(deckId, items, it, child) {
+    var i = items.indexOf(it), open = !!rowOpen[deckId + '|' + it.id];
+    return '<li class="std-li' + (open ? ' open' : '') + (child ? ' child' : '') + '">' +
+      '<button class="std-row" data-std-open="' + esc(it.id) + '" aria-expanded="' + open + '">' + CHEV + '<span class="std-n">' + (i + 1) + '</span>' +
+      '<span class="std-row-text"><span class="std-row-title">' + esc(it.title || 'Untitled') + '</span><span class="std-row-first">' + esc(firstLine(it.body)) + '</span></span>' + thumb(it) + '</button>' +
+      '<div class="std-row-detail"' + (open ? '' : ' hidden') + '>' + mainHtml(it, i + 1) + (ctx.fte ? '<div class="std-row-acts">' + itemActs(items, it, i) + '</div>' : '') + '</div></li>';
+  }
+  function rowsView(deckId, items) {
+    var o = outline(items);
+    var tools = '<div class="std-tools"><button class="btn btn-plain" data-std-all="1">Expand all</button><button class="btn btn-plain" data-std-all="0">Collapse all</button></div>';
+    var list = function (g) { return '<ol class="std-rows card">' + g.tops.map(function (it) { return rowHtml(deckId, items, it) + o.kids(it.id).map(function (k) { return rowHtml(deckId, items, k, true); }).join(''); }).join('') + '</ol>'; };
+    if (!o.grouped) return tools + list(o.groups[0]);
+    return tools + o.groups.map(function (g) {
+      var k = deckId + '|g|' + g.name, s = !!shut[k];
+      return '<section class="std-group' + (s ? ' shut' : '') + '"><button class="std-group-head" data-std-group="' + esc(g.name) + '" aria-expanded="' + !s + '">' + CHEV +
+        '<span class="std-group-name">' + esc(groupName(g)) + '</span><span class="home-count">' + g.count + '</span></button>' + (s ? '' : list(g)) + '</section>';
+    }).join('');
+  }
+  function treeView(deckId, items, r) {
+    var o = outline(items);
+    var sel = (r.sel && o.byId[r.sel]) || o.byId[treeSel[deckId]] || items[0];
+    treeSel[deckId] = sel.id;
+    var selP = o.parent(sel), selG = (selP || sel).group || '';
+    function node(it, depth) {
+      var ks = o.kids(it.id), s = !!shut[deckId + '|i|' + it.id] && !(selP && selP.id === it.id), on = it.id === sel.id;
+      return '<li role="none"><button class="std-node' + (on ? ' on' : '') + '" role="treeitem" data-std-sel="' + esc(it.id) + '" aria-level="' + depth + '"' +
+        (ks.length ? ' aria-expanded="' + !s + '"' : '') + ' aria-selected="' + on + '" tabindex="' + (on ? 0 : -1) + '" style="--d:' + depth + '">' +
+        '<span class="std-twisty"' + (ks.length ? ' data-std-twist="' + esc(it.id) + '"' : '') + '>' + (ks.length ? CHEV : '') + '</span>' +
+        '<span class="std-node-n">' + (items.indexOf(it) + 1) + '</span><span class="std-node-t">' + esc(it.title || 'Untitled') + '</span></button>' +
+        (ks.length && !s ? '<ul role="group">' + ks.map(function (c) { return node(c, depth + 1); }).join('') + '</ul>' : '') + '</li>';
+    }
+    var nav = '<nav class="std-tree-nav card" aria-label="Items"><ul role="tree">' + (o.grouped ? o.groups.map(function (g) {
+      var s = !!shut[deckId + '|g|' + g.name] && selG !== g.name;
+      return '<li role="none"><button class="std-node std-node-group" role="treeitem" data-std-group="' + esc(g.name) + '" aria-level="1" aria-expanded="' + !s + '" tabindex="-1" style="--d:1">' +
+        '<span class="std-twisty">' + CHEV + '</span><span class="std-node-t">' + esc(groupName(g)) + '</span><span class="home-count">' + g.count + '</span></button>' +
+        (s ? '' : '<ul role="group">' + g.tops.map(function (it) { return node(it, 2); }).join('') + '</ul>') + '</li>';
+    }).join('') : o.groups[0].tops.map(function (it) { return node(it, 1); }).join('')) + '</ul></nav>';
+    var i = items.indexOf(sel), ks = o.kids(sel.id);
+    var pane = '<article class="std-pane card" aria-live="polite">' +
+      '<button class="btn btn-plain std-pane-back" data-std="tree">' + ICON.back + 'All items</button>' +
+      '<div class="std-pane-crumb">' + crumbHtml(crumbOf(o, sel)) + '</div>' +
+      '<div class="std-item-head"><span class="std-n">' + (i + 1) + '</span><h3>' + esc(sel.title || 'Untitled') + '</h3>' + itemActs(items, sel, i) + '</div>' + mainHtml(sel, i + 1) +
+      (ks.length || selP ? '<div class="std-related">' + (selP ? '<span class="note">Part of</span><button class="chip accent" data-std-sel="' + esc(selP.id) + '">' + esc(selP.title || 'Untitled') + '</button>' : '') +
+        (ks.length ? '<span class="note">Inside it</span>' + ks.map(function (c) { return '<button class="chip accent" data-std-sel="' + esc(c.id) + '">' + esc(c.title || 'Untitled') + '</button>'; }).join('') : '') + '</div>' : '') +
+      '<div class="std-pane-foot"><button class="btn" data-std-sel="' + (items[i - 1] ? esc(items[i - 1].id) : '') + '"' + (i > 0 ? '' : ' disabled') + '>' + ICON.back + 'Previous</button>' +
+      '<span class="std-counter">' + (i + 1) + ' / ' + items.length + '</span>' +
+      '<button class="btn" data-std-sel="' + (items[i + 1] ? esc(items[i + 1].id) : '') + '"' + (i < items.length - 1 ? '' : ' disabled') + '>Next' + ICON.next + '</button></div></article>';
+    return '<div class="std-tree' + (r.sel ? ' show-detail' : '') + '">' + nav + pane + '</div>';
+  }
+
   function deckPage(r) {
     var s = decks[r.deck] || {};
     if (!s.deck && !s.error && !s.missing && !s.loading) load(r.deck).then(draw, draw);
@@ -534,39 +638,35 @@
         : s.missing ? '<div class="std-empty"><p>This section isn’t there. It may have been deleted.</p><button class="btn" data-std="home">Back to Home</button></div>'
         : '<div class="std-empty"><p>Loading…</p></div>') + '</div>';
     }
-    var d = s.deck, items = d.items, slides = !!r.slide && items.length > 0;
+    var d = s.deck, items = d.items, has = items.length > 0;
+    var view = has && r.slide ? 'slides' : has && r.tree ? 'tree' : 'rows';
     var sub = items.length + ' item' + (items.length === 1 ? '' : 's') + (d.updatedAt ? ' · updated ' + esc(relTime(d.updatedAt)) + (d.updatedBy ? ' by ' + esc(d.updatedBy) : '') : '');
-    var bar = '<div class="std-bar"><div class="seg" role="tablist"><button class="' + (slides ? '' : 'on') + '" data-std="list">List</button><button class="' + (slides ? 'on' : '') + '" data-std="slides"' + (items.length ? '' : ' disabled') + '>Slides</button></div>' +
+    var tab = function (v, label) { return '<button role="tab" aria-selected="' + (view === v) + '" class="' + (view === v ? 'on' : '') + '" data-std="' + v + '"' + (has || v === 'rows' ? '' : ' disabled') + '>' + label + '</button>'; };
+    var bar = '<div class="std-bar"><div class="seg" role="tablist" aria-label="View">' + tab('rows', 'Rows') + tab('tree', 'Tree') + tab('slides', 'Slides') + '</div>' +
       '<span class="std-spacer"></span>' +
       (ctx.fte ? '<button class="btn" data-std="add">' + ICON.plus + '<span>Add item</span></button><button class="btn" data-std="import">' + ICON.imp + '<span>Import .pptx</span></button>' : '') +
-      '<button class="btn" data-std="export"' + (items.length ? '' : ' disabled') + '>' + ICON.exp + '<span>Export .pptx</span></button>' +
-      '<button class="btn" data-std="print"' + (items.length ? '' : ' disabled') + '>' + ICON.print + '<span>Print</span></button></div>';
-    var html = '<div class="page std-page' + (slides ? ' std-wide' : '') + '">' + head + '<div class="page-sub std-sub">' + sub + '</div>' + bar;
-    if (!items.length) {
+      '<button class="btn" data-std="export"' + (has ? '' : ' disabled') + '>' + ICON.exp + '<span>Export .pptx</span></button>' +
+      '<button class="btn" data-std="print"' + (has ? '' : ' disabled') + '>' + ICON.print + '<span>Print</span></button></div>';
+    var html = '<div class="page std-page' + (view === 'rows' ? '' : ' std-wide') + '">' + head + '<div class="page-sub std-sub">' + sub + '</div>' + bar;
+    if (!has) {
       html += '<div class="std-empty"><p>Nothing here yet.</p>' + (ctx.fte ? '<p class="note">Add an item by hand, or import the slides of a PowerPoint deck.</p><button class="btn btn-primary" data-std="add">' + ICON.plus + 'Add item</button> <button class="btn" data-std="import">' + ICON.imp + 'Import .pptx</button>' : '') + '</div>';
-    } else if (slides) {
-      var n = Math.min(r.slide, items.length), it = items[n - 1];
+    } else if (view === 'slides') {
+      var o = outline(items), n = Math.min(r.slide, items.length), it = items[n - 1];
       html += '<div class="std-slides"><nav class="std-rail" aria-label="Slides">' + items.map(function (x, i) {
-        return '<button class="std-thumb' + (i === n - 1 ? ' on' : '') + '" data-std-go="' + (i + 1) + '"><span class="std-thumb-n">' + (i + 1) + '</span><span class="std-thumb-t">' + esc(x.title || 'Untitled') + '</span></button>';
+        return '<button class="std-thumb' + (i === n - 1 ? ' on' : '') + (o.parent(x) ? ' child' : '') + '" data-std-go="' + (i + 1) + '"><span class="std-thumb-n">' + (i + 1) + '</span><span class="std-thumb-t">' + esc(x.title || 'Untitled') + '</span></button>';
       }).join('') + '</nav>' +
         '<div class="std-stage-wrap"><div class="std-stage" tabindex="-1">' +
-        '<div class="std-slide' + (it.pics.length ? '' : ' no-pic') + '"><div class="std-slide-text"><h2>' + esc(it.title || 'Untitled') + '</h2><div class="std-body">' + bodyHtml(it.body) + '</div></div>' +
+        '<div class="std-slide' + (it.pics.length ? '' : ' no-pic') + '"><div class="std-slide-text">' + crumbHtml(crumbOf(o, it)) + '<h2>' + esc(it.title || 'Untitled') + '</h2><div class="std-body">' + bodyHtml(it.body) + '</div></div>' +
         (it.pics.length ? '<div class="std-slide-pics n' + Math.min(it.pics.length, 4) + '">' + picsHtml(it, 'std-slide-pic') + '</div>' : '') + '</div>' +
         '<button class="std-nav prev" data-std-go="' + (n - 1) + '"' + (n > 1 ? '' : ' disabled') + ' aria-label="Previous">' + ICON.back + '</button>' +
         '<button class="std-nav next" data-std-go="' + (n + 1) + '"' + (n < items.length ? '' : ' disabled') + ' aria-label="Next">' + ICON.next + '</button></div>' +
         '<div class="std-stage-foot"><span class="std-counter">' + n + ' / ' + items.length + '</span><span class="std-spacer"></span>' +
         (ctx.fte ? '<button class="btn btn-plain" data-std-edit="' + esc(it.id) + '">' + ICON.edit + 'Edit</button>' : '') +
         '<button class="btn btn-plain" data-std="full">' + ICON.full + 'Full screen</button></div></div></div>';
+    } else if (view === 'tree') {
+      html += treeView(r.deck, items, r);
     } else {
-      html += '<ol class="std-list">' + items.map(function (it, i) {
-        return '<li class="std-item card" data-item="' + esc(it.id) + '"><div class="std-item-head"><span class="std-n">' + (i + 1) + '</span><h3>' + esc(it.title || 'Untitled') + '</h3>' +
-          (ctx.fte ? '<span class="std-acts"><button class="icon-btn" data-std-move="' + esc(it.id) + '" data-by="-1" title="Move up"' + (i ? '' : ' disabled') + '>' + ICON.up + '</button>' +
-            '<button class="icon-btn" data-std-move="' + esc(it.id) + '" data-by="1" title="Move down"' + (i < items.length - 1 ? '' : ' disabled') + '>' + ICON.down + '</button>' +
-            '<button class="icon-btn" data-std-edit="' + esc(it.id) + '" title="Edit">' + ICON.edit + '</button>' +
-            '<button class="icon-btn" data-std-del="' + esc(it.id) + '" title="Delete">' + ICON.del + '</button></span>' : '') + '</div>' +
-          '<div class="std-item-main' + (it.pics.length ? '' : ' no-pic') + '"><div class="std-body">' + (bodyHtml(it.body) || '<p class="note">No text.</p>') + '</div>' +
-          (it.pics.length ? '<div class="std-item-pics">' + it.pics.map(function (p, k) { return '<button class="std-pic-btn" data-std-go="' + (i + 1) + '" title="Show as a slide">' + picsHtml({ title: it.title, pics: [p] }, 'std-item-pic') + '</button>'; }).join('') + '</div>' : '') + '</div></li>';
-      }).join('') + '</ol>';
+      html += rowsView(r.deck, items);
     }
     return html + '</div>';
   }
@@ -576,7 +676,8 @@
     function on(sel, fn) { Array.prototype.forEach.call(el.querySelectorAll(sel), function (b) { b.addEventListener('click', function (e) { e.preventDefault(); fn(b, e); }); }); }
     on('[data-std="home"]', function () { go(''); });
     on('[data-std="retry"]', function () { decks[id] = {}; load(id).then(draw, draw); draw(); });
-    on('[data-std="list"]', function () { go('#standards/' + id); });
+    on('[data-std="rows"]', function () { go('#standards/' + id); });
+    on('[data-std="tree"]', function () { go('#standards/' + id + '/tree', r.tree); });
     on('[data-std="slides"]', function () { go('#standards/' + id + '/slides/1'); });
     on('[data-std-go]', function (b) { var n = +b.getAttribute('data-std-go'); if (n >= 1 && n <= items.length) go('#standards/' + id + '/slides/' + n, !!r.slide); });
     on('[data-std="add"]', function () { editor(id, null, r.slide ? r.slide : null); });
@@ -589,9 +690,57 @@
     on('[data-std="rename"]', function () { sectionSheet(id); });
     on('[data-std="delsec"]', function () { deleteSection(id); });
     on('[data-std="full"]', function () { var st = el.querySelector('.std-stage-wrap'); if (st && st.requestFullscreen) st.requestFullscreen().catch(function () {}); });
+    // Rows: a row opens in place, without a redraw, so the page stays where it is.
+    on('[data-std-open]', function (b) {
+      var k = id + '|' + b.getAttribute('data-std-open'), open = !rowOpen[k]; rowOpen[k] = open;
+      b.setAttribute('aria-expanded', open); b.parentNode.classList.toggle('open', open); b.nextElementSibling.hidden = !open;
+      if (open) fillPics(b.nextElementSibling);
+    });
+    on('[data-std-all]', function (b) {
+      var o = b.getAttribute('data-std-all') === '1';
+      items.forEach(function (it) { rowOpen[id + '|' + it.id] = o; });
+      if (o) Object.keys(shut).forEach(function (k) { if (k.indexOf(id + '|') === 0) delete shut[k]; });
+      draw();
+    });
+    on('[data-std-group]', function (b) { var k = id + '|g|' + b.getAttribute('data-std-group'); shut[k] = !shut[k]; draw(); if (r.tree) { var g = el.querySelector('.std-node-group[data-std-group="' + CSS.escape(b.getAttribute('data-std-group')) + '"]'); if (g) g.focus(); } });
+    // Tree: a node picks its item (its twisty folds it); on a phone the item shows, with All items to go back.
+    on('[data-std-sel]', function (b, e) {
+      var tw = e.target.closest('[data-std-twist]');
+      if (tw) { var k = id + '|i|' + tw.getAttribute('data-std-twist'); shut[k] = !shut[k]; draw(); focusNode(); return; }
+      var s = b.getAttribute('data-std-sel'); if (!s) return;
+      treeSel[id] = s; go('#standards/' + id + '/tree/' + s, true);
+      if (narrowPage()) { var p = el.querySelector('.std-pane'); if (p) p.scrollIntoView({ block: 'start' }); } else focusNode();
+    });
     var rail = el.querySelector('.std-thumb.on');
     if (rail) rail.scrollIntoView({ block: 'nearest' });
   }
+  function narrowPage() { return !!(window.matchMedia && window.matchMedia('(max-width: 600px)').matches); }
+  function focusNode() { var b = el && el.querySelector('.std-node.on'); if (b) b.focus({ preventScroll: true }); }
+
+  // The tree's keys: up and down move, left folds or goes to the parent, right unfolds.
+  document.addEventListener('keydown', function (e) {
+    var t = e.target && e.target.closest && e.target.closest('.std-node'); if (!t || !el || !el.contains(t)) return;
+    var id = route().deck; if (!id) return;
+    var nodes = Array.prototype.slice.call(el.querySelectorAll('.std-node')), i = nodes.indexOf(t);
+    var pickNode = function (n) {
+      if (!n) return; e.preventDefault();
+      if (n.getAttribute('data-std-sel')) { treeSel[id] = n.getAttribute('data-std-sel'); go('#standards/' + id + '/tree/' + treeSel[id], true); focusNode(); } else n.focus();
+    };
+    if (e.key === 'ArrowDown') pickNode(nodes[i + 1]);
+    else if (e.key === 'ArrowUp') pickNode(nodes[i - 1]);
+    else if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+      var right = e.key === 'ArrowRight', g = t.getAttribute('data-std-group'), sel = t.getAttribute('data-std-sel');
+      var key = g != null ? id + '|g|' + g : (t.querySelector('[data-std-twist]') ? id + '|i|' + sel : null);
+      if (key && t.getAttribute('aria-expanded') === String(!right)) {
+        e.preventDefault(); shut[key] = !right; draw();
+        var again = g != null ? el.querySelector('.std-node-group[data-std-group="' + CSS.escape(g) + '"]') : el.querySelector('.std-node.on');
+        if (again) again.focus();
+      } else if (!right && sel) {
+        var it = decks[id] && decks[id].deck && decks[id].deck.items.filter(function (x) { return x.id === sel; })[0];
+        if (it && it.parent) pickNode(el.querySelector('.std-node[data-std-sel="' + CSS.escape(it.parent) + '"]'));
+      }
+    }
+  });
 
   // ← and → step through slides (not while typing, and not under a sheet).
   document.addEventListener('keydown', function (e) {
@@ -690,7 +839,23 @@
     return w;
   }
 
-  // Add (itemId null) or edit an item: title, text, and pictures (pick, drop, or paste).
+  // Where an item sits, in the Edit window: a group (typed, or one the deck already has) and, one level deep, the
+  // item it's under (which then decides its group). An item with items under it stays top-level.
+  function placeFields(d, it) {
+    var names = [];
+    d.items.forEach(function (x) { if (x.group && names.indexOf(x.group) < 0) names.push(x.group); });
+    var hasKids = it && d.items.some(function (x) { return x.parent === it.id; });
+    var tops = d.items.filter(function (x) { return (!it || x.id !== it.id) && !x.parent; });
+    return '<div class="std-place"><div class="field"><label for="std-group">Group <span class="note">(optional)</span></label>' +
+      '<input class="input" id="std-group" maxlength="60" list="std-groups" value="' + esc(it && it.group || '') + '">' +
+      '<datalist id="std-groups">' + names.map(function (n) { return '<option value="' + esc(n) + '">'; }).join('') + '</datalist></div>' +
+      '<div class="field"><label for="std-under">Under</label><select class="input" id="std-under"' + (hasKids ? ' disabled' : '') + '>' +
+      '<option value="">Nothing: a top-level item</option>' + tops.map(function (x) {
+        return '<option value="' + esc(x.id) + '"' + (it && it.parent === x.id ? ' selected' : '') + '>' + (d.items.indexOf(x) + 1) + '. ' + esc(x.title || 'Untitled') + '</option>';
+      }).join('') + '</select>' + (hasKids ? '<p class="note">Items sit under this one, so it stays top-level.</p>' : '') + '</div></div>';
+  }
+
+  // Add (itemId null) or edit an item: title, text, where it sits, and pictures (pick, drop, or paste).
   function editor(deckId, itemId, after) {
     var d = decks[deckId].deck, it = itemId ? d.items.filter(function (x) { return x.id === itemId; })[0] : null;
     if (itemId && !it) return;
@@ -699,10 +864,13 @@
     var w = sheet('<div class="sheet-head"><h2>' + (it ? 'Edit item' : 'Add item') + '</h2><p>' + esc(deckDef(deckId).title) + '. A line of text is a paragraph; start a line with “- ” for a bullet.</p></div>' +
       '<div class="sheet-body"><div class="field"><label for="std-title">Title</label><input class="input" id="std-title" maxlength="200" value="' + esc(it ? it.title : '') + '"></div>' +
       '<div class="field"><label for="std-text">Text</label><textarea class="input" id="std-text" rows="7">' + esc(it ? it.body : '') + '</textarea></div>' +
+      placeFields(d, it) +
       '<div class="field"><span class="field-label">Pictures</span><div class="std-edit-pics" id="std-pics"></div>' +
       '<label class="btn std-add-pic">' + ICON.plus + 'Add pictures<input type="file" accept="image/*" multiple hidden id="std-file"></label> <span class="note">or paste or drop them here</span></div></div>' +
       '<div class="sheet-foot"><span class="std-status note" id="std-status"></span><span class="spacer"></span><button class="btn" data-x="cancel">Cancel</button><button class="btn btn-primary" data-x="save">' + (it ? 'Save' : 'Add') + '</button></div>', 'wide');
-    var box = $('#std-pics', w);
+    var box = $('#std-pics', w), under = $('#std-under', w), grp = $('#std-group', w);
+    function placeState() { var p = under.value; grp.disabled = !!p; grp.placeholder = p ? 'Follows the item it’s under' : 'e.g. Copper layers'; }
+    under.addEventListener('change', placeState); placeState();
     function drawPics() {
       box.innerHTML = kept.map(function (p, k) { return '<figure><img data-pic="' + esc(p.file) + '" alt=""><button class="icon-btn" data-k="' + k + '" title="Remove">×</button></figure>'; }).join('') +
         added.map(function (p, k) { return '<figure><img src="' + p.url + '" alt=""><button class="icon-btn" data-a="' + k + '" title="Remove">×</button></figure>'; }).join('') ||
@@ -731,17 +899,19 @@
       if (!title && !body && !kept.length && !added.length) { $('#std-status', w).textContent = 'Give it a title, some text, or a picture.'; return; }
       var ups = added.map(function (p) { return picRecord(deckId, newId, p); });
       var pics = kept.concat(ups.map(function (u) { return u.rec; }));
-      var ops = it ? [{ op: 'update', id: it.id, fields: { title: title, body: body, pics: pics } }]
-        : [{ op: 'add', item: { id: newId, title: title, body: body, pics: pics }, at: after == null ? null : after }];
+      var parent = under.value, group = parent ? '' : grp.value.trim();
+      var ops = it ? [{ op: 'update', id: it.id, fields: { title: title, body: body, group: group, parent: parent, pics: pics } }]
+        : [{ op: 'add', item: { id: newId, title: title, body: body, group: group, parent: parent, pics: pics }, at: after == null ? null : after }];
       w.dataset.busy = '1';
-      Array.prototype.forEach.call(w.querySelectorAll('button, input, textarea'), function (b) { b.disabled = true; });
+      Array.prototype.forEach.call(w.querySelectorAll('button, input, textarea, select'), function (b) { b.disabled = true; });
       $('#std-status', w).textContent = 'Saving…';
       change(deckId, ops, ups.map(function (u) { return u.upload; }), (it ? 'Edit' : 'Add') + ' "' + (title || 'Untitled') + '" in ' + deckDef(deckId).title).then(function () {
         w.close(); toast(it ? 'Saved' : 'Added');
         if (!it && after != null) go('#standards/' + deckId + '/slides/' + (after + 1), true); else draw();
       }, function (e) {
         delete w.dataset.busy;
-        Array.prototype.forEach.call(w.querySelectorAll('button, input, textarea'), function (b) { b.disabled = false; });
+        Array.prototype.forEach.call(w.querySelectorAll('button, input, textarea, select'), function (b) { b.disabled = false; });
+        placeState();
         $('#std-status', w).textContent = 'Couldn’t save: ' + e.message;
       });
     };
@@ -775,7 +945,7 @@
     w.querySelector('.sheet').innerHTML = '<div class="sheet-head"><h2>Import ' + esc(fileName) + '</h2><p>' + items.length + ' slides. Each ticked slide becomes an item; edit a title here or after.</p>' + left + '</div>' +
       '<div class="sheet-body"><ol class="std-imp">' + items.map(function (it, i) {
         return '<li class="std-imp-row' + (it.skip ? ' off' : '') + '"><label class="std-imp-tick"><input type="checkbox" data-i="' + i + '"' + (it.skip ? '' : ' checked') + '><span>Slide ' + it.slide + '</span></label>' +
-          '<div class="std-imp-main"><input class="input std-imp-title" data-t="' + i + '" value="' + esc(it.title) + '" placeholder="Title (none found on this slide)">' +
+          '<div class="std-imp-main">' + (it.group ? crumbHtml([it.group]) : '') + '<input class="input std-imp-title" data-t="' + i + '" value="' + esc(it.title) + '" placeholder="Title (none found on this slide)">' +
           '<div class="std-body">' + (bodyHtml(it.body) || '<p class="note">No text.</p>') + '</div>' +
           (it.unshown ? '<p class="note">' + it.unshown + ' picture' + (it.unshown === 1 ? '' : 's') + ' in a format a browser can’t show (EMF, WMF, or TIFF) left out.</p>' : '') + '</div>' +
           '<div class="std-imp-pics">' + it.ready.map(function (p) { return '<img src="' + p.url + '" alt="">'; }).join('') + '</div></li>';
@@ -799,7 +969,7 @@
         var it = items[+c.dataset.i], itemId = rid(8);
         var u = it.ready.map(function (p) { return picRecord(deckId, itemId, p); });
         ups = ups.concat(u.map(function (x) { return x.upload; }));
-        chosen.push({ id: itemId, title: $('[data-t="' + c.dataset.i + '"]', w).value.trim(), body: it.body, pics: u.map(function (x) { return x.rec; }) });
+        chosen.push({ id: itemId, title: $('[data-t="' + c.dataset.i + '"]', w).value.trim(), body: it.body, group: it.group || '', pics: u.map(function (x) { return x.rec; }) });
       });
       var replace = modeSel.value === 'replace' && d.items.length;
       if (replace && !w.dataset.sure) { w.dataset.sure = '1'; $('#std-status', w).textContent = 'This deletes the ' + d.items.length + ' items there now. Click Import again to go ahead.'; return; }
@@ -818,11 +988,11 @@
   }
 
   function exportDeck(deckId, btn) {
-    var d = decks[deckId].deck, def = deckDef(deckId);
+    var d = decks[deckId].deck, def = deckDef(deckId), o = outline(d.items);
     btn.disabled = true;
     Promise.all(d.items.map(function (it) {
       return Promise.all(it.pics.map(function (p) { return picBytesOf(p.file).then(function (b) { return { bytes: b, type: p.type, w: p.w, h: p.h }; }, function () { return null; }); }))
-        .then(function (ps) { return { title: it.title, body: it.body, pics: ps.filter(Boolean) }; });
+        .then(function (ps) { var p = o.parent(it); return { title: it.title, body: it.body, group: (p || it).group || '', pics: ps.filter(Boolean) }; });
     })).then(function (items) {
       var bytes = window.SignoffPptx.write({ title: def.title, sub: 'Dovetail · Signoff EE · ' + new Date().toISOString().slice(0, 10), items: items });
       var a = document.createElement('a');
@@ -837,11 +1007,11 @@
   // Print: one item per landscape page, in EE's report overlay (#report; its Print and Close buttons are app.js's,
   // and EE's print CSS prints only the report).
   function printDeck(deckId) {
-    var d = decks[deckId].deck, def = deckDef(deckId), r = document.getElementById('report');
+    var d = decks[deckId].deck, def = deckDef(deckId), r = document.getElementById('report'), o = outline(d.items);
     if (!r) return;
     r.innerHTML = '<div class="report-bar"><b>' + esc(def.title) + '</b><div style="display:flex;gap:8px"><button class="btn" data-act="close-report">Close</button><button class="btn btn-primary" data-act="print">Print / Save PDF</button></div></div>' +
       d.items.map(function (it, i) {
-        return '<div class="paper std-paper"><div class="std-paper-head"><span>' + esc(def.title) + '</span><span>' + (i + 1) + ' / ' + d.items.length + '</span></div>' +
+        return '<div class="paper std-paper"><div class="std-paper-head"><span>' + [def.title].concat(crumbOf(o, it)).map(esc).join(' · ') + '</span><span>' + (i + 1) + ' / ' + d.items.length + '</span></div>' +
           '<h2>' + esc(it.title || 'Untitled') + '</h2><div class="std-paper-main' + (it.pics.length ? '' : ' no-pic') + '"><div class="std-body">' + bodyHtml(it.body) + '</div>' +
           (it.pics.length ? '<div class="std-paper-pics">' + picsHtml(it, 'std-paper-pic').replace(/ loading="lazy"/g, '') + '</div>' : '') + '</div></div>';
       }).join('');
@@ -849,36 +1019,72 @@
     fillPics(r);
   }
 
-  // ── Demo: two made-up decks (never the team's real standards) ──
+  // ── Demo: two made-up decks with groups and nesting (from lab/standards-views.html; never the team's real
+  // standards) ──
   function svgUrl(svg) { return 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg); }
-  function pads(highlight) {
-    var c = { cu: '#d9534f', silk: '#f2d24b', crt: '#3fbf5f', asm: '#4f9de0' }[highlight] || '#d9534f';
-    return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 260"><rect width="400" height="260" fill="#2b2b2e"/>' +
-      '<rect x="60" y="40" width="280" height="180" fill="none" stroke="' + (highlight === 'crt' ? c : '#555') + '" stroke-width="' + (highlight === 'crt' ? 4 : 2) + '" stroke-dasharray="8 5"/>' +
-      '<rect x="110" y="70" width="180" height="120" fill="none" stroke="' + (highlight === 'asm' ? c : '#555') + '" stroke-width="' + (highlight === 'asm' ? 4 : 2) + '"/>' +
-      '<rect x="90" y="85" width="60" height="90" rx="6" fill="' + (highlight === 'cu' ? c : '#6b6b70') + '"/><rect x="250" y="85" width="60" height="90" rx="6" fill="' + (highlight === 'cu' ? c : '#6b6b70') + '"/>' +
-      '<path d="M100 60h200M100 200h200" stroke="' + (highlight === 'silk' ? c : '#555') + '" stroke-width="' + (highlight === 'silk' ? 6 : 3) + '" stroke-linecap="round"/>' +
-      '<path d="M188 130h24M200 118v24" stroke="#ddd" stroke-width="2"/></svg>';
+  // A made-up footprint with one layer picked out (fixed light backgrounds, so it reads in dark mode too); side
+  // 'b' draws it mirrored, as the bottom is seen from the top.
+  var LAYER = { cu: '#c47a2c', mask: '#2f8a52', paste: '#7d848c', asm: '#3b6fd8', crt: '#b33fa6', silk: '#222222', origin: '#d0342c' };
+  function fp(hl, side) {
+    var dim = function (k) { return hl === k || hl === 'all' ? 1 : 0.18; };
+    var rows = function (f) { return [85, 125, 165].map(f).join(''); };
+    var g = '<rect width="400" height="260" fill="#f4f2ea"/>' +
+      '<g transform="' + (side === 'b' ? 'translate(400 0) scale(-1 1)' : '') + '">' +
+      '<rect x="70" y="40" width="260" height="180" rx="6" fill="none" stroke="' + LAYER.crt + '" stroke-width="' + (hl === 'crt' ? 4 : 2) + '" stroke-dasharray="8 6" opacity="' + dim('crt') + '"/>' +
+      '<rect x="130" y="70" width="140" height="120" fill="none" stroke="' + LAYER.asm + '" stroke-width="' + (hl === 'asm' ? 4 : 2) + '" opacity="' + dim('asm') + '"/>' +
+      '<g opacity="' + dim('mask') + '">' + rows(function (y) { return '<rect x="88" y="' + (y - 4) + '" width="54" height="30" rx="4" fill="' + LAYER.mask + '"/><rect x="258" y="' + (y - 4) + '" width="54" height="30" rx="4" fill="' + LAYER.mask + '"/>'; }) + '</g>' +
+      '<g opacity="' + dim('cu') + '">' + rows(function (y) { return '<rect x="92" y="' + y + '" width="46" height="22" rx="3" fill="' + LAYER.cu + '"/><rect x="262" y="' + y + '" width="46" height="22" rx="3" fill="' + LAYER.cu + '"/>'; }) + '</g>' +
+      '<g opacity="' + dim('paste') + '">' + rows(function (y) { return '<rect x="97" y="' + (y + 3) + '" width="36" height="16" fill="' + LAYER.paste + '"/><rect x="267" y="' + (y + 3) + '" width="36" height="16" fill="' + LAYER.paste + '"/>'; }) + '</g>' +
+      '<g opacity="' + dim('silk') + '" stroke="' + LAYER.silk + '" stroke-width="' + (hl === 'silk' ? 5 : 3) + '" stroke-linecap="round" fill="none"><path d="M150 55h100M150 205h100"/><circle cx="80" cy="70" r="5" fill="' + LAYER.silk + '"/></g>' +
+      '<g opacity="' + dim('origin') + '" stroke="' + LAYER.origin + '" stroke-width="3"><path d="M200 114v32M184 130h32"/><circle cx="200" cy="130" r="9" fill="none"/></g></g>' +
+      (side ? '<text x="16" y="248" font-family="sans-serif" font-size="15" font-weight="700" fill="#555">' + (side === 'b' ? 'BOTTOM (seen from top)' : 'TOP') + '</text>' : '');
+    return svgUrl('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 260">' + g + '</svg>');
   }
-  var DEMO_PICS = {
-    'images/footprints/demo1-a.png': svgUrl(pads('cu')), 'images/footprints/demo2-a.png': svgUrl(pads('asm')),
-    'images/footprints/demo3-a.png': svgUrl(pads('crt')), 'images/footprints/demo4-a.png': svgUrl(pads('silk')),
-    'images/schematics/demo6-a.png': svgUrl('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 260"><rect width="400" height="260" fill="#f7f4ea"/><rect x="150" y="60" width="100" height="140" fill="#fff6d6" stroke="#7a1c14" stroke-width="3"/><path d="M110 90h40M110 130h40M110 170h40M250 90h40M250 130h40" stroke="#7a1c14" stroke-width="3"/><g font-family="sans-serif" font-size="14" fill="#333"><text x="40" y="95">VDD</text><text x="40" y="135">SDA</text><text x="40" y="175">GND</text><text x="300" y="95">INT</text><text x="300" y="135">SCL</text></g></svg>')
+  // A made-up schematic detail.
+  function sch(kind) {
+    var ink = '#7a1c14', body;
+    if (kind === 'symbol') body = '<rect x="150" y="60" width="100" height="140" fill="#fff6d6" stroke="' + ink + '" stroke-width="3"/><path d="M110 90h40M110 130h40M110 170h40M250 90h40M250 130h40" stroke="' + ink + '" stroke-width="3"/><g font-family="sans-serif" font-size="14" fill="#333"><text x="62" y="95">VDD</text><text x="62" y="135">SDA</text><text x="62" y="175">GND</text><text x="300" y="95">INT_N</text><text x="300" y="135">SCL</text></g>';
+    else if (kind === 'net') body = '<path d="M60 130h120M220 130h120" stroke="' + ink + '" stroke-width="3"/><path d="M180 116h40l12 14-12 14h-40z" fill="#fff6d6" stroke="' + ink + '" stroke-width="2.5"/><text x="70" y="118" font-family="sans-serif" font-size="16" fill="#333">RESET_N</text><text x="232" y="118" font-family="sans-serif" font-size="16" fill="#333">to sheet 4</text>';
+    else if (kind === 'power') body = '<path d="M200 70v120" stroke="' + ink + '" stroke-width="3"/><path d="M176 70h48" stroke="' + ink + '" stroke-width="4"/><text x="176" y="58" font-family="sans-serif" font-size="16" fill="#333">3V3</text><path d="M180 190h40M187 199h26M194 208h12" stroke="' + ink + '" stroke-width="3"/>';
+    else if (kind === 'title') body = '<rect x="30" y="30" width="340" height="200" fill="#fff" stroke="#333" stroke-width="2"/><rect x="210" y="170" width="160" height="60" fill="#fff6d6" stroke="#333" stroke-width="2"/><path d="M210 190h160M290 190v40" stroke="#333" stroke-width="1.5"/><g font-family="sans-serif" font-size="11" fill="#333"><text x="216" y="184">Title: Main PCBA</text><text x="216" y="206">Rev B.1</text><text x="296" y="206">Sheet 3/9</text></g>';
+    else body = [0, 1, 2].map(function (i) { return '<rect x="' + (40 + i * 115) + '" y="80" width="95" height="100" rx="6" fill="#fff6d6" stroke="' + ink + '" stroke-width="2.5"/><text x="' + (78 + i * 115) + '" y="137" font-family="sans-serif" font-size="22" fill="#333">' + (i + 1) + '</text>'; }).join('') + '<path d="M135 130h20M250 130h20" stroke="' + ink + '" stroke-width="3"/>';
+    return svgUrl('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 260"><rect width="400" height="260" fill="#f7f4ea"/>' + body + '</svg>');
+  }
+  // [id, group, parent, title, body, picture]
+  var DEMO = {
+    footprints: { title: 'Footprints', items: [
+      ['labf01aa', 'Copper', '', 'Copper layers', 'Pads go on the outer copper layers only.\nUse the bottom layer only for parts with pads on both sides.\n- Name the layers Top and Bottom, never 1 and 2', fp('cu')],
+      ['labf02aa', 'Copper', 'labf01aa', 'Top copper', 'Every SMD pad sits on Top.\nPad sizes come from IPC-7351 nominal density unless the datasheet gives its own land pattern.', fp('cu', 't')],
+      ['labf03aa', 'Copper', 'labf01aa', 'Bottom copper', 'Mirror the pads, never redraw them.\nCheck pin 1 again after mirroring.', fp('cu', 'b')],
+      ['labf04aa', 'Copper', '', 'Thermal pads', 'Split a thermal pad over 4 mm (157 mil) into a grid of windows.\n- Vias in pad: 0.3 mm (12 mil) drill, tented or filled\n- At least four vias, evenly spaced', null],
+      ['labf05aa', 'Mask & paste', '', 'Solder mask', 'Mask openings are 0.05 mm (2 mil) larger than the pad on every side.\nKeep a mask web of at least 0.1 mm (4 mil) between pads.', fp('mask')],
+      ['labf06aa', 'Mask & paste', '', 'Paste layers', 'Paste openings follow the pad at 1:1 unless noted.\nReduce paste on thermal pads to 50% to 70% of the area.', fp('paste')],
+      ['labf07aa', 'Mask & paste', 'labf06aa', 'Top paste', 'Every SMD pad on Top has paste, test points excepted.', fp('paste', 't')],
+      ['labf08aa', 'Mask & paste', 'labf06aa', 'Bottom paste', 'Only for parts reflowed on the bottom side.\nLeave it empty for wave-soldered parts.', fp('paste', 'b')],
+      ['labf09aa', 'Documentation', '', 'Assembly', 'Draw the body outline and the designator on the assembly layer, in 0.1 mm (4 mil) lines.\n- Designator centered on the body\n- Text 1 mm (39 mil) high', fp('asm')],
+      ['labf10aa', 'Documentation', '', 'Courtyard', 'Draw the courtyard around pads and body with 0.25 mm (10 mil) clearance.\nUse one closed shape per footprint.', fp('crt')],
+      ['labf11aa', 'Documentation', '', 'Silkscreen', 'Keep silkscreen off pads and out of the assembly outline.\n- Mark pin 1\n- Mark polarity on diodes, LEDs, and polarized capacitors', fp('silk')],
+      ['labf12aa', 'Documentation', 'labf11aa', 'Top silkscreen', 'Line width 0.15 mm (6 mil), never under 0.12 mm (5 mil).', fp('silk', 't')],
+      ['labf13aa', 'Documentation', 'labf11aa', 'Bottom silkscreen', 'Mirrored text only. Check it reads right when the board is turned over.', fp('silk', 'b')],
+      ['labf14aa', 'Origin', '', 'Origin and pin 1', 'Put the origin at the center of the pads, not the body.\nPin 1 is at the top left when the part is at 0°.\n- Rotation follows IPC-7351 zero orientation', fp('origin')]
+    ] },
+    schematics: { title: 'Schematics', items: [
+      ['labs01aa', 'Sheets', '', 'Sheet order', 'Sheet 1 is the block diagram and revision history.\nPower comes next, then each subcircuit in signal-flow order.\n- One subcircuit per sheet where it fits', sch('order')],
+      ['labs02aa', 'Sheets', '', 'Title block', 'Fill in title, revision, sheet number, and date on every sheet.\nThe revision matches the fab package.', sch('title')],
+      ['labs03aa', 'Symbols and nets', '', 'Symbols', 'Power pins on the left or top, grounds at the bottom.\nInputs on the left, outputs on the right.', sch('symbol')],
+      ['labs04aa', 'Symbols and nets', '', 'Net names', 'Name every net that leaves a sheet.\n- Active-low nets end in _N\n- Rails name their voltage: 3V3, 5V0, and 12V0', sch('net')],
+      ['labs05aa', 'Symbols and nets', 'labs04aa', 'Off-sheet ports', 'Ports say which sheet they go to.\nUse the same name on both ends.', null],
+      ['labs06aa', 'Symbols and nets', '', 'Power flags', 'Power symbols point up, grounds down.\nEvery rail has one source, marked with its regulator.', sch('power')]
+    ] }
   };
+  // The demo pictures by their made-up file names, as a real deck stores them (images/<deck>/<item>-a.png).
+  var DEMO_PICS = {};
+  Object.keys(DEMO).forEach(function (k) { DEMO[k].items.forEach(function (x) { if (x[5]) DEMO_PICS['images/' + k + '/' + x[0] + '-a.png'] = x[5]; }); });
   function demoDeck(id) {
-    var at = new Date(Date.now() - 3 * 86400000).toISOString(), by = 'Demo engineer';
-    var mk = function (n, title, body, pic) { return { id: 'demo' + n + 'aa', title: title, body: body, pics: pic ? [{ file: pic, type: 'image/png', w: 400, h: 260, name: '' }] : [], updatedAt: at, updatedBy: by }; };
-    if (id === 'schematics') return cleanDeck({ title: 'Schematics', updatedAt: at, updatedBy: by, items: [
-      mk(5, 'Sheet order', 'Sheet 1 is the block diagram and revision history.\nPower comes next, then each subcircuit in signal-flow order.\n- One subcircuit per sheet where it fits'),
-      mk(6, 'Symbols', 'Power pins on the left or top, grounds at the bottom.\nInputs on the left, outputs on the right.', 'images/schematics/demo6-a.png'),
-      mk(7, 'Net names', 'Name every net that leaves a sheet.\n- Active-low nets end in _N\n- Rails name their voltage: 3V3, 5V0')
-    ] }, id);
-    return cleanDeck({ title: 'Footprints', updatedAt: at, updatedBy: by, items: [
-      mk(1, 'Copper', 'The top copper layer holds the pads.\nUse the bottom layer only for parts with pads on both sides.', 'images/footprints/demo1-a.png'),
-      mk(2, 'Assembly', 'Draw the body outline and the designator on the assembly layer, in 0.1 mm (4 mil) lines.', 'images/footprints/demo2-a.png'),
-      mk(3, 'Courtyard', 'Draw the courtyard around pads and body with its clearance, and a cross at the part’s origin.', 'images/footprints/demo3-a.png'),
-      mk(4, 'Silkscreen', 'Keep silkscreen off pads and out of the assembly outline.\n- Mark pin 1\n- Mark polarity on diodes and polarized capacitors', 'images/footprints/demo4-a.png')
-    ] }, id);
+    var at = new Date(Date.now() - 3 * 86400000).toISOString(), by = 'Demo engineer', src = DEMO[id] || { title: id, items: [] };
+    return cleanDeck({ title: src.title, updatedAt: at, updatedBy: by, items: src.items.map(function (x) {
+      return { id: x[0], group: x[1], parent: x[2], title: x[3], body: x[4], pics: x[5] ? [{ file: 'images/' + id + '/' + x[0] + '-a.png', type: 'image/png', w: 400, h: 260, name: '' }] : [], updatedAt: at, updatedBy: by };
+    }) }, id);
   }
 
   window.SignoffHome = {
@@ -888,6 +1094,6 @@
     // A board opened: forget a deck route, so Back and reload don't land in it.
     leave: function () { if (route().deck) history.replaceState(null, '', location.pathname + location.search); el = null; },
     busy: function () { return pending > 0 || !!document.querySelector('.std-wrap'); },
-    _test: { cleanDeck: cleanDeck, applyOps: applyOps, bodyHtml: bodyHtml, route: route, demoDeck: demoDeck, slug: slug, deckPaths: deckPaths }
+    _test: { outline: outline, cleanDeck: cleanDeck, applyOps: applyOps, bodyHtml: bodyHtml, route: route, demoDeck: demoDeck, slug: slug, deckPaths: deckPaths }
   };
 })();

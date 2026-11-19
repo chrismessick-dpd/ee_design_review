@@ -6,9 +6,10 @@
      zip(entries)            -> Uint8Array   entries: [{ path, bytes | text }], stored (no compression), CRC-32 checked
      read(bytes)             -> Promise<{ cx, cy, slides: [{ n, texts: [...], pics: [...] }] }>
      toItems(deck)           -> [{ slide, title, body, pics: [{ name, type, bytes }], skip }]
-     write({ title, sub, items: [{ title, body, pics: [{ bytes, type, w, h }] }] }) -> Uint8Array (.pptx)
+     write({ title, sub, items: [{ title, body, group?, pics: [{ bytes, type, w, h }] }] }) -> Uint8Array (.pptx)
 
-   Import: a slide's item title is its title placeholder, or (decks exported from Google Slides have no
+   An item's group goes out as a small text box named "Signoff group" over its title, and comes back in as the
+   item's group (nesting under another item doesn't go out). Import: a slide's item title is its title placeholder, or (decks exported from Google Slides have no
    placeholders) its first text box from the top; the other text boxes are the body, a line per paragraph,
    "- " before bulleted ones. Text that repeats on most slides (the deck's own title, a footer, a
    classification line) and footer, date, and slide-number placeholders are left out, and so is a picture
@@ -163,7 +164,8 @@
             if (!body) return;
             var paras = kids(body, 'p').map(function (p) { var t = paraText(p).trim(); return t ? (bulleted(p) ? '- ' : '') + t : ''; }).filter(Boolean);
             if (!paras.length) return;
-            texts.push({ text: paras.join('\n'), paras: paras, ph: ph ? (ph.getAttribute('type') || 'body') : '', b: box(c) });
+            var nv = all(c, 'cNvPr')[0];
+            texts.push({ text: paras.join('\n'), paras: paras, ph: ph ? (ph.getAttribute('type') || 'body') : '', name: nv ? nv.getAttribute('name') || '' : '', b: box(c) });
           } else if (c.localName === 'pic') {
             var blip = all(c, 'blip')[0], rel = blip && srels[attrR(blip, 'embed')];
             if (rel && !rel.external) picRefs.push({ name: rel.target, b: box(c) });
@@ -178,6 +180,8 @@
 
   function byPlace(a, b) { return (a.b.y - b.b.y) || (a.b.x - b.b.x); }
   var FOOT = { ftr: 1, dt: 1, sldNum: 1 };
+  // The name of the small text box over a slide's title that holds an item's group (see write); import reads it back.
+  var GROUP = 'Signoff group';
   var SHOWN = { 'image/png': 1, 'image/jpeg': 1, 'image/gif': 1, 'image/webp': 1, 'image/bmp': 1, 'image/svg+xml': 1 };
 
   function toItems(deck) {
@@ -185,14 +189,15 @@
     var seen = {}, shown = {}, picSeen = {};
     slides.forEach(function (s) {
       var once = {};
-      s.texts.forEach(function (t) { var k = t.text.toLowerCase(); if (!once[k]) { once[k] = 1; seen[k] = (seen[k] || 0) + 1; shown[k] = shown[k] || t.text; } });
+      s.texts.forEach(function (t) { if (t.name === GROUP) return; var k = t.text.toLowerCase(); if (!once[k]) { once[k] = 1; seen[k] = (seen[k] || 0) + 1; shown[k] = shown[k] || t.text; } });
       var ponce = {};
       s.pics.forEach(function (p) { if (!ponce[p.path]) { ponce[p.path] = 1; picSeen[p.path] = (picSeen[p.path] || 0) + 1; } });
     });
     var repeated = function (t) { return many && seen[t.text.toLowerCase()] >= need; };
     var common = Object.keys(seen).filter(function (k) { return many && seen[k] >= need; }).map(function (k) { return shown[k]; });
     return slides.map(function (s) {
-      var texts = s.texts.filter(function (t) { return !FOOT[t.ph] && !repeated(t); }).sort(byPlace);
+      var grp = s.texts.filter(function (t) { return t.name === GROUP; })[0];   // a Signoff export's group label
+      var texts = s.texts.filter(function (t) { return t.name !== GROUP && !FOOT[t.ph] && !repeated(t); }).sort(byPlace);
       var titled = texts.filter(function (t) { return t.ph === 'title' || t.ph === 'ctrTitle'; })[0] || texts[0];
       var lines = [], title = '';
       if (titled) {
@@ -203,7 +208,7 @@
       var pics = s.pics.filter(function (p) { return !(many && picSeen[p.path] >= need) && SHOWN[p.type]; }).sort(byPlace)
         .map(function (p) { return { name: p.name, type: p.type, bytes: p.bytes }; });
       var skipped = s.pics.length - pics.length;
-      return { slide: s.n, title: title, body: lines.join('\n'), pics: pics, unshown: s.pics.filter(function (p) { return !SHOWN[p.type]; }).length, logos: skipped };
+      return { slide: s.n, title: title, body: lines.join('\n'), group: grp ? grp.paras[0] : '', pics: pics, unshown: s.pics.filter(function (p) { return !SHOWN[p.type]; }).length, logos: skipped };
     }).map(function (it, i) { it.skip = i === 0 && slides.length > 1; it.common = common; return it; });   // the first slide is usually the deck's title
   }
 
@@ -267,6 +272,7 @@
     (deck.items || []).forEach(function (it, i) {
       var shapes = [], rels = [], id = 2;
       var pics = (it.pics || []).filter(function (p) { return EXT[p.type]; });
+      if (it.group) shapes.push(textBox(id++, GROUP, { x: M, y: 137160, cx: W - 2 * M, cy: 228600 }, [it.group], 1100, true, '00727F'));
       shapes.push(textBox(id++, 'Title', { x: M, y: 365760, cx: W - 2 * M, cy: 640080 }, [it.title || 'Untitled'], 2800, true, '1D1D1F'));
       var top = 1188720, bottom = H - M;
       var bodyBox = pics.length ? { x: M, y: top, cx: 4206240, cy: bottom - top } : { x: M, y: top, cx: W - 2 * M, cy: bottom - top };
