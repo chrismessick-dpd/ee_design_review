@@ -6,13 +6,17 @@
    - Tools: Fabcheck, Pincheck, Loom, and Flasher as tiles with the hub's art (../signoff/assets/tool-art.svg).
      A click shows the tool's description under the tiles; a click on the selected tile, a double-click, or
      Open goes there.
-   - Internal standards: one tile per deck (config.home.decks: Footprints, Schematics). A deck is a list of
-     items, each a title, text, and pictures, shown as a list or as slides. FTEs add, edit, move, and delete
-     items, and import and export decks as .pptx (assets/pptx.js); everyone signed in reads them.
+   - Internal standards: one tile per section (a deck). config.home.decks are built in (Footprints, Schematics:
+     always shown, renamed but never deleted); every other decks/<id>.json in the repo is a section FTEs made with
+     the + New section tile (id: the name's slug and 4 random characters), and can rename or delete (Undo puts it
+     back). A deck is a list of items, each a title, text, and pictures, shown as a list or as slides. FTEs add,
+     edit, move, and delete items, and import and export decks as .pptx (assets/pptx.js); everyone signed in
+     reads them.
 
    Storage: the private repo config.home.repo, one file per deck, decks/<id>.json
-     { format: 'signoff.standards/1', id, title, items: [{ id, title, body, pics: [{ file, type, w, h, name }],
-       updatedAt, updatedBy }], updatedAt, updatedBy }
+     { format: 'signoff.standards/1', id, title, cat?, createdAt?, items: [{ id, title, body,
+       pics: [{ file, type, w, h, name }], updatedAt, updatedBy }], updatedAt, updatedBy }
+   (cat: the label over the tile's name; createdAt: when a made section was made, which orders the tiles)
    and pictures at images/<deck>/<item>-<pic>.<ext>. Every change reads the branch head, applies that one change
    to the deck as stored there, and commits with force: false, retrying on a race (as Tickets does), so a stale
    copy in a tab is never written back. Pictures of deleted items stay in the repo (Undo puts the item back).
@@ -41,7 +45,16 @@
   function get(store, k) { try { return store.getItem(k); } catch (e) { return null; } }
   function b64ToBytes(b64) { var bin = atob(String(b64).replace(/\s/g, '')), a = new Uint8Array(bin.length); for (var i = 0; i < bin.length; i++) a[i] = bin.charCodeAt(i); return a; }
   function bytesToB64(bytes) { var s = ''; for (var i = 0; i < bytes.length; i += 0x8000) s += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000)); return btoa(s); }
-  function deckDef(id) { return DECKS.filter(function (d) { return d.id === id; })[0] || null; }
+  // A section's id: letters, digits, and dashes (built-ins are config's; new ones are the title's slug + 4 random).
+  var ID_RE = /^[a-z0-9][a-z0-9-]{0,47}$/;
+  function builtIn(id) { return DECKS.filter(function (d) { return d.id === id; })[0] || null; }
+  // What a tile and a page call a section: the deck file's title and label win over config's (a rename).
+  function deckDef(id) {
+    var b = builtIn(id), s = decks[id], d = s && s.deck;
+    if (!b && !d) return null;
+    return { id: id, title: (d && d.title) || (b && b.title) || id, cat: (d && d.cat != null ? d.cat : (b && b.cat)) || '', builtIn: !!b };
+  }
+  function slug(t) { return String(t || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 32) || 'section'; }
   function relTime(iso) {
     var t = Date.parse(iso); if (!t) return '';
     var s = Math.round((Date.now() - t) / 1000);
@@ -57,19 +70,20 @@
   // A deck as stored, tidied: unknown fields dropped, text kept as text, pictures only under images/.
   function cleanDeck(d, id) {
     d = d && typeof d === 'object' ? d : {};
-    var def = deckDef(id) || {};
-    return {
-      format: FORMAT, id: id, title: String(d.title || def.title || id),
-      items: (Array.isArray(d.items) ? d.items : []).filter(function (it) { return it && typeof it === 'object' && /^[a-z0-9]{4,16}$/.test(it.id || ''); }).map(function (it) {
+    var def = builtIn(id) || {};
+    var out = { format: FORMAT, id: id, title: String(d.title || def.title || id).slice(0, 120) };
+    if (d.cat != null && d.cat !== '') out.cat = String(d.cat).slice(0, 40);   // the label over the tile's name; only when set
+    if (d.createdAt) out.createdAt = String(d.createdAt);
+    out.items =(Array.isArray(d.items) ? d.items : []).filter(function (it) { return it && typeof it === 'object' && /^[a-z0-9]{4,16}$/.test(it.id || ''); }).map(function (it) {
         return {
           id: it.id, title: String(it.title || ''), body: String(it.body || ''),
           pics: (Array.isArray(it.pics) ? it.pics : []).filter(function (p) { return p && /^images\/[a-z0-9-]+\/[a-z0-9-]+\.(png|jpg|gif|webp)$/.test(p.file || ''); })
             .map(function (p) { return { file: p.file, type: EXT[p.type] ? p.type : 'image/png', w: +p.w || 0, h: +p.h || 0, name: String(p.name || '') }; }),
           updatedAt: String(it.updatedAt || ''), updatedBy: String(it.updatedBy || '')
         };
-      }),
-      updatedAt: String(d.updatedAt || ''), updatedBy: String(d.updatedBy || '')
-    };
+      });
+    out.updatedAt = String(d.updatedAt || ''); out.updatedBy = String(d.updatedBy || '');
+    return out;
   }
   function serialize(d) { return JSON.stringify(d, null, 2) + '\n'; }
 
@@ -83,8 +97,18 @@
       var it = d.items.splice(i, 1)[0], j = Math.max(0, Math.min(d.items.length, i + a.by));
       d.items.splice(j, 0, it);
     },
-    replaceAll: function (d, a) { d.items = a.items.slice(); }
+    replaceAll: function (d, a) { d.items = a.items.slice(); },
+    // A section's own name and label (New section, Rename). On create, the file must not exist yet.
+    meta: function (d, a) {
+      d.title = String(a.title || d.title).slice(0, 120);
+      if (a.cat) d.cat = String(a.cat).slice(0, 40); else delete d.cat;
+      if (a.create && !d.createdAt) d.createdAt = a.at || '';
+    },
+    // Undo of Delete section: the whole deck back as it was.
+    restore: function (d, a) { var s = a.deck; d.title = s.title; if (s.cat) d.cat = s.cat; if (s.createdAt) d.createdAt = s.createdAt; d.items = s.items.slice(); }
   };
+  // Keys in their stored order, whatever order the ops set them in (cleanDeck's).
+  function ordered(d) { return cleanDeck(d, d.id); }
   function applyOps(deck, ops, who, at) {
     ops.forEach(function (o) {
       OPS[o.op](deck, o);
@@ -93,7 +117,7 @@
       (o.items || []).forEach(function (x) { x.updatedAt = at; x.updatedBy = who; });
     });
     deck.updatedAt = at; deck.updatedBy = who;
-    return deck;
+    return ordered(deck);
   }
 
   // ── GitHub (as Tickets does it: signoff/assets/tickets.js) ──
@@ -140,13 +164,17 @@
       blobText[sha] = text; return text;
     });
   }
+  function deckPaths(files) {
+    return Object.keys(files).map(function (p) { var m = /^decks\/([a-z0-9-]+)\.json$/.exec(p); return m && ID_RE.test(m[1]) ? m[1] : null; }).filter(Boolean);
+  }
   function readDeckAt(h, id) {
     var sha = h.files['decks/' + id + '.json'];
-    if (!sha) return Promise.resolve({ deck: cleanDeck(null, id), text: null });
+    if (!sha) return Promise.resolve({ deck: cleanDeck(null, id), text: null, missing: !builtIn(id) });
     return readBlobText(sha).then(function (text) { return { deck: cleanDeck(JSON.parse(text), id), text: text }; });
   }
   function commit(h, changes, message) {
     return Promise.all(changes.map(function (c) {
+      if (c.remove) return { path: c.path, mode: '100644', type: 'blob', sha: null };   // a file taken out of the tree
       var body = c.bytes ? { content: bytesToB64(c.bytes), encoding: 'base64' } : { content: c.text, encoding: 'utf-8' };
       return gh('POST', repo('/git/blobs'), body).then(function (b) { return { path: c.path, mode: '100644', type: 'blob', sha: b.sha }; });
     })).then(function (entries) {
@@ -175,19 +203,55 @@
     var s = decks[id] || (decks[id] = {});
     if (s.loading) return s.loading;
     if (s.deck && !force && Date.now() - s.at < 60000) return Promise.resolve(s.deck);
-    if (ctx.demo) { s.deck = s.deck || demoDeck(id); s.at = Date.now(); return Promise.resolve(s.deck); }
+    if (ctx.demo) {
+      if (!s.deck) { if (builtIn(id)) s.deck = demoDeck(id); else s.missing = true; }
+      s.at = Date.now(); return Promise.resolve(s.deck);
+    }
     s.loading = head().then(function (h) { return readDeckAt(h, id); }).then(function (r) {
-      s.deck = r.deck; s.at = Date.now(); s.error = ''; s.loading = null; return s.deck;
+      s.deck = r.missing ? null : r.deck; s.missing = !!r.missing; s.at = Date.now(); s.error = ''; s.loading = null; return s.deck;
     }, function (e) { s.error = e.message; s.loading = null; throw e; });
     return s.loading;
   }
 
-  // One change: ops applied to the deck at the head, with any new pictures, in one commit.
-  function change(id, ops, pics, message) {
+  // Every section: config's built-ins first (even before their file exists), then each decks/<id>.json in the repo,
+  // oldest first. One head read, then each deck (cached by blob sha).
+  var listing = null;      // { ids, at, error, loading }
+  function sections() {
+    var ids = DECKS.map(function (d) { return d.id; });
+    ((listing && listing.ids) || []).forEach(function (id) { if (ids.indexOf(id) < 0) ids.push(id); });
+    var extra = ids.filter(function (id) { return !builtIn(id) && decks[id] && decks[id].deck; });
+    extra.sort(function (a, b) { var x = decks[a].deck, y = decks[b].deck; return (x.createdAt || '').localeCompare(y.createdAt || '') || x.title.localeCompare(y.title); });
+    return DECKS.map(function (d) { return d.id; }).concat(extra);
+  }
+  function listAll(force) {
+    if (listing && listing.loading) return listing.loading;
+    if (listing && listing.ids && !force && Date.now() - listing.at < 60000) return Promise.resolve(listing.ids);
+    listing = listing || {};
+    if (ctx.demo) {
+      DECKS.forEach(function (d) { load(d.id); });
+      listing.ids = Object.keys(decks).filter(function (id) { return decks[id].deck; }); listing.at = Date.now();
+      return Promise.resolve(listing.ids);
+    }
+    listing.loading = head().then(function (h) {
+      var ids = deckPaths(h.files);
+      DECKS.forEach(function (d) { if (ids.indexOf(d.id) < 0) ids.push(d.id); });
+      return Promise.all(ids.map(function (id) {
+        return readDeckAt(h, id).then(function (r) { decks[id] = { deck: r.missing ? null : r.deck, missing: !!r.missing, at: Date.now() }; });
+      })).then(function () { listing.ids = ids; listing.at = Date.now(); listing.error = ''; listing.loading = null; return ids; });
+    }).catch(function (e) { listing.error = e.message; listing.at = Date.now(); listing.loading = null; throw e; });   // at: no retry loop on every redraw
+    return listing.loading;
+  }
+
+  // One change: ops applied to the deck at the head, with any new pictures, in one commit. opts.create: the deck
+  // file must not exist yet (New section).
+  function change(id, ops, pics, message, opts) {
+    opts = opts || {};
     pending++;
     var at = now();
     if (ctx.demo) {
-      var s = decks[id];
+      var s = decks[id] || (decks[id] = {});
+      if (!s.deck) { s.deck = cleanDeck(null, id); s.missing = false; }
+      if (listing && listing.ids && listing.ids.indexOf(id) < 0) listing.ids.push(id);
       (pics || []).forEach(function (p) { var u = URL.createObjectURL(new Blob([p.bytes], { type: p.type })); picUrls[p.path] = u; picBytes[p.path] = p.bytes; });
       return new Promise(function (res) { setTimeout(res, 150); }).then(function () {
         s.deck = applyOps(clone(s.deck), clone(ops), who(), at); s.at = Date.now();
@@ -198,6 +262,8 @@
     function attempt() {
       return head().then(function (h) {
         return readDeckAt(h, id).then(function (r) {
+          if (opts.create && r.text) throw new Error('A section with that id is already there. Try another name.');
+          if (!opts.create && r.missing) throw new Error('This section was deleted, in another tab or by someone else.');
           var next = applyOps(clone(r.deck), clone(ops), who(), at);
           var changes = (pics || []).map(function (p) { return { path: p.path, bytes: p.bytes }; });
           changes.push({ path: 'decks/' + id + '.json', text: serialize(next) });
@@ -208,8 +274,25 @@
     return attempt().then(function (deck) {
       (pics || []).forEach(function (p) { picBytes[p.path] = p.bytes; picUrls[p.path] = URL.createObjectURL(new Blob([p.bytes], { type: p.type })); });
       decks[id] = { deck: deck, at: Date.now() };
+      if (listing && listing.ids && listing.ids.indexOf(id) < 0) listing.ids.push(id);
       pending--; return deck;
     }, function (e) { pending--; throw e; });
+  }
+
+  // Delete a section (not a built-in): its deck file leaves the tree in one commit. Its pictures stay, so Undo
+  // (change with restore) brings it back whole.
+  function dropDeck(id, message) {
+    pending++;
+    var done = function () { delete decks[id]; if (listing && listing.ids) listing.ids = listing.ids.filter(function (x) { return x !== id; }); pending--; };
+    if (ctx.demo) return new Promise(function (res) { setTimeout(res, 150); }).then(done);
+    var tries = 0;
+    function attempt() {
+      return head().then(function (h) {
+        if (!h.files['decks/' + id + '.json']) return null;   // already gone
+        return commit(h, [{ path: 'decks/' + id + '.json', remove: true }], message);
+      }).catch(function (e) { if (e.race && ++tries < 5) return attempt(); throw e; });
+    }
+    return attempt().then(done, function (e) { pending--; throw e; });
   }
 
   // A picture's URL: blob from the repo (private, so through the API), cached for the page's life.
@@ -270,7 +353,7 @@
   var pick = null;            // the selected tool tile on the home page
   function route() {
     var m = /^#standards\/([a-z0-9-]+)(?:\/slides\/(\d+))?$/.exec(location.hash || '');
-    if (!m || !deckDef(m[1])) return { deck: null };
+    if (!m || !ID_RE.test(m[1])) return { deck: null };
     return { deck: m[1], slide: m[2] ? Math.max(1, +m[2]) : 0 };
   }
   function go(hash, replace) {
@@ -360,17 +443,36 @@
         : '<p class="home-hint">Click a tool to read about it; click it again to open it.</p>') +
       '</section>' +
       '<section class="home-group" aria-labelledby="home-std"><h2 class="home-group-title" id="home-std">Internal standards</h2>' +
-      '<p class="home-hint">How the electrical team draws parts and schematics. ' + (ctx.fte ? 'FTEs can add, edit, and import items.' : 'Read only.') + '</p>' +
-      '<div class="home-tiles">' + DECKS.map(function (d) {
-        var s = decks[d.id], n = s && s.deck ? s.deck.items.length : null;
-        return '<a class="pk-tile home-tile" href="#standards/' + esc(d.id) + '" data-home-deck="' + esc(d.id) + '">' +
-          '<span class="pk-art">' + (DECK_ART[d.id] || DECK_ART.footprints) + '</span><span class="pk-cat">' + esc(d.cat || 'Standards') + '</span>' +
+      '<p class="home-hint">The electrical team’s standards and how-tos. ' + (ctx.fte ? 'FTEs can add sections, and add, edit, and import items.' : 'Read only.') + '</p>' +
+      (listing && listing.error ? '<p class="home-hint">' + esc(listing.error) + '</p>' : '') +
+      '<div class="home-tiles">' + sections().map(function (id) {
+        var d = deckDef(id) || { title: id, cat: '' }, s = decks[id], n = s && s.deck ? s.deck.items.length : null;
+        return '<a class="pk-tile home-tile" href="#standards/' + esc(id) + '" data-home-deck="' + esc(id) + '">' +
+          '<span class="pk-art">' + deckArt(id) + '</span><span class="pk-cat">' + esc(d.cat || 'Standards') + '</span>' +
           '<span class="pk-name">' + esc(d.title) + (n != null ? ' <span class="home-count">' + n + '</span>' : '') + '</span></a>';
-      }).join('') + '</div></section></div>';
+      }).join('') +
+      (ctx.fte ? '<button type="button" class="pk-tile home-tile home-add" data-home="add-section" title="Add a standards section">' +
+        '<span class="pk-art"><svg viewBox="0 0 240 150" aria-hidden="true"><circle cx="120" cy="75" r="30" fill="none" stroke="currentColor" stroke-width="3" stroke-dasharray="6 5"/><path d="M120 60v30M105 75h30" stroke="currentColor" stroke-width="4" stroke-linecap="round"/></svg></span>' +
+        '<span class="pk-cat">Add</span><span class="pk-name">New section</span></button>' : '') +
+      '</div></section></div>';
+  }
+  // A tile's picture: the built-ins' drawings; a new section's first picture, else a stack of pages.
+  function deckArt(id) {
+    if (DECK_ART[id]) return DECK_ART[id];
+    var d = decks[id] && decks[id].deck, first = null;
+    (d ? d.items : []).some(function (it) { return (first = it.pics[0]); });
+    if (first) return '<img class="home-cover" data-pic="' + esc(first.file) + '" alt="">';
+    return '<svg viewBox="0 0 240 150" aria-hidden="true"><ellipse cx="120" cy="130" rx="70" ry="6" fill="#000" style="opacity:var(--art-shadow)"/>' +
+      '<rect x="88" y="30" width="80" height="94" rx="5" fill="var(--art-iso-l)" stroke="var(--art-edge)" stroke-opacity=".4"/>' +
+      '<rect x="78" y="24" width="80" height="94" rx="5" fill="var(--art-iso-t)" stroke="var(--art-edge)" stroke-opacity=".5"/>' +
+      '<g fill="var(--art-edge)" fill-opacity=".45"><rect x="90" y="38" width="44" height="6" rx="3"/><rect x="90" y="54" width="56" height="4" rx="2"/><rect x="90" y="64" width="50" height="4" rx="2"/><rect x="90" y="74" width="54" height="4" rx="2"/></g>' +
+      '<rect x="90" y="86" width="56" height="22" rx="3" fill="#00727f" fill-opacity=".75"/></svg>';
   }
 
   function wireHome() {
-    DECKS.forEach(function (d) { if (!decks[d.id] || !decks[d.id].deck) load(d.id).then(function () { if (!route().deck) draw(); }, function () {}); });
+    if (!listing || Date.now() - (listing.at || 0) > 60000) listAll().then(function () { if (!route().deck) draw(); }, function () { if (!route().deck) draw(); });
+    var add = el.querySelector('[data-home="add-section"]');
+    if (add) add.addEventListener('click', function () { sectionSheet(null); });
     Array.prototype.forEach.call(el.querySelectorAll('[data-home-tool]'), function (a) {
       a.addEventListener('click', function (e) {
         if (e.metaKey || e.ctrlKey || e.shiftKey || e.button) return;
@@ -420,12 +522,17 @@
   };
 
   function deckPage(r) {
-    var def = deckDef(r.deck), s = decks[r.deck] || {};
-    if (!s.deck && !s.error) load(r.deck).then(draw, draw);
-    var head = '<div class="std-crumbs"><a class="btn btn-plain std-back" href="#" data-std="home">' + ICON.back + 'Home</a></div>' +
-      '<div class="eyebrow">Internal standards · ' + esc(def.cat || '') + '</div><h1 class="page-title">' + esc(def.title) + '</h1>';
+    var s = decks[r.deck] || {};
+    if (!s.deck && !s.error && !s.missing && !s.loading) load(r.deck).then(draw, draw);
+    var def = deckDef(r.deck) || { title: s.missing ? 'Section not found' : 'Loading…', cat: '' };
+    var acts = ctx.fte && s.deck ? '<span class="std-spacer"></span><button class="btn btn-plain" data-std="rename">' + ICON.edit + 'Rename</button>' +
+      (def.builtIn ? '' : '<button class="btn btn-plain" data-std="delsec">' + ICON.del + 'Delete section</button>') : '';
+    var head = '<div class="std-crumbs"><a class="btn btn-plain std-back" href="#" data-std="home">' + ICON.back + 'Home</a>' + acts + '</div>' +
+      '<div class="eyebrow">Internal standards' + (def.cat ? ' · ' + esc(def.cat) : '') + '</div><h1 class="page-title">' + esc(def.title) + '</h1>';
     if (!s.deck) {
-      return '<div class="page std-page">' + head + (s.error ? '<div class="std-empty"><p>' + esc(s.error) + '</p><button class="btn" data-std="retry">Try again</button></div>' : '<div class="std-empty"><p>Loading…</p></div>') + '</div>';
+      return '<div class="page std-page">' + head + (s.error ? '<div class="std-empty"><p>' + esc(s.error) + '</p><button class="btn" data-std="retry">Try again</button></div>'
+        : s.missing ? '<div class="std-empty"><p>This section isn’t there. It may have been deleted.</p><button class="btn" data-std="home">Back to Home</button></div>'
+        : '<div class="std-empty"><p>Loading…</p></div>') + '</div>';
     }
     var d = s.deck, items = d.items, slides = !!r.slide && items.length > 0;
     var sub = items.length + ' item' + (items.length === 1 ? '' : 's') + (d.updatedAt ? ' · updated ' + esc(relTime(d.updatedAt)) + (d.updatedBy ? ' by ' + esc(d.updatedBy) : '') : '');
@@ -479,6 +586,8 @@
     on('[data-std="import"]', function () { importSheet(id); });
     on('[data-std="export"]', function (b) { exportDeck(id, b); });
     on('[data-std="print"]', function () { printDeck(id); });
+    on('[data-std="rename"]', function () { sectionSheet(id); });
+    on('[data-std="delsec"]', function () { deleteSection(id); });
     on('[data-std="full"]', function () { var st = el.querySelector('.std-stage-wrap'); if (st && st.requestFullscreen) st.requestFullscreen().catch(function () {}); });
     var rail = el.querySelector('.std-thumb.on');
     if (rail) rail.scrollIntoView({ block: 'nearest' });
@@ -509,6 +618,62 @@
     run(id, [{ op: 'remove', id: itemId }], null, 'Delete "' + (item.title || 'Untitled') + '" from ' + deckDef(id).title, function () {
       toast('Deleted ' + (item.title || 'the item'), { label: 'Undo', run: function () { run(id, [{ op: 'add', item: item, at: i }], null, 'Put back "' + (item.title || 'Untitled') + '" in ' + deckDef(id).title); } });
     }).catch(function () {});
+  }
+
+  // New section (id null) or Rename: a name and an optional label (the small caps over a tile's name).
+  function sectionSheet(id) {
+    var def = id ? deckDef(id) : null;
+    var w = sheet('<div class="sheet-head"><h2>' + (id ? 'Rename section' : 'New standards section') + '</h2><p>' +
+      (id ? 'Its items stay as they are.' : 'A list of items, each a title, text, and pictures, shown as a list or as slides. Add items by hand or import a PowerPoint deck.') + '</p></div>' +
+      '<div class="sheet-body"><div class="field"><label for="std-sec-title">Name</label><input class="input" id="std-sec-title" maxlength="120" placeholder="e.g. Layout rules" value="' + esc(def ? def.title : '') + '"></div>' +
+      '<div class="field"><label for="std-sec-cat">Label <span class="note">(optional, shown over the name)</span></label><input class="input" id="std-sec-cat" maxlength="40" placeholder="e.g. Layout" value="' + esc(def ? def.cat : '') + '"></div></div>' +
+      '<div class="sheet-foot"><span class="std-status note" id="std-status"></span><span class="spacer"></span><button class="btn" data-x="cancel">Cancel</button><button class="btn btn-primary" data-x="save">' + (id ? 'Save' : 'Add section') + '</button></div>');
+    $('[data-x="cancel"]', w).onclick = function () { w.close(); };
+    function save() {
+      var title = $('#std-sec-title', w).value.trim(), cat = $('#std-sec-cat', w).value.trim();
+      if (!title) { $('#std-status', w).textContent = 'Give it a name.'; $('#std-sec-title', w).focus(); return; }
+      var newId = id || slug(title) + '-' + rid(4);
+      w.dataset.busy = '1';
+      Array.prototype.forEach.call(w.querySelectorAll('button, input'), function (b) { b.disabled = true; });
+      $('#std-status', w).textContent = 'Saving…';
+      change(newId, [{ op: 'meta', title: title, cat: cat, create: !id, at: now() }], null, (id ? 'Rename section ' : 'New standards section ') + '"' + title + '"', { create: !id }).then(function () {
+        w.close(); toast(id ? 'Renamed' : 'Added ' + title);
+        if (id) draw(); else go('#standards/' + newId);
+      }, function (e) {
+        delete w.dataset.busy;
+        Array.prototype.forEach.call(w.querySelectorAll('button, input'), function (b) { b.disabled = false; });
+        $('#std-status', w).textContent = 'Couldn’t save: ' + e.message;
+      });
+    }
+    $('[data-x="save"]', w).onclick = save;
+    w.addEventListener('keydown', function (e) { if (e.key === 'Enter' && e.target.tagName === 'INPUT') { e.preventDefault(); save(); } });
+    setTimeout(function () { $('#std-sec-title', w).focus(); }, 30);
+  }
+
+  // Delete a section (never a built-in): asks first, then Undo in the toast puts it back whole.
+  function deleteSection(id) {
+    var d = decks[id] && decks[id].deck, def = deckDef(id);
+    if (!d || !def || def.builtIn) return;
+    var n = d.items.length;
+    var w = sheet('<div class="sheet-head"><h2>Delete “' + esc(def.title) + '”?</h2><p>' + (n ? (n === 1 ? 'Its 1 item goes with it. ' : 'Its ' + n + ' items go with it. ') : '') +
+      'Undo brings it back for a few seconds, and the repo’s history keeps every version.</p></div>' +
+      '<div class="sheet-foot"><span class="std-status note" id="std-status"></span><span class="spacer"></span><button class="btn" data-x="cancel">Cancel</button><button class="btn btn-danger" data-x="go">Delete section</button></div>');
+    $('[data-x="cancel"]', w).onclick = function () { w.close(); };
+    $('[data-x="go"]', w).onclick = function () {
+      var saved = clone(d), title = def.title;
+      w.dataset.busy = '1';
+      Array.prototype.forEach.call(w.querySelectorAll('button'), function (b) { b.disabled = true; });
+      dropDeck(id, 'Delete standards section "' + title + '"').then(function () {
+        w.close(); go('');
+        toast('Deleted ' + title, { label: 'Undo', run: function () {
+          change(id, [{ op: 'restore', deck: saved }], null, 'Put back standards section "' + title + '"', { create: true }).then(function () { toast('Put back ' + title); draw(); }, function (e) { toast('Couldn’t put it back: ' + e.message); });
+        } });
+      }, function (e) {
+        delete w.dataset.busy;
+        Array.prototype.forEach.call(w.querySelectorAll('button'), function (b) { b.disabled = false; });
+        $('#std-status', w).textContent = 'Couldn’t delete: ' + e.message;
+      });
+    };
   }
 
   // ── Sheets ───────────────────────────────────────────────
@@ -723,6 +888,6 @@
     // A board opened: forget a deck route, so Back and reload don't land in it.
     leave: function () { if (route().deck) history.replaceState(null, '', location.pathname + location.search); el = null; },
     busy: function () { return pending > 0 || !!document.querySelector('.std-wrap'); },
-    _test: { cleanDeck: cleanDeck, applyOps: applyOps, bodyHtml: bodyHtml, route: route, demoDeck: demoDeck }
+    _test: { cleanDeck: cleanDeck, applyOps: applyOps, bodyHtml: bodyHtml, route: route, demoDeck: demoDeck, slug: slug, deckPaths: deckPaths }
   };
 })();

@@ -1875,6 +1875,21 @@
     err = null; try { Hm.applyOps(Hm.cleanDeck({}, 'footprints'), [{ op: 'update', id: 'gone1234', fields: {} }], 'a', 'b'); } catch (e) { err = e; }
     ok(err && /deleted/.test(err.message), 'editing an item deleted elsewhere is refused, not recreated');
     eq(Hm.bodyHtml('One <b>\n- a\n- b\nTwo'), '<p>One &lt;b&gt;</p><ul><li>a</li><li>b</li></ul><p>Two</p>', 'item text: paragraphs, bullets, and escaping');
+    // Sections FTEs make: listed from the repo, named and labeled, deleted and put back.
+    eq(Hm.slug('Layout rules & DFM!'), 'layout-rules-dfm', 'a new section’s id starts from its name');
+    eq(Hm.deckPaths({ 'decks/footprints.json': 1, 'decks/layout-rules-ab12.json': 1, 'decks/Bad Name.json': 1, 'images/x/y.png': 1, 'README.md': 1 }).sort(), ['footprints', 'layout-rules-ab12'], 'every decks/<id>.json is a section; other files and bad names aren’t');
+    var plain = Hm.cleanDeck({ title: 'Footprints', items: [] }, 'footprints');
+    ok(!('cat' in plain) && !('createdAt' in plain), 'a deck without a label or a made date stores neither (Footprints stays byte for byte)');
+    var made = Hm.applyOps(Hm.cleanDeck(null, 'layout-rules-ab12'), [{ op: 'meta', title: 'Layout rules', cat: 'Layout', create: true, at: '2026-11-19T01:00:00.000Z' }], 'ann', '2026-11-19T01:00:00.000Z');
+    eq([made.title, made.cat, made.createdAt, Object.keys(made).join(',')], ['Layout rules', 'Layout', '2026-11-19T01:00:00.000Z', 'format,id,title,cat,createdAt,items,updatedAt,updatedBy'], 'New section names, labels, and dates the deck, keys in their stored order');
+    var renamed = Hm.applyOps(JSON.parse(JSON.stringify(made)), [{ op: 'meta', title: 'Layout', cat: '' }], 'bo', 'z');
+    ok(renamed.title === 'Layout' && !('cat' in renamed) && renamed.createdAt === made.createdAt, 'Rename changes the name, clears an emptied label, and keeps the made date');
+    var back = Hm.applyOps(Hm.cleanDeck(null, 'layout-rules-ab12'), [{ op: 'restore', deck: d2 }], 'bo', 'z');
+    eq(back.items.map(function (i) { return i.id; }), d2.items.map(function (i) { return i.id; }), 'Undo of Delete section puts every item back');
+    location.hash = '#standards/layout-rules-ab12/slides/3';
+    eq(Hm.route(), { deck: 'layout-rules-ab12', slide: 3 }, 'a made section has its own route');
+    location.hash = '#standards/Bad Id'; eq(Hm.route(), { deck: null }, 'a bad section id is no route');
+    history.replaceState(null, '', location.pathname + location.search);
     ok(Hm.demoDeck('footprints').items.length > 0 && Hm.demoDeck('schematics').items.length > 0, 'both demo decks have made-up items');
   })();
 

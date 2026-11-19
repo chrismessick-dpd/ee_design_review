@@ -83,8 +83,10 @@ Read next:
 EE only (`config.home`; ME and FW have none). The sidebar's logo opens a home page in place of the empty page
 (`goHome`, `setupHome`, `homeShown` in `app.js`, the engine's only part of it): a Tools panel (Fabcheck,
 Pincheck, Loom, and Flasher with the hub's art from `../signoff/assets/tool-art.svg`; a click shows the
-description, a second click opens it) and Internal standards (one tile per deck in `config.home.decks`:
-Footprints and Schematics). A deck is a list of items (title, text, pictures) shown as a list or as slides
+description, a second click opens it) and Internal standards: one tile per section (deck). `config.home.decks`
+(Footprints and Schematics) are built in, always shown, renamed but never deleted; every other `decks/<id>.json`
+in the repo is a section an FTE made with the **+ New section** tile (id: the name's slug and 4 random
+characters; name and optional label; Rename and Delete section on its page, Undo after a delete; 2026-11-19, Chris). A deck is a list of items (title, text, pictures) shown as a list or as slides
 (`#standards/<deck>`, `#standards/<deck>/slides/<n>`). Everyone signed in reads; FTEs add, edit, move, delete
 (with Undo), and import and export .pptx. Not engine files: `assets/home.js`, `home.css`, and `pptx.js` (zip
 in and out without a library: the CSP allows only this site's scripts).
@@ -95,7 +97,7 @@ in and out without a library: the CSP allows only this site's scripts).
 - **Import:** a slide's title is its title placeholder or its top text box; text and pictures on most slides
   (deck title, footer, logo) and footer placeholders are left out; the first slide starts unticked.
 - **Demo:** two made-up decks in memory (`demoDeck`). Real standards never go in this repo.
-- Tests: the *Home page* block in `tests/test.html` (581 in all).
+- Tests: the *Home page* block in `tests/test.html` (589 in all).
 
 ## Releases (2026-11-17, Chris)
 
