@@ -1176,6 +1176,10 @@
     eq([M.stripRevNote('@RevNotes: move J3 to the edge'), M.stripRevNote('Swap R12 to 4.7k @revnotes'), M.stripRevNote('Board-wide: @revnotes bump it')],
       ['move J3 to the edge', 'Swap R12 to 4.7k', 'Board-wide: bump it'], 'stripRevNote takes the tag out of the shown text');
     eq(M.revNotes({ meta: { name: 'Bare' }, comments: {} }).length, 0, 'revNotes copes with a review without custom items');
+    rp.rework = { w1: { id: 'w1', title: 'Flip D4', fix: 'Rotate it. @revnotes', createdAt: '2026-01-07T00:00:00.000Z' }, w2: { id: 'w2', title: 'Untagged', createdAt: '2026-01-08T00:00:00.000Z' },
+      w3: { id: 'w3', title: '@revnotes gone', deleted: true, createdAt: '2026-01-09T00:00:00.000Z' } };
+    rp.reqs.q1 = { id: 'q1', ref: 'REQ-001', text: 'Hold-up 20 ms @revnotes', createdAt: '2026-01-06T12:00:00.000Z' };
+    eq(M.revNotes(rp).map(function (x) { return x.item; }).slice(0, 3), ['w1', 'q1', ''], 'a rework or requirement whose own text carries @revnotes is listed too, deleted ones not');
   })();
 
   // The description tests below use FW's vocabulary (kinds product to hardware, Uses), the model's
