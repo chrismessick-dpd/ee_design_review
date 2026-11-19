@@ -163,6 +163,14 @@
 .std-edit-pics img { width: 100%; height: 100%; object-fit: contain; display: block; }
 .std-edit-pics .icon-btn { position: absolute; top: 4px; right: 4px; width: 24px; height: 24px; background: var(--bg-elev); box-shadow: var(--shadow-sm); font-size: 16px; line-height: 1; }
 .std-add-pic { cursor: pointer; gap: 6px; }
+/* The section's tile picture in its Edit window, at the tile's shape. */
+.std-cover-row { display: flex; gap: 14px; align-items: flex-start; flex-wrap: wrap; }
+.std-cover { width: 208px; aspect-ratio: 16 / 10; border-radius: 10px; overflow: hidden; flex: none;
+  background: radial-gradient(120% 90% at 50% 0%, var(--accent-soft), transparent 70%), var(--bg-sunk); }
+.std-cover svg, .std-cover .home-cover { display: block; width: 100%; height: 100%; object-fit: cover; }
+.std-cover-acts { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; min-width: 0; flex: 1; }
+.std-cover-acts [hidden] { display: none !important; }
+.std-cover-acts .note { margin: 2px 0 0; }
 .std-sheet.std-import { max-width: 980px; }
 .std-imp { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
 .std-imp-row { display: grid; grid-template-columns: 92px minmax(0, 1fr) 200px; gap: 12px; align-items: start; padding: 10px; border-radius: 12px; background: var(--bg-sunk); transition: opacity 0.15s; }

@@ -1884,6 +1884,15 @@
     eq([made.title, made.cat, made.createdAt, Object.keys(made).join(',')], ['Layout rules', 'Layout', '2026-11-19T01:00:00.000Z', 'format,id,title,cat,createdAt,items,updatedAt,updatedBy'], 'New section names, labels, and dates the deck, keys in their stored order');
     var renamed = Hm.applyOps(JSON.parse(JSON.stringify(made)), [{ op: 'meta', title: 'Layout', cat: '' }], 'bo', 'z');
     ok(renamed.title === 'Layout' && !('cat' in renamed) && renamed.createdAt === made.createdAt, 'Rename changes the name, clears an emptied label, and keeps the made date');
+    // The tile's picture, from the section's Edit window.
+    var pic = { file: 'images/layout-rules-ab12/cover-ab12cd.png', type: 'image/png', w: 4, h: 3, name: 'tile.png' };
+    var covered = Hm.applyOps(JSON.parse(JSON.stringify(made)), [{ op: 'meta', title: 'Layout rules', cat: 'Layout', cover: pic }], 'bo', 'z');
+    eq([covered.cover, Object.keys(covered).join(',')], [pic, 'format,id,title,cat,createdAt,cover,items,updatedAt,updatedBy'], 'Edit section sets a tile picture, stored after the made date');
+    ok(Hm.applyOps(JSON.parse(JSON.stringify(covered)), [{ op: 'meta', title: 'Layout rules', cat: 'Layout' }], 'bo', 'z').cover.file === pic.file, 'a save that leaves the picture alone keeps it');
+    eq(Hm.applyOps(JSON.parse(JSON.stringify(covered)), [{ op: 'meta', title: 'Layout rules', cover: 'none' }], 'bo', 'z').cover, 'none', 'Delete picture stores none');
+    ok(!('cover' in Hm.applyOps(JSON.parse(JSON.stringify(covered)), [{ op: 'meta', title: 'Layout rules', cover: null }], 'bo', 'z')), 'Use the default takes the picture off');
+    ok(!('cover' in Hm.cleanDeck({ cover: { file: '../evil.png' } }, 'x-ab12')) && !('cover' in Hm.cleanDeck({ cover: 'some' }, 'x-ab12')), 'a tile picture outside images/, or any other string, is dropped');
+    eq(Hm.applyOps(Hm.cleanDeck(null, 'layout-rules-ab12'), [{ op: 'restore', deck: covered }], 'bo', 'z').cover, pic, 'Undo of Delete section brings the tile picture back');
     var back = Hm.applyOps(Hm.cleanDeck(null, 'layout-rules-ab12'), [{ op: 'restore', deck: d2 }], 'bo', 'z');
     eq(back.items.map(function (i) { return i.id; }), d2.items.map(function (i) { return i.id; }), 'Undo of Delete section puts every item back');
     location.hash = '#standards/layout-rules-ab12/slides/3';

@@ -86,7 +86,11 @@ Pincheck, Loom, and Flasher with the hub's art from `../signoff/assets/tool-art.
 description, a second click opens it) and Internal standards: one tile per section (deck). `config.home.decks`
 (Footprints and Schematics) are built in, always shown, renamed but never deleted; every other `decks/<id>.json`
 in the repo is a section an FTE made with the **+ New section** tile (id: the name's slug and 4 random
-characters; name and optional label; Rename and Delete section on its page, Undo after a delete; 2026-11-19, Chris). A deck is a list of items (title, text, pictures) shown as **Tree** (folding groups and nesting on the left,
+characters; name and optional label; Edit (was Rename) and Delete section on its page, Undo after a delete; 2026-11-19, Chris).
+The New section and Edit section windows show the tile's picture, which can be swapped, deleted, or put back to the
+default (Chris, 2026-11-19): the deck's optional `cover` is a picture at `images/<deck>/cover-<rid>.<ext>` or
+`'none'` (the plain stack of pages), written only when set; without it a tile shows the built-in drawing, else the
+first item's picture, else the stack (`deckArt`, `defaultArt`). A deck is a list of items (title, text, pictures) shown as **Tree** (folding groups and nesting on the left,
 one item on the right; the default) or **Slides** (`#standards/<deck>`, `#standards/<deck>/tree/<item>`,
 `#standards/<deck>/slides/<n>`; Chris, 2026-11-19, from a views lab since deleted; he dropped the big-card list and
 Rows). An item may carry `group` (a heading) and `parent` (another top-level item, one level

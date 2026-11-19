@@ -75,6 +75,10 @@
     var out = { format: FORMAT, id: id, title: String(d.title || def.title || id).slice(0, 120) };
     if (d.cat != null && d.cat !== '') out.cat = String(d.cat).slice(0, 40);   // the label over the tile's name; only when set
     if (d.createdAt) out.createdAt = String(d.createdAt);
+    // The tile's picture (2026-11-19, Chris: set, swapped, or deleted in the section's Edit window): a picture under
+    // images/, or 'none' for the plain stack of pages. Absent: the built-in drawing, else the first item's picture.
+    if (d.cover === 'none') out.cover = 'none';
+    else if (d.cover && okPic(d.cover)) out.cover = cleanPic(d.cover);
     out.items =(Array.isArray(d.items) ? d.items : []).filter(function (it) { return it && typeof it === 'object' && /^[a-z0-9]{4,16}$/.test(it.id || ''); }).map(function (it) {
         var o = { id: it.id, title: String(it.title || ''), body: String(it.body || '') };
         // Where it sits (2026-11-19, Chris: Rows and Tree): a group heading, and one level of nesting under another
@@ -82,14 +86,15 @@
         if (it.group != null && String(it.group).trim()) o.group = String(it.group).trim().slice(0, 60);
         if (/^[a-z0-9]{4,16}$/.test(it.parent || '') && it.parent !== it.id) o.parent = it.parent;
         return Object.assign(o, {
-          pics:(Array.isArray(it.pics) ? it.pics : []).filter(function (p) { return p && /^images\/[a-z0-9-]+\/[a-z0-9-]+\.(png|jpg|gif|webp)$/.test(p.file || ''); })
-            .map(function (p) { return { file: p.file, type: EXT[p.type] ? p.type : 'image/png', w: +p.w || 0, h: +p.h || 0, name: String(p.name || '') }; }),
+          pics:(Array.isArray(it.pics) ? it.pics : []).filter(okPic).map(cleanPic),
           updatedAt: String(it.updatedAt || ''), updatedBy: String(it.updatedBy || '')
         });
       });
     out.updatedAt = String(d.updatedAt || ''); out.updatedBy = String(d.updatedBy || '');
     return out;
   }
+  function okPic(p) { return !!p && typeof p === 'object' && /^images\/[a-z0-9-]+\/[a-z0-9-]+\.(png|jpg|gif|webp)$/.test(p.file || ''); }
+  function cleanPic(p) { return { file: p.file, type: EXT[p.type] ? p.type : 'image/png', w: +p.w || 0, h: +p.h || 0, name: String(p.name || '') }; }
   function serialize(d) { return JSON.stringify(d, null, 2) + '\n'; }
 
   // The changes, as pure functions of the deck read at the head (so a retry re-applies them to a newer one).
@@ -108,9 +113,11 @@
       d.title = String(a.title || d.title).slice(0, 120);
       if (a.cat) d.cat = String(a.cat).slice(0, 40); else delete d.cat;
       if (a.create && !d.createdAt) d.createdAt = a.at || '';
+      // The tile's picture, only when the Edit window changed it: a picture, 'none', or null for the default.
+      if ('cover' in a) { if (a.cover) d.cover = a.cover; else delete d.cover; }
     },
     // Undo of Delete section: the whole deck back as it was.
-    restore: function (d, a) { var s = a.deck; d.title = s.title; if (s.cat) d.cat = s.cat; if (s.createdAt) d.createdAt = s.createdAt; d.items = s.items.slice(); }
+    restore: function (d, a) { var s = a.deck; d.title = s.title; if (s.cat) d.cat = s.cat; if (s.createdAt) d.createdAt = s.createdAt; if (s.cover) d.cover = s.cover; d.items = s.items.slice(); }
   };
   // Keys in their stored order, whatever order the ops set them in (cleanDeck's).
   function ordered(d) { return cleanDeck(d, d.id); }
@@ -483,18 +490,26 @@
         '<span class="pk-cat">Add</span><span class="pk-name">New section</span></button>' : '') +
       '</div></section></div>';
   }
-  // A tile's picture: the built-ins' drawings; a new section's first picture, else a stack of pages.
+  // A tile's picture: the one set in the section's Edit window (or none: the stack of pages); otherwise the
+  // built-ins' drawings, a new section's first picture, else the stack of pages.
   function deckArt(id) {
+    var d = decks[id] && decks[id].deck;
+    if (d && d.cover === 'none') return STACK_ART;
+    if (d && d.cover) return coverImg(d.cover.file);
+    return defaultArt(id);
+  }
+  function coverImg(src, isUrl) { return '<img class="home-cover" ' + (isUrl ? 'src' : 'data-pic') + '="' + esc(src) + '" alt="">'; }
+  function defaultArt(id) {
     if (DECK_ART[id]) return DECK_ART[id];
     var d = decks[id] && decks[id].deck, first = null;
     (d ? d.items : []).some(function (it) { return (first = it.pics[0]); });
-    if (first) return '<img class="home-cover" data-pic="' + esc(first.file) + '" alt="">';
-    return '<svg viewBox="0 0 240 150" aria-hidden="true"><ellipse cx="120" cy="130" rx="70" ry="6" fill="#000" style="opacity:var(--art-shadow)"/>' +
+    return first ? coverImg(first.file) : STACK_ART;
+  }
+  var STACK_ART = '<svg viewBox="0 0 240 150" aria-hidden="true"><ellipse cx="120" cy="130" rx="70" ry="6" fill="#000" style="opacity:var(--art-shadow)"/>' +
       '<rect x="88" y="30" width="80" height="94" rx="5" fill="var(--art-iso-l)" stroke="var(--art-edge)" stroke-opacity=".4"/>' +
       '<rect x="78" y="24" width="80" height="94" rx="5" fill="var(--art-iso-t)" stroke="var(--art-edge)" stroke-opacity=".5"/>' +
       '<g fill="var(--art-edge)" fill-opacity=".45"><rect x="90" y="38" width="44" height="6" rx="3"/><rect x="90" y="54" width="56" height="4" rx="2"/><rect x="90" y="64" width="50" height="4" rx="2"/><rect x="90" y="74" width="54" height="4" rx="2"/></g>' +
       '<rect x="90" y="86" width="56" height="22" rx="3" fill="#00727f" fill-opacity=".75"/></svg>';
-  }
 
   function wireHome() {
     if (!listing || Date.now() - (listing.at || 0) > 60000) listAll().then(function () { if (!route().deck) draw(); }, function () { if (!route().deck) draw(); });
@@ -622,7 +637,7 @@
     var s = decks[r.deck] || {};
     if (!s.deck && !s.error && !s.missing && !s.loading) load(r.deck).then(draw, draw);
     var def = deckDef(r.deck) || { title: s.missing ? 'Section not found' : 'Loading…', cat: '' };
-    var acts = ctx.fte && s.deck ? '<span class="std-spacer"></span><button class="btn btn-plain" data-std="rename">' + ICON.edit + 'Rename</button>' +
+    var acts = ctx.fte && s.deck ? '<span class="std-spacer"></span><button class="btn btn-plain" data-std="rename">' + ICON.edit + 'Edit</button>' +
       (def.builtIn ? '' : '<button class="btn btn-plain" data-std="delsec">' + ICON.del + 'Delete section</button>') : '';
     var head = '<div class="std-crumbs"><a class="btn btn-plain std-back" href="#" data-std="home">' + ICON.back + 'Home</a>' + acts + '</div>' +
       '<div class="eyebrow">Internal standards' + (def.cat ? ' · ' + esc(def.cat) : '') + '</div><h1 class="page-title">' + esc(def.title) + '</h1>';
@@ -747,28 +762,72 @@
     }).catch(function () {});
   }
 
-  // New section (id null) or Rename: a name and an optional label (the small caps over a tile's name).
+  // New section (id null) or Edit section: a name, an optional label (the small caps over a tile's name), and the
+  // tile's picture (2026-11-19, Chris: shown, deleted, or swapped for another; a new section can set one).
   function sectionSheet(id) {
-    var def = id ? deckDef(id) : null;
-    var w = sheet('<div class="sheet-head"><h2>' + (id ? 'Rename section' : 'New standards section') + '</h2><p>' +
+    var def = id ? deckDef(id) : null, d = id && decks[id] && decks[id].deck;
+    var stored = d ? d.cover : undefined;   // a picture record, 'none', or undefined (the default picture)
+    var cover = stored, added = null;        // what the window shows; added: a picked picture, not yet saved
+    var w = sheet('<div class="sheet-head"><h2>' + (id ? 'Edit section' : 'New standards section') + '</h2><p>' +
       (id ? 'Its items stay as they are.' : 'A list of items, each a title, text, and pictures, shown as a list or as slides. Add items by hand or import a PowerPoint deck.') + '</p></div>' +
       '<div class="sheet-body"><div class="field"><label for="std-sec-title">Name</label><input class="input" id="std-sec-title" maxlength="120" placeholder="e.g. Layout rules" value="' + esc(def ? def.title : '') + '"></div>' +
-      '<div class="field"><label for="std-sec-cat">Label <span class="note">(optional, shown over the name)</span></label><input class="input" id="std-sec-cat" maxlength="40" placeholder="e.g. Layout" value="' + esc(def ? def.cat : '') + '"></div></div>' +
+      '<div class="field"><label for="std-sec-cat">Label <span class="note">(optional, shown over the name)</span></label><input class="input" id="std-sec-cat" maxlength="40" placeholder="e.g. Layout" value="' + esc(def ? def.cat : '') + '"></div>' +
+      '<div class="field"><span class="field-label">Tile picture</span><div class="std-cover-row"><div class="std-cover" id="std-cover"></div>' +
+      '<div class="std-cover-acts"><label class="btn std-add-pic">' + ICON.plus + '<span id="std-cover-pick">Choose picture</span><input type="file" accept="image/*" hidden id="std-cover-file"></label>' +
+      '<button type="button" class="btn btn-plain" data-x="cover-del">' + ICON.del + 'Delete picture</button>' +
+      '<button type="button" class="btn btn-plain" data-x="cover-def">Use the default</button>' +
+      '<p class="note" id="std-cover-note"></p></div></div></div></div>' +
       '<div class="sheet-foot"><span class="std-status note" id="std-status"></span><span class="spacer"></span><button class="btn" data-x="cancel">Cancel</button><button class="btn btn-primary" data-x="save">' + (id ? 'Save' : 'Add section') + '</button></div>');
-    $('[data-x="cancel"]', w).onclick = function () { w.close(); };
+    var hasDefault = !!id && (!!DECK_ART[id] || (d && d.items.some(function (it) { return it.pics.length; })));
+    function drawCover() {
+      var box = $('#std-cover', w);
+      box.innerHTML = added ? coverImg(added.url, true) : cover === 'none' || (!cover && !id) ? STACK_ART : cover ? coverImg(cover.file) : defaultArt(id);
+      fillPics(box);
+      var pic = added || (cover && cover !== 'none') || (!cover && hasDefault);
+      $('#std-cover-pick', w).textContent = pic ? 'Change picture' : 'Choose picture';
+      $('[data-x="cover-del"]', w).hidden = !pic;
+      $('[data-x="cover-def"]', w).hidden = !hasDefault || (!added && !cover);
+      $('#std-cover-note', w).textContent = added ? (added.name || 'New picture') + ', saved with the section.' :
+        cover === 'none' ? 'No picture: the tile shows a plain page.' : cover ? '' :
+        hasDefault ? (DECK_ART[id] ? 'The section’s own drawing.' : 'The first item’s picture, until you choose one.') :
+        'None yet. Choose a picture, or paste or drop one here.';
+    }
+    function pickFile(f) {
+      if (!f || !/^image\//.test(f.type)) return;
+      $('#std-status', w).textContent = 'Reading the picture…';
+      preparePic(f, f.name || 'pasted').then(function (p) {
+        if (added) URL.revokeObjectURL(added.url);
+        p.url = URL.createObjectURL(new Blob([p.bytes], { type: p.type })); added = p;
+        $('#std-status', w).textContent = ''; drawCover();
+      }, function (e) { $('#std-status', w).textContent = e.message; });
+    }
+    function dropAdded() { if (added) { URL.revokeObjectURL(added.url); added = null; } }
+    $('#std-cover-file', w).addEventListener('change', function (e) { pickFile(e.target.files && e.target.files[0]); e.target.value = ''; });
+    w.addEventListener('paste', function (e) { var f = Array.prototype.map.call((e.clipboardData && e.clipboardData.items) || [], function (x) { return x.kind === 'file' ? x.getAsFile() : null; }).filter(Boolean)[0]; if (f) { e.preventDefault(); pickFile(f); } });
+    w.addEventListener('dragover', function (e) { e.preventDefault(); });
+    w.addEventListener('drop', function (e) { e.preventDefault(); pickFile(e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0]); });
+    // Delete: 'none' only when there's a default to hide; otherwise the default already is the plain page.
+    $('[data-x="cover-del"]', w).onclick = function () { dropAdded(); cover = hasDefault ? 'none' : undefined; drawCover(); };
+    $('[data-x="cover-def"]', w).onclick = function () { dropAdded(); cover = undefined; drawCover(); };
+    drawCover();
+    $('[data-x="cancel"]', w).onclick = function () { dropAdded(); w.close(); };
     function save() {
       var title = $('#std-sec-title', w).value.trim(), cat = $('#std-sec-cat', w).value.trim();
       if (!title) { $('#std-status', w).textContent = 'Give it a name.'; $('#std-sec-title', w).focus(); return; }
       var newId = id || slug(title) + '-' + rid(4);
+      var op = { op: 'meta', title: title, cat: cat, create: !id, at: now() }, up = null;
+      if (added) { up = picRecord(newId, 'cover', added); op.cover = up.rec; }
+      else if (cover !== stored) op.cover = cover || null;
       w.dataset.busy = '1';
       Array.prototype.forEach.call(w.querySelectorAll('button, input'), function (b) { b.disabled = true; });
       $('#std-status', w).textContent = 'Saving…';
-      change(newId, [{ op: 'meta', title: title, cat: cat, create: !id, at: now() }], null, (id ? 'Rename section ' : 'New standards section ') + '"' + title + '"', { create: !id }).then(function () {
-        w.close(); toast(id ? 'Renamed' : 'Added ' + title);
+      change(newId, [op], up ? [up.upload] : null, (id ? 'Edit section ' : 'New standards section ') + '"' + title + '"', { create: !id }).then(function () {
+        dropAdded(); w.close(); toast(id ? 'Saved' : 'Added ' + title);
         if (id) draw(); else go('#standards/' + newId);
       }, function (e) {
         delete w.dataset.busy;
         Array.prototype.forEach.call(w.querySelectorAll('button, input'), function (b) { b.disabled = false; });
+        drawCover();
         $('#std-status', w).textContent = 'Couldn’t save: ' + e.message;
       });
     }
