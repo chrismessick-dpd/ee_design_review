@@ -1586,6 +1586,9 @@
     var labSec = M.liveSpec({ spec: { a1: { id: 'a1', level: 2, title: 'A', body: '', labels: { 'b1|connects': { t: 1.7, x: 12.4, y: 'x' }, 'c1|connects': { t: 0.25, x: -8.6, y: 30 }, bad: 'no' } }, b1: { id: 'b1', level: 2, title: 'B', body: '' } } });
     eq(labSec[0].labels, { 'c1|connects': { t: 0.25, x: -9, y: 30 } }, 'label places keep numbers only, rounded, with t from 0 to 1');
     eq('labels' in labSec[1], false, 'a section with no dragged labels has no labels field');
+    var growSec = M.liveSpec({ spec: { g1: { id: 'g1', level: 2, title: 'G', body: '', grow: { l: -5, t: 'x', r: 12.6, b: 40 } }, g2: { id: 'g2', level: 2, title: 'H', body: '', grow: { l: 0, t: 0 } } } });
+    eq(growSec[0].grow, { l: 0, t: 0, r: 13, b: 40 }, 'a resized section keeps how far each edge grew, rounded, never under 0');
+    eq('grow' in growSec[1], false, 'a section grown by nothing has no grow field');
     var ep = M.newProject({ name: 'Board', checklists: [], profile: [] }, 'Ann', T), put = function (recs) { recs.forEach(function (r) { ep.spec[r.id] = r; }); };
     ep.spec = {};
     put(M.specSave(ep, null, '# Board\n## Buck * power\nSteps down.\nParts: U7, L1, C1–C3\nSupplies: MCU (3V3), Relays (5V)\n## USB * connector\nConnects: MCU (USB)\n## MCU * processor\nRuns it.\nConnects: Relays\n## Relays * output\nSwitch.', 'Ann'));
