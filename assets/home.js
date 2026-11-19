@@ -22,8 +22,8 @@
    copy in a tab is never written back. Pictures of deleted items stay in the repo (Undo puts the item back).
    Nothing is kept in localStorage: decks and pictures live in memory for the page's life.
 
-   Routes: #standards/<deck> (Rows), #standards/<deck>/tree[/<item>] (Tree), #standards/<deck>/slides/<n> (slide n,
-   from 1). Items may carry group (a heading) and parent (another item, one level); see outline().
+   Routes: #standards/<deck> (Tree, its last pick), #standards/<deck>/tree/<item> (Tree on that item),
+   #standards/<deck>/slides/<n> (slide n, from 1). Items may carry group (a heading) and parent (another item, one level); see outline().
 
    window.SignoffHome: mount(el, ctx), reset(), leave(), busy(), and _test (pure helpers for tests/test.html).
    ctx: { demo, fte, login, toast(text, action), goHome(), note }: note is app.js's own HTML (already escaped), the
@@ -533,8 +533,8 @@
     print: '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M4.5 6V2.5h7V6M4.5 11H3a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v3a1 1 0 0 1-1 1h-1.5M4.5 9h7v4.5h-7z"/></svg>'
   };
 
-  // ── Rows, Tree, and Slides (2026-11-19, Chris: rows and tree from lab/standards-views.html, the old big-card
-  // list dropped) ──
+  // ── Tree and Slides (2026-11-19, Chris: the tree from the standards views lab; the big-card list and Rows
+  // dropped) ──
   // The outline of a deck: groups in the order their first item comes, each with its top-level items, and the
   // items nested one level under each. An item sits under its parent wherever the parent is (the parent's group
   // wins); a parent that's missing, itself nested, or the item itself is ignored, so the item is top-level.
@@ -552,7 +552,6 @@
     return { groups: groups, grouped: groups.some(function (g) { return g.name; }), kids: function (id) { return kids[id] || []; }, parent: par, byId: byId };
   }
   function groupName(g) { return g.name || 'Other'; }
-  function firstLine(text) { var l = String(text || '').split('\n').filter(function (x) { return x.trim(); })[0] || ''; return l.replace(/^[-•*]\s+/, ''); }
   // "Documentation › Top overlay": where an item sits.
   function crumbOf(o, it) {
     var p = o.parent(it), g = (p || it).group;
@@ -560,7 +559,7 @@
   }
   function crumbHtml(parts) { return parts.length ? '<span class="std-crumb">' + parts.map(esc).join('<span class="std-sep" aria-hidden="true">›</span>') + '</span>' : ''; }
   var CHEV = '<svg class="std-chev" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 4l4 4-4 4"/></svg>';
-  var rowOpen = {}, shut = {}, treeSel = {};   // per page life: open rows, folded groups and tree nodes, the tree's pick
+  var shut = {}, treeSel = {};   // per page life: folded groups and tree nodes, the tree's pick
   function mainHtml(it, n) {
     return '<div class="std-item-main' + (it.pics.length ? '' : ' no-pic') + '"><div class="std-body">' + (bodyHtml(it.body) || '<p class="note">No text.</p>') + '</div>' +
       (it.pics.length ? '<div class="std-item-pics">' + it.pics.map(function (p) { return '<button class="std-pic-btn" data-std-go="' + n + '" title="Show as a slide">' + picsHtml({ title: it.title, pics: [p] }, 'std-item-pic') + '</button>'; }).join('') + '</div>' : '') + '</div>';
@@ -571,27 +570,6 @@
       '<button class="icon-btn" data-std-move="' + esc(it.id) + '" data-by="1" title="Move down"' + (i < items.length - 1 ? '' : ' disabled') + '>' + ICON.down + '</button>' +
       '<button class="icon-btn" data-std-edit="' + esc(it.id) + '" title="Edit">' + ICON.edit + '</button>' +
       '<button class="icon-btn" data-std-del="' + esc(it.id) + '" title="Delete">' + ICON.del + '</button></span>';
-  }
-  function thumb(it) {
-    return it.pics.length ? '<img class="std-thumbnail" data-pic="' + esc(it.pics[0].file) + '" alt="" width="72" height="47" loading="lazy">' : '<span class="std-thumbnail none" aria-hidden="true">Text</span>';
-  }
-  function rowHtml(deckId, items, it, child) {
-    var i = items.indexOf(it), open = !!rowOpen[deckId + '|' + it.id];
-    return '<li class="std-li' + (open ? ' open' : '') + (child ? ' child' : '') + '">' +
-      '<button class="std-row" data-std-open="' + esc(it.id) + '" aria-expanded="' + open + '">' + CHEV + '<span class="std-n">' + (i + 1) + '</span>' +
-      '<span class="std-row-text"><span class="std-row-title">' + esc(it.title || 'Untitled') + '</span><span class="std-row-first">' + esc(firstLine(it.body)) + '</span></span>' + thumb(it) + '</button>' +
-      '<div class="std-row-detail"' + (open ? '' : ' hidden') + '>' + mainHtml(it, i + 1) + (ctx.fte ? '<div class="std-row-acts">' + itemActs(items, it, i) + '</div>' : '') + '</div></li>';
-  }
-  function rowsView(deckId, items) {
-    var o = outline(items);
-    var tools = '<div class="std-tools"><button class="btn btn-plain" data-std-all="1">Expand all</button><button class="btn btn-plain" data-std-all="0">Collapse all</button></div>';
-    var list = function (g) { return '<ol class="std-rows card">' + g.tops.map(function (it) { return rowHtml(deckId, items, it) + o.kids(it.id).map(function (k) { return rowHtml(deckId, items, k, true); }).join(''); }).join('') + '</ol>'; };
-    if (!o.grouped) return tools + list(o.groups[0]);
-    return tools + o.groups.map(function (g) {
-      var k = deckId + '|g|' + g.name, s = !!shut[k];
-      return '<section class="std-group' + (s ? ' shut' : '') + '"><button class="std-group-head" data-std-group="' + esc(g.name) + '" aria-expanded="' + !s + '">' + CHEV +
-        '<span class="std-group-name">' + esc(groupName(g)) + '</span><span class="home-count">' + g.count + '</span></button>' + (s ? '' : list(g)) + '</section>';
-    }).join('');
   }
   function treeView(deckId, items, r) {
     var o = outline(items);
@@ -639,15 +617,15 @@
         : '<div class="std-empty"><p>Loading…</p></div>') + '</div>';
     }
     var d = s.deck, items = d.items, has = items.length > 0;
-    var view = has && r.slide ? 'slides' : has && r.tree ? 'tree' : 'rows';
+    var view = has && r.slide ? 'slides' : 'tree';
     var sub = items.length + ' item' + (items.length === 1 ? '' : 's') + (d.updatedAt ? ' · updated ' + esc(relTime(d.updatedAt)) + (d.updatedBy ? ' by ' + esc(d.updatedBy) : '') : '');
-    var tab = function (v, label) { return '<button role="tab" aria-selected="' + (view === v) + '" class="' + (view === v ? 'on' : '') + '" data-std="' + v + '"' + (has || v === 'rows' ? '' : ' disabled') + '>' + label + '</button>'; };
-    var bar = '<div class="std-bar"><div class="seg" role="tablist" aria-label="View">' + tab('rows', 'Rows') + tab('tree', 'Tree') + tab('slides', 'Slides') + '</div>' +
+    var tab = function (v, label) { return '<button role="tab" aria-selected="' + (view === v) + '" class="' + (view === v ? 'on' : '') + '" data-std="' + v + '"' + (has ? '' : ' disabled') + '>' + label + '</button>'; };
+    var bar = '<div class="std-bar"><div class="seg" role="tablist" aria-label="View">' + tab('tree', 'Tree') + tab('slides', 'Slides') + '</div>' +
       '<span class="std-spacer"></span>' +
       (ctx.fte ? '<button class="btn" data-std="add">' + ICON.plus + '<span>Add item</span></button><button class="btn" data-std="import">' + ICON.imp + '<span>Import .pptx</span></button>' : '') +
       '<button class="btn" data-std="export"' + (has ? '' : ' disabled') + '>' + ICON.exp + '<span>Export .pptx</span></button>' +
       '<button class="btn" data-std="print"' + (has ? '' : ' disabled') + '>' + ICON.print + '<span>Print</span></button></div>';
-    var html = '<div class="page std-page' + (view === 'rows' ? '' : ' std-wide') + '">' + head + '<div class="page-sub std-sub">' + sub + '</div>' + bar;
+    var html = '<div class="page std-page std-wide">' + head + '<div class="page-sub std-sub">' + sub + '</div>' + bar;
     if (!has) {
       html += '<div class="std-empty"><p>Nothing here yet.</p>' + (ctx.fte ? '<p class="note">Add an item by hand, or import the slides of a PowerPoint deck.</p><button class="btn btn-primary" data-std="add">' + ICON.plus + 'Add item</button> <button class="btn" data-std="import">' + ICON.imp + 'Import .pptx</button>' : '') + '</div>';
     } else if (view === 'slides') {
@@ -663,10 +641,8 @@
         '<div class="std-stage-foot"><span class="std-counter">' + n + ' / ' + items.length + '</span><span class="std-spacer"></span>' +
         (ctx.fte ? '<button class="btn btn-plain" data-std-edit="' + esc(it.id) + '">' + ICON.edit + 'Edit</button>' : '') +
         '<button class="btn btn-plain" data-std="full">' + ICON.full + 'Full screen</button></div></div></div>';
-    } else if (view === 'tree') {
-      html += treeView(r.deck, items, r);
     } else {
-      html += rowsView(r.deck, items);
+      html += treeView(r.deck, items, r);
     }
     return html + '</div>';
   }
@@ -676,8 +652,7 @@
     function on(sel, fn) { Array.prototype.forEach.call(el.querySelectorAll(sel), function (b) { b.addEventListener('click', function (e) { e.preventDefault(); fn(b, e); }); }); }
     on('[data-std="home"]', function () { go(''); });
     on('[data-std="retry"]', function () { decks[id] = {}; load(id).then(draw, draw); draw(); });
-    on('[data-std="rows"]', function () { go('#standards/' + id); });
-    on('[data-std="tree"]', function () { go('#standards/' + id + '/tree', r.tree); });
+    on('[data-std="tree"]', function () { go('#standards/' + id, !r.slide); });
     on('[data-std="slides"]', function () { go('#standards/' + id + '/slides/1'); });
     on('[data-std-go]', function (b) { var n = +b.getAttribute('data-std-go'); if (n >= 1 && n <= items.length) go('#standards/' + id + '/slides/' + n, !!r.slide); });
     on('[data-std="add"]', function () { editor(id, null, r.slide ? r.slide : null); });
@@ -690,19 +665,7 @@
     on('[data-std="rename"]', function () { sectionSheet(id); });
     on('[data-std="delsec"]', function () { deleteSection(id); });
     on('[data-std="full"]', function () { var st = el.querySelector('.std-stage-wrap'); if (st && st.requestFullscreen) st.requestFullscreen().catch(function () {}); });
-    // Rows: a row opens in place, without a redraw, so the page stays where it is.
-    on('[data-std-open]', function (b) {
-      var k = id + '|' + b.getAttribute('data-std-open'), open = !rowOpen[k]; rowOpen[k] = open;
-      b.setAttribute('aria-expanded', open); b.parentNode.classList.toggle('open', open); b.nextElementSibling.hidden = !open;
-      if (open) fillPics(b.nextElementSibling);
-    });
-    on('[data-std-all]', function (b) {
-      var o = b.getAttribute('data-std-all') === '1';
-      items.forEach(function (it) { rowOpen[id + '|' + it.id] = o; });
-      if (o) Object.keys(shut).forEach(function (k) { if (k.indexOf(id + '|') === 0) delete shut[k]; });
-      draw();
-    });
-    on('[data-std-group]', function (b) { var k = id + '|g|' + b.getAttribute('data-std-group'); shut[k] = !shut[k]; draw(); if (r.tree) { var g = el.querySelector('.std-node-group[data-std-group="' + CSS.escape(b.getAttribute('data-std-group')) + '"]'); if (g) g.focus(); } });
+    on('[data-std-group]', function (b) { var k = id + '|g|' + b.getAttribute('data-std-group'); shut[k] = !shut[k]; draw(); if (!r.slide) { var g = el.querySelector('.std-node-group[data-std-group="' + CSS.escape(b.getAttribute('data-std-group')) + '"]'); if (g) g.focus(); } });
     // Tree: a node picks its item (its twisty folds it); on a phone the item shows, with All items to go back.
     on('[data-std-sel]', function (b, e) {
       var tw = e.target.closest('[data-std-twist]');

@@ -90,38 +90,14 @@
 .std-thumb-t { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .std-thumb.child { padding-left: 22px; }
 
-/* ── Rows (from lab/standards-views.html): a row per item, opening in place; groups fold; nested items indent ── */
-.std-tools { display: flex; justify-content: flex-end; gap: 2px; margin: -8px 0 6px; }
-.std-rows { list-style: none; margin: 0 0 14px; padding: 4px; }
-.std-li + .std-li { border-top: 1px solid var(--hair); }
-.std-row { width: 100%; display: flex; align-items: center; gap: 10px; padding: 8px 10px; border: none; background: transparent; color: var(--text);
-  text-align: left; font: inherit; cursor: pointer; border-radius: 10px; }
-.std-row:hover { background: var(--bg-sunk); }
-.std-li.open > .std-row { background: var(--accent-soft); }
 .std-chev { flex: none; width: 14px; height: 14px; color: var(--text-3); transition: transform 0.15s var(--ease); }
-[aria-expanded="true"] > .std-chev, [aria-expanded="true"] > .std-twisty > .std-chev { transform: rotate(90deg); }
-.std-row-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
-.std-row-title { font: 600 14.5px/1.3 var(--display); letter-spacing: -0.01em; }
-.std-row-first { color: var(--text-2); font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.std-thumbnail { flex: none; width: 72px; height: 47px; border-radius: 6px; object-fit: cover; background: var(--bg-sunk); border: 1px solid var(--hair); }
-.std-thumbnail.none { display: grid; place-items: center; font: 600 10px/1 var(--sans); letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-3); }
-.std-row-detail { padding: 6px 12px 12px 58px; animation: rise 0.2s var(--ease); }
-.std-row-detail .std-item-pic { max-height: 300px; }
-.std-row-acts { display: flex; justify-content: flex-end; margin-top: 6px; }
-.std-li.child > .std-row { padding-left: 34px; }
-.std-li.child > .std-row::before { content: ""; flex: none; width: 10px; height: 14px; margin: -12px -4px 0 -14px; border-left: 1.5px solid var(--hair-2); border-bottom: 1.5px solid var(--hair-2); border-bottom-left-radius: 4px; }
-.std-li.child > .std-row-detail { padding-left: 82px; }
-.std-group { margin-bottom: 6px; }
-.std-group-head { display: flex; align-items: center; gap: 8px; width: 100%; padding: 8px 6px; border: none; background: none; cursor: pointer; text-align: left;
-  font: 600 11.5px/1.4 var(--sans); letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-3); border-radius: 8px; }
-.std-group-head:hover { color: var(--text); }
-.std-group-name { color: var(--text-2); }
+[aria-expanded="true"] > .std-twisty > .std-chev { transform: rotate(90deg); }
 /* Where an item sits: "Copper layers › Top layer". */
 .std-crumb { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 4px; font: 500 11.5px/1.3 var(--sans); color: var(--text-3); }
 .std-sep { opacity: 0.7; }
 .std-slide-text .std-crumb { margin-bottom: 6px; }
 
-/* ── Tree: groups and nesting on the left, one item on the right ── */
+/* ── Tree (from the standards views lab): groups and nesting on the left, one item on the right ── */
 .std-tree { display: grid; grid-template-columns: 280px minmax(0, 1fr); gap: 16px; align-items: start; }
 .std-tree-nav { position: sticky; top: 12px; max-height: calc(100vh - 40px); overflow: auto; padding: 6px; }
 .std-tree-nav ul { list-style: none; margin: 0; padding: 0; }
@@ -210,8 +186,6 @@
   .std-bar .btn span { display: none; }
 }
 @media (max-width: 600px) {
-  .std-thumbnail { width: 56px; height: 37px; }
-  .std-row-detail, .std-li.child > .std-row-detail { padding: 4px 8px 12px; }
   .std-place { grid-template-columns: minmax(0, 1fr); gap: 0; }
   /* Tree on a phone: the list, then the item with All items to go back; never two columns. */
   .std-tree { grid-template-columns: minmax(0, 1fr); }
