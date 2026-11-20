@@ -15,7 +15,7 @@
 <div id="out"></div>
 <script>
 // Load the engine fresh on every run, so a browser cache never tests old code.
-['config', 'templates', 'model', 'localstore', 'auth', 'github', 'workspace', 'demo', 'history', 'pptx', 'home'].forEach(function (n) { document.write('<script src="../assets/' + n + '.js?t=' + Date.now() + '"><\/script>'); });
+['config', 'templates', 'model', 'localstore', 'auth', 'github', 'workspace', 'demo', 'history', 'pptx', 'home', 'specedit'].forEach(function (n) { document.write('<script src="../assets/' + n + '.js?t=' + Date.now() + '"><\/script>'); });
 </script>
 <script>
 /* Unit tests for the model and the GitHub sync, run against a fake GitHub API.
@@ -1438,6 +1438,40 @@
     eq(states('[Relays go off]{REQ-001}. Check: is it 100 ms?'), ['linked', 'note'], 'a note after a linked sentence is its own sentence');
     // Plain text keeps the space before a dotted word.
     eq([M.specPlain('Open the .cfg file.'), M.specPlain('Make it pulse @req.'), M.specPlain('A , b'), M.specPlain('[x]{std} .')], ['Open the .cfg file.', 'Make it pulse.', 'A, b', 'x.'], 'specPlain drops a space before punctuation only where it ends a word');
+    // Rich text and lists in Scribe (2026-11-19).
+    var rich = function (t) { return M.specRich(t).map(function (r) { return (r.b ? 'B' : '') + (r.i ? 'I' : '') + (r.s ? 'S' : '') + ':' + r.t; }); };
+    eq(rich('a **b** *i* ~~s~~ 5 * 3 and **x'), [':a ', 'B:b', ': ', 'I:i', ': ', 'S:s', ': 5 * 3 and **x'], 'Scribe: bold, italic, and struck words; a marker that isn’t closed stays as typed');
+    eq([rich('***both***'), rich('a*b*c')], [['BI:both'], [':a*b*c']], 'Scribe: bold italic together; a star inside a word is a star');
+    eq(M.specPlain('The **[loop]{REQ-001}** runs *fast*.'), 'The loop runs fast.', 'Scribe: plain text drops the markers');
+    var lis = M.specBlocks('- one\n  - two\n1. a\n  1. b\n  2. c\n\n2) d\nText', M.specContext({ spec: {}, reqs: {} })).filter(function (b) { return b.type === 'li'; });
+    eq(lis.map(function (b) { return [b.lv, b.num]; }), [[0, false], [1, false], [0, true], [1, true], [1, true], [0, true]], 'Scribe: list lines by level, bullets and numbered');
+    eq(M.specListNumbers(lis), ['', '', '1.', '1.1', '1.2', '2.'], 'Scribe: numbered lines count 1., 1.1, 1.2, 2. (a blank line keeps the list)');
+    // The editor (assets/specedit.js): the text comes back exactly; edits change the text, badges go whole.
+    if (window.SignoffSpecEdit) {
+      var seEl = document.createElement('div'); document.body.appendChild(seEl);
+      var seText = '## Title\n- one **bold** and *it*\n  1. sub [x]{REQ-001} @req\n| a \\| b | c |\n```\n**not** @req\n```\n> gist\nCheck: why?\n5 * 3 and ** lone\n\ttab line\n  \n';
+      var se = window.SignoffSpecEdit.mount(seEl, seText, { model: M, words: function () { return ['Connects', 'Supplies']; }, markLabel: function (i) { return { label: i }; } });
+      eq(seEl.value, seText, 'Scribe editor: the text comes back byte for byte');
+      eq(Array.prototype.map.call(seEl.querySelectorAll('.se-b'), function (b) { return b.getAttribute('data-raw'); }), ['## ', '- ', '  1. ', '[x]{REQ-001}', '@req', '> ', 'Check: '], 'Scribe editor: headings, list markers, marks, flags, gists, and notes are badges; code and tables are not');
+      var beforeIn = function (t, data) { seEl.dispatchEvent(new InputEvent('beforeinput', { inputType: t, data: data, cancelable: true, bubbles: true })); };
+      seEl.focus();
+      seEl.setSelectionRange(seText.indexOf('*it*') + 4); beforeIn('insertParagraph'); beforeIn('insertText', 'two');
+      eq(seEl.value.split('\n')[2], '- two', 'Scribe editor: Enter on a list line continues the list');
+      beforeIn('insertParagraph'); beforeIn('insertParagraph');
+      eq(seEl.value.split('\n').slice(2, 4), ['- two', ''], 'Scribe editor: Enter on an empty list line ends the list');
+      var seL = seEl.value.split('\n'), seI = seL.findIndex(function (l) { return l.indexOf('[x]{REQ-001}') >= 0; });
+      seEl.setSelectionRange(seL.slice(0, seI).join('\n').length + 1 + seL[seI].indexOf('}') + 1); beforeIn('deleteContentBackward');
+      eq(seEl.value.split('\n')[seI], '  1. sub  @req', 'Scribe editor: Backspace takes a mark whole');
+      seEl.dispatchEvent(new KeyboardEvent('keydown', { key: 'z', ctrlKey: true, bubbles: true, cancelable: true }));
+      eq(seEl.value.split('\n')[seI], '  1. sub [x]{REQ-001} @req', 'Scribe editor: Ctrl+Z puts it back');
+      var seO = seEl.value.indexOf('one'); seEl.setSelectionRange(seO - 2, seO + 3); se.toggleWrap('**');
+      eq(seEl.value.split('\n')[1], '- **one** **bold** and *it*', 'Scribe editor: Bold skips the list marker and wraps the words');
+      var seW = seEl.value.indexOf('why'); seEl.setSelectionRange(seW, seW + 3);
+      ok(se.wrapMark('REQ-002') && seEl.value.indexOf('Check: [why]{REQ-002}?') >= 0, 'Scribe editor: a link wraps the selected words, leaving punctuation out');
+      var seN = seEl.value.indexOf('5 * 3'); seEl.setSelectionRange(seN); se.setList('n'); se.shift(1);
+      ok(seEl.value.indexOf('\n  1. 5 * 3 and ** lone') >= 0, 'Scribe editor: Numbered list, then Indent');
+      seEl.remove();
+    }
     // Long sections are kept whole, and every rewrite of one line keeps the rest.
     var lp = M.newProject({ name: 'Long', checklists: ['spec'], profile: [] }, 'Ann', T), putL = function (recs) { recs.forEach(function (r) { lp.spec[r.id] = r; }); };
     lp.spec = {};
@@ -1872,6 +1906,9 @@
     eq(d2.items.map(function (i) { return i.title; }), ['Three', 'One', 'Two'], 'add at a place, move, and update apply in order');
     ok(d2.items[0].updatedBy === 'ann' && d2.items[2].updatedAt === '2026-11-19T00:00:00.000Z' && d2.updatedBy === 'ann', 'changed items and the deck are stamped');
     eq(Hm.applyOps(d2, [{ op: 'remove', id: 'aaaa1111' }], 'bo', 'z').items.map(function (i) { return i.id; }), ['cccc3333', 'bbbb2222'], 'remove takes the item out');
+    var np = Hm.applyOps(JSON.parse(JSON.stringify(d2)), [{ op: 'add', item: { id: 'pppp9999', title: 'New parent', body: '', pics: [] }, at: null, before: 'bbbb2222' },
+      { op: 'update', id: 'bbbb2222', fields: { parent: 'pppp9999', group: '' } }], 'ann', 'z');
+    eq(np.items.map(function (i) { return i.id + (i.parent ? '<' + i.parent : ''); }), ['cccc3333', 'pppp9999', 'bbbb2222<pppp9999'], 'New parent item: made just before the item, which goes under it');
     err = null; try { Hm.applyOps(Hm.cleanDeck({}, 'footprints'), [{ op: 'update', id: 'gone1234', fields: {} }], 'a', 'b'); } catch (e) { err = e; }
     ok(err && /deleted/.test(err.message), 'editing an item deleted elsewhere is refused, not recreated');
     var BUL = '<span class="std-mk" aria-hidden="true">•</span>';

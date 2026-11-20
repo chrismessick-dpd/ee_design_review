@@ -99,7 +99,11 @@
 
   // The changes, as pure functions of the deck read at the head (so a retry re-applies them to a newer one).
   var OPS = {
-    add: function (d, a) { var i = a.at == null ? d.items.length : Math.max(0, Math.min(d.items.length, a.at)); d.items.splice(i, 0, a.item); },
+    // at: an index (none: the end); before: an item's id, which wins when that item is still there.
+    add: function (d, a) {
+      var i = a.at == null ? d.items.length : Math.max(0, Math.min(d.items.length, a.at)), b = a.before ? d.items.map(function (x) { return x.id; }).indexOf(a.before) : -1;
+      d.items.splice(b >= 0 ? b : i, 0, a.item);
+    },
     update: function (d, a) { var it = d.items.filter(function (x) { return x.id === a.id; })[0]; if (!it) throw new Error('That item was deleted in another tab or by someone else.'); Object.keys(a.fields).forEach(function (k) { it[k] = a.fields[k]; }); },
     remove: function (d, a) { d.items = d.items.filter(function (x) { return x.id !== a.id; }); },
     move: function (d, a) {
@@ -1109,6 +1113,9 @@
 
   // Where an item sits, in the Edit window: a group (typed, or one the deck already has) and, one level deep, the
   // item it's under (which then decides its group). An item with items under it stays top-level.
+  // "+ New parent item…" in Under (2026-11-19, Chris): a new top-level item, made with this one's group just
+  // before it, that this item goes under. Only its title is asked; it's edited like any other item after.
+  var NEW_PARENT = '+new';
   function placeFields(d, it) {
     var names = [];
     d.items.forEach(function (x) { if (x.group && names.indexOf(x.group) < 0) names.push(x.group); });
@@ -1120,7 +1127,8 @@
       '<div class="field"><label for="std-under">Under</label><select class="input" id="std-under"' + (hasKids ? ' disabled' : '') + '>' +
       '<option value="">Nothing: a top-level item</option>' + tops.map(function (x) {
         return '<option value="' + esc(x.id) + '"' + (it && it.parent === x.id ? ' selected' : '') + '>' + (d.items.indexOf(x) + 1) + '. ' + esc(x.title || 'Untitled') + '</option>';
-      }).join('') + '</select>' + (hasKids ? '<p class="note">Items sit under this one, so it stays top-level.</p>' : '') + '</div></div>';
+      }).join('') + '<option value="' + NEW_PARENT + '">+ New parent item…</option></select>' + (hasKids ? '<p class="note">Items sit under this one, so it stays top-level.</p>' : '') +
+      '<input class="input std-new-parent" id="std-new-parent" maxlength="200" placeholder="The new parent item’s title" hidden></div></div>';
   }
 
   // Add (itemId null) or edit an item: title, text, where it sits, and pictures (pick, drop, or paste).
@@ -1142,7 +1150,12 @@
     $('#std-text-label', w).addEventListener('click', function () { rt.box.focus(); });
     var close = w.close;
     w.close = function () { rt.done(); close(); };
-    function placeState() { var p = under.value; grp.disabled = !!p; grp.placeholder = p ? 'Follows the item it’s under' : 'e.g. Copper layers'; }
+    var np = $('#std-new-parent', w);
+    function placeState() {
+      var p = under.value, fresh = p === NEW_PARENT;
+      grp.disabled = !!p && !fresh; grp.placeholder = p && !fresh ? 'Follows the item it’s under' : fresh ? 'The new parent item’s group' : 'e.g. Copper layers';
+      if (np.hidden === fresh) { np.hidden = !fresh; if (fresh) np.focus(); }
+    }
     under.addEventListener('change', placeState); placeState();
     function drawPics() {
       box.innerHTML = kept.map(function (p, k) { return '<figure><img data-pic="' + esc(p.file) + '" alt=""><button class="icon-btn" data-k="' + k + '" title="Remove">×</button></figure>'; }).join('') +
@@ -1172,16 +1185,23 @@
       if (!title && !body && !kept.length && !added.length) { $('#std-status', w).textContent = 'Give it a title, some text, or a picture.'; return; }
       var ups = added.map(function (p) { return picRecord(deckId, newId, p); });
       var pics = kept.concat(ups.map(function (u) { return u.rec; }));
-      var parent = under.value, group = parent ? '' : grp.value.trim();
+      var parent = under.value, group = parent ? '' : grp.value.trim(), made = null;
+      if (parent === NEW_PARENT) {
+        var pt = np.value.trim();
+        if (!pt) { $('#std-status', w).textContent = 'Give the new parent item a title.'; np.focus(); return; }
+        made = { id: rid(8), title: pt, body: '', group: grp.value.trim(), parent: '', pics: [] };
+        parent = made.id;
+      }
       var ops = it ? [{ op: 'update', id: it.id, fields: { title: title, body: body, group: group, parent: parent, pics: pics } }]
-        : [{ op: 'add', item: { id: newId, title: title, body: body, group: group, parent: parent, pics: pics }, at: after == null ? null : after }];
+        : [{ op: 'add', item: { id: newId, title: title, body: body, group: group, parent: parent, pics: pics }, at: after == null ? null : after + (made ? 1 : 0) }];
+      if (made) ops.unshift({ op: 'add', item: made, at: after == null ? null : after, before: it ? it.id : null });
       w.dataset.busy = '1';
       Array.prototype.forEach.call(w.querySelectorAll('button, input, textarea, select'), function (b) { b.disabled = true; });
       rt.disable(true);
       $('#std-status', w).textContent = 'Saving…';
       change(deckId, ops, ups.map(function (u) { return u.upload; }), (it ? 'Edit' : 'Add') + ' "' + (title || 'Untitled') + '" in ' + deckDef(deckId).title).then(function () {
         w.close(); toast(it ? 'Saved' : 'Added');
-        if (!it && after != null) go('#standards/' + deckId + '/slides/' + (after + 1), true); else draw();
+        if (!it && after != null) go('#standards/' + deckId + '/slides/' + (after + (made ? 2 : 1)), true); else draw();
       }, function (e) {
         delete w.dataset.busy;
         Array.prototype.forEach.call(w.querySelectorAll('button, input, textarea, select'), function (b) { b.disabled = false; });

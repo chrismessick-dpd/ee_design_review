@@ -18,7 +18,7 @@ Read next:
 ## Rules
 
 - **Engine files**: `assets/model.js`, `auth.js` (Sign in with GitHub; `../signoff/docs/sign-in.md`), `github.js`, `workspace.js`, `app.js`, `demo.js`,
-  `specguide.js`, `history.js`, `localstore.js` (the reviews' local store in IndexedDB; `../CLAUDE.md`), `styles.css`, and `tools/build.py`, `package.py`, `validate_templates.py`, `signoff.js`,
+  `specguide.js`, `specedit.js` (Scribe's editor), `history.js`, `localstore.js` (the reviews' local store in IndexedDB; `../CLAUDE.md`), `styles.css`, and `tools/build.py`, `package.py`, `validate_templates.py`, `signoff.js`,
   `signoff_test.js`. Edit them only here. Then copy them to the other tools:
 
   | Tool | Command |
@@ -100,7 +100,9 @@ comes back on import; nesting doesn't. An item's text is formatted as you type i
 Chris: `richText` in `home.js`, buttons under the box for bold, italic, strikethrough, bullets, numbered lists, and
 indent; Tab and Shift+Tab on list lines) but stored as plain text with markers (`**b**`, `*i*`, `~~s~~`, `- `
 bullets, `# ` numbered, two spaces a level, numbered 1., 1.1, 1.1.1), parsed by `window.SignoffText` in `pptx.js`
-for the views and for .pptx, which carries it both ways (runs, bullets, levels, numbers as text and a tab). Everyone signed in reads; FTEs add, edit, move, delete
+for the views and for .pptx, which carries it both ways (runs, bullets, levels, numbers as text and a tab). Under's last choice, **+ New parent item…** (2026-11-19, Chris), asks a title and
+makes a top-level item with the Group field's group just before this one, which goes under it (`OPS.add` takes
+`before: <item id>`); it isn't offered to an item that has items under it (Under is disabled there). Everyone signed in reads; FTEs add, edit, move, delete
 (with Undo), and import and export .pptx. Not engine files: `assets/home.js`, `home.css`, and `pptx.js` (zip
 in and out without a library: the CSP allows only this site's scripts).
 - **Storage:** the private repo `config.home.repo` (`ee_standards`), `decks/<id>.json` (`signoff.standards/1`)

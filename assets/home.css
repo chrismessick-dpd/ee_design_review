@@ -250,3 +250,4 @@
 .std-rt-btn svg { width: 16px; height: 16px; }
 .std-rt-btn.on { background: var(--bg-elev); color: var(--accent); box-shadow: var(--shadow-sm); }
 .std-rt-sep { width: 1px; height: 18px; margin: 0 4px; background: var(--border); }
+.std-new-parent { margin-top: 8px; }
