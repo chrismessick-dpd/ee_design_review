@@ -218,6 +218,28 @@ From a co-worker's first EE description (`signoff_tickets` 3 to 8; Chris approve
     curve's parameter), so labels dragged before 2026-11-18 sit a little off where they were.
   - The connect dot moved to each block's top-right corner, clear of the ports (Chris).
 
+## Everything on the grid, and lines straight out of their ports (Chris, 2026-11-19)
+
+Chris: lines met their ports far from the dots, a line jogging aside under a port couldn't be dragged back under
+it, and "snap ports to a grid and expand parts to accommodate, so everything snaps on a grid".
+- **The grid** is the routing grid, 10 units (`SPEC_GRID`). Blocks are 160 × 60 (`SPEC_BW`, `SPEC_BH`), section
+  padding and heading 20, block gaps 40, and the lead out of a top or bottom port 20 (`SPEC_LSTUB`), all whole steps.
+  A kept place is drawn on the grid (`specSnap`; places kept before sit up to 5 units off until that block is
+  dragged, and a drag of another block doesn't rewrite them), and so is the power tree's, whose pins are a step
+  apart from 40 down (`specPtPinY`).
+- **Ports** take grid points: a side has one every step in from its corners (`specSlots`, `specSlot`, `specPortPt`).
+  Auto ports spread over the free points in the order of the blocks they go to; a dragged one snaps to the nearest.
+- **Blocks grow** so each line on a side has its own point (`specGrow`, before the sections fit round them): a side
+  with more lines than points widens or deepens the block, its top-left corner kept; a kept port counts once per
+  point it holds (a power tree rail's pin serves all its loads). Nothing is written. Layout and kept places still
+  use the base size, so a grown block can run into its neighbor.
+- **Straight out of a top or bottom port.** The engine's ends are level, so a line from a top or bottom port ran out
+  to its lead point and stepped aside before heading on. Now an auto line drops straight out of the port when that
+  clears every block and lies along no other line (`specDrop`); otherwise it keeps the step. A line's vertical run
+  dragged near the port snaps under it (Loom's snap-straight), and a shape so is kept (`specFits`: `route.js` fits,
+  or an end's vertical run in line with its lead-in, heading away from the block). The drag accepts any of the
+  line's end pairs, so the run also crosses under the port to its other side. Loom's engine is unchanged.
+
 ## Power, and Supplies folded into Connects (Chris, 2026-11-19)
 
 - **Power** is its own line: `Power: 16.4V (sink), 3V0 (source)`, the rails a block uses (sink) and makes
