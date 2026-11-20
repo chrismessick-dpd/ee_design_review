@@ -545,7 +545,13 @@
   var put2 = await dataStoreA.putFiles(pkgFiles, {});
   ok(put2.pushed === 0 && put2.skipped === 3 && (hub.blobPosts || 0) === postsBefore, 'writing the same package again uploads nothing');
   eq((await dataStoreA.listTree(fdir)).length, 3, 'listTree lists a project’s Fabcheck files');
+  ok(annWs.checkerDirs().indexOf('fabcheck/') >= 0 && annWs.checkerDirs().indexOf('partcheck/') < 0, 'Signoff EE moves fabcheck/ with a shared review, and has no partcheck/');
+  // Signoff ME's Partcheck pictures (config.previews.dir partcheck/) move the same way.
+  await dataStoreA.putFiles([{ path: 'partcheck/' + F.id + '/preview/index.json', text: '{"v":1}' }], {});
+  annWs.checkerDirs = function () { return ['fabcheck/', 'partcheck/']; };
   var fsh = await annWs.share(fst, F.id, []);
+  delete annWs.checkerDirs;
+  ok(hub.files(fsh.repo)['partcheck/' + F.id + '/preview/index.json'] && !hub.files('ann/data')['partcheck/' + F.id + '/preview/index.json'], 'every checker folder of a shared review moves to its new repo');
   var moved = hub.files(fsh.repo), dataNow = hub.files('ann/data');
   ok(moved[fdir + 'runs/r1.json'] && moved[fdir + 'packages/abc/files/odb/features'].length === bin.length, 'sharing a project carries its Fabcheck files to the new repo');
   ok(!Object.keys(dataNow).some(function (k) { return k.indexOf(fdir) === 0; }), '…and removes them from the FTE data repo');

@@ -160,8 +160,13 @@ fabcheck/<projectId>/preview/bottom.webp
   cropping each picture to its opaque area. Older stores don't have it; readers must cope.
 - Send's confirm mentions the pictures along with the package files.
 - Only a run open in the tab can be drawn.
-- The layout is meant for any tool that stores runs next to a review: a mechanical checker would
-  write `<its folder>/<projectId>/preview/` the same way, with one image per part. Image keys and
+- The layout is meant for any tool that stores runs next to a review. Partcheck's Send to Signoff
+  ME (2026-11-08) writes `partcheck/<projectId>/preview/` the same way, plus a `parts` list (each
+  part's views and a mesh), for Signoff ME's overview (`config.previews.dir`) and Signoff PL; see
+  `../partcheck/docs/send-to-signoff-me.md`. The overview shows the hero part's views when `parts`
+  is there, and only a `config.runs` tool of `fabcheck` opens a run from the picture.
+- Sharing a review moves every checker folder (`workspace.js` `checkerDirs`: `config.runs.dir`,
+  `config.previews.dir`, Pincheck's, rework pictures, and releases) into its new repo with it (`moveChecker`). Image keys and
   file names are lowercase slugs (`a-z`, `0-9`, `-`, up to 32 characters); readers drop others.
 - Readers must cope when `preview/` is missing (no run stored yet).
 
