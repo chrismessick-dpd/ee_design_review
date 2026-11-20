@@ -241,6 +241,24 @@ it, and "snap ports to a grid and expand parts to accommodate, so everything sna
   or an end's vertical run in line with its lead-in, heading away from the block). The drag accepts any of the
   line's end pairs, so the run also crosses under the port to its other side. Loom's engine is unchanged.
 
+## Side by side, the outline fold, and quieter tooltips (Chris, 2026-11-20)
+
+- **Side by side** is a third view beside Document and Diagram (`ui.specView = 'side'`, `specPage`): the document on
+  the left and the diagram (with the hierarchy and power tree under it) on the right, which stays in view while the
+  text scrolls (`.spec-side-map`, sticky, its own scroll). The page widens to 1800 px for it. Editing, adding, and
+  jumping to text keep it (`specTextView`); Diagram still goes to Document. At 860 px or less (Chris's choice) the
+  tab is hidden and the page shows Document; a resize across that line draws the page again (`specNarrow`,
+  `specDrawnNarrow`). Works the same in FW over its layered map.
+- **The outline folds**: an Outline toggle at its top leaves a narrow rail (`specOlToggle`, `spec-outline-toggle`).
+  Until it's used, the outline folds itself below 1200 px and always in Side by side (`.ol-auto`); a choice is kept
+  for the session, one for Document (`ui.specOutline`) and one for Side by side (`ui.specOutlineSide`). At 860 px
+  or less there's no outline (it was a row of section names above the text). Edit all keeps its live outline.
+- **The Requirements inbox** is left out of Diagram (`specNeedsHtml`'s `noInbox`); Document and Side by side keep it,
+  and conflict-copy cards show everywhere as before.
+- **Tooltips** on diagram blocks, section boxes, and power tree blocks are the name, gist, and gaps (or rails) only;
+  the drag instructions are gone (an SVG title can't be styled smaller). The note under the diagram still says how
+  to drag.
+
 ## Power, and Supplies folded into Connects (Chris, 2026-11-19)
 
 - **Power** is its own line: `Power: 16.4V (sink), 3V0 (source)`, the rails a block uses (sink) and makes
