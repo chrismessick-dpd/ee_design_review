@@ -205,7 +205,8 @@ From a co-worker's first EE description (`signoff_tickets` 3 to 8; Chris approve
     `ports['<other id>|<word>'] = { side: 'l' | 'r' | 't' | 'b', t }`. A port on the top or bottom runs out to a lead
     point past the edge, then turns either way (Loom's `termsRect`). A moved port routes its line afresh.
   - **Shapes.** A drag on a line's straight run moves it (Shift breaks it at the grab, Ctrl is off the grid, it
-    snaps straight within 5 steps), a double-click adds a bend, and the shape is kept on the line's from-block as
+    snaps straight within one grid step, 10 units: Loom's 5 steps left no room between two straight lines under
+    100 apart, Chris, 2026-11-19), a double-click adds a bend, and the shape is kept on the line's from-block as
     Loom's record, `routes['<to id>|<word>'] = { v, a, b, mode }`. A click without moving still opens the line's
     panel, which has **Reset route** once a line is shaped or a port moved. A shape whose blocks moved apart so it
     no longer fits routes afresh (not written; the record stays until Reset or Auto layout).
