@@ -1449,6 +1449,17 @@
     var PW_KEEP = window.SIGNOFF_CONFIG.spec; window.SIGNOFF_CONFIG.spec = TOOL_SPEC;
     if (M.specPowerOn()) {
       eq(M.specPowerItems('16.4V (sink), 3V0 (source), VBAT'), [{ rail: '16.4V', role: 'sink' }, { rail: '3V0', role: 'source' }, { rail: 'VBAT', role: 'sink' }], 'Power: rails with source or sink (sink when none is written)');
+      // Power tree (2026-11-19): "tree" marks a rail row, whatever its role, and round-trips.
+      eq(M.specPowerItems('5V (sink, tree), 3V3 (source, tree), "A, B" (source), VIN (tree)'), [{ rail: '5V', role: 'sink', tree: true }, { rail: '3V3', role: 'source', tree: true }, { rail: 'A, B', role: 'source' }, { rail: 'VIN', role: 'sink', tree: true }], 'Power tree: the tree flag beside either role, or alone');
+      ['16.4V (sink), 3V0 (source)', '5V (sink, tree), 3V3 (source, tree)', '"A, B" (source, tree)'].forEach(function (t) {
+        eq(M.specPowerText(M.specPowerItems(t)), t, 'Power line round-trips: ' + t);
+      });
+      eq(M.specPowerText([{ rail: '5V', role: 'sink', tree: true }, { rail: '5V', role: 'sink' }]), '5V (sink, tree)', 'a rail twice in one role is written once, the flag not making a second');
+      var ptRec = { id: 'x', title: 'X', body: '', ptree: { pos: { x: 12.4, y: 'no' }, ports: { 'y|5v': { side: 'r', t: 0.5 } }, routes: { 'y|5v': { v: [100], a: 'r', b: 'l' } }, labels: { 'y|5v': { t: 0.3, x: 4, y: -9 } }, junk: 1 } };
+      var ptClean = M.liveSpec({ spec: { x: ptRec } })[0];
+      eq(ptClean.ptree, { ports: { 'y|5v': { side: 'r', t: 0.5 } }, routes: { 'y|5v': { v: [100], a: 'r', b: 'l' } }, labels: { 'y|5v': { t: 0.3, x: 4, y: -9 } } }, 'the power tree layout is kept, cleaned (a bad place dropped, unknown keys left out)');
+      eq('ptree' in M.liveSpec({ spec: { x: { id: 'x', title: 'X', body: '' } } })[0], false, 'a section without a power tree layout gets none');
+      eq('ptree' in M.liveSpec({ spec: { x: { id: 'x', title: 'X', body: '', ptree: { pos: null } } } })[0], false, 'an empty power tree layout is left out');
       eq(M.specOfferWords(), ['Connects'], 'EE offers Connects only; Supplies is still read');
       var pwp = M.newProject({ name: 'Power', checklists: ['spec'], profile: [] }, 'Ann', T); pwp.spec = {}; pwp.reqs = pwp.reqs || {};
       M.specSave(pwp, null, '# Board\n## Power\n### Conn\nSupplies: Rail (16.4V), Ghost (5V)\n### Rail\nSupplies: LDO (16.4V), Radio (16.4V)\n### LDO\nSupplies: MCU (3V0)\nConnects: MCU (EN)\n## Control\n### MCU\nText.\n### Radio\nText.', 'Ann').forEach(function (r) { pwp.spec[r.id] = r; });

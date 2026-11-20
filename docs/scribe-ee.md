@@ -235,3 +235,24 @@ From a co-worker's first EE description (`signoff_tickets` 3 to 8; Chris approve
   from `<id>|supplies` to `<id>|connects`; the stored records are copied, every other field kept. The demo's Main
   PCBA was converted (demo `VERSION` 21). The real reviews that used Supplies were converted the same way
   (2026-11-19), each proven to keep the same bars and the same power lines, plus circles on the rails made.
+
+## Power tree (Chris, 2026-11-19)
+
+- **The flag.** Each row of a block's Power panel has a **Power tree** box. It's written into the Power line beside the
+  role, `Power: 5V (sink, tree), 3V3 (source, tree)` (`tree: true` on the item, `specPowerItems`, `specPowerText`).
+  Unticked rows read and write as before, so existing lines don't change.
+- **The rows** are a grid (`.spec-power-rows`): the rail column is as wide as the longest rail, Source | Sink | N/A
+  fills the middle, and the box sits at the right, spanning the field.
+- **The diagram** (`specPtreeHtml` in `app.js`, under the Hierarchy, EE only through `config.spec.power`). A block is in
+  it when any of its rows is ticked; its ticked sink rails are pins on its left edge and its ticked source rails on its
+  right. A block that makes a tree rail feeds every tree block that uses it, by rail name (Chris's choice, not the
+  Connects lines), one line per rail, named once where it fans out. Laid out left to right from sources to loads, each
+  load a column right of what feeds it (loops bounded). Blocks with no ticked rows, such as the demo's Status LEDs, stay
+  out. No section boxes: a power tree has none, and drawing one would edit the outline.
+- **Its own arrangement.** Everything the block diagram does by drag works here (blocks, a line's runs, bends, ports,
+  labels, Auto layout, Expand, Export), but kept apart under each section's `ptree: { pos, ports, routes, labels }`
+  (`model.specTreeLayout`, written only when there is one; keys are `<other id>|<rail, lowercased>`). The drag code takes a
+  view from the svg's `data-view` (`specLay`, `specWithLay`, `specLastOf`); `specExpanded` names the expanded card
+  (`'map'` or `'ptree'`), and Export saves the card it was clicked on ("… power tree.png").
+- **A line's panel** is read-only (`specpt|` selection): which block powers which, on what rail, and Reset route.
+- Demo: the Main PCBA's rails are ticked except Status LEDs and AC line (demo `VERSION` 22). Tests: EE 639.
