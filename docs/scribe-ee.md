@@ -254,5 +254,7 @@ From a co-worker's first EE description (`signoff_tickets` 3 to 8; Chris approve
   (`model.specTreeLayout`, written only when there is one; keys are `<other id>|<rail, lowercased>`). The drag code takes a
   view from the svg's `data-view` (`specLay`, `specWithLay`, `specLastOf`); `specExpanded` names the expanded card
   (`'map'` or `'ptree'`), and Export saves the card it was clicked on ("… power tree.png").
+- **Legend.** The block diagram shows the two power symbols at its bottom right, circle "Source" and bar "Sink"
+  (`.spec-legend`), whenever a block has a Power line; it goes out with Export too.
 - **A line's panel** is read-only (`specpt|` selection): which block powers which, on what rail, and Reset route.
 - Demo: the Main PCBA's rails are ticked except Status LEDs and AC line (demo `VERSION` 22). Tests: EE 639.
