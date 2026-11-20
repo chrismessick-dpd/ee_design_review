@@ -217,3 +217,21 @@ From a co-worker's first EE description (`signoff_tickets` 3 to 8; Chris approve
   - **Labels** ride the routed line: a kept label's `t` is now a share of the line's length (it was the old
     curve's parameter), so labels dragged before 2026-11-18 sit a little off where they were.
   - The connect dot moved to each block's top-right corner, clear of the ports (Chris).
+
+## Power, and Supplies folded into Connects (Chris, 2026-11-19)
+
+- **Power** is its own line: `Power: 16.4V (sink), 3V0 (source)`, the rails a block uses (sink) and makes
+  (source); a rail without a role is a sink (`model.specPowerItems`, `specPowerOf`; on the analysis as `power`).
+  Config: `config.spec.power` (EE only). The diagram draws a bar over the block for each sink rail and a circle
+  (the source convention) for each source rail, each named. The block panel's **Power** lists the rails with
+  Source | Sink | N/A (N/A takes it off) and a box to add one (`specPowerField`, `specPowerSet`).
+- **Supplies is now Connects.** EE offers only Connects (`config.spec.legacyLinks: ["Supplies"]`,
+  `model.specOfferWords`); old Supplies lines still read and draw as before. A Connects link is a **power link**
+  when its signal is a rail the far block sinks or this block sources: like a supply, a line within one section
+  and only the flags across sections. Other connections are lines as always.
+- **Converting** (`model.specPowerConvert`): each `Supplies: B (rail)` on A becomes `B (rail)` on A's Connects
+  line, B sinks the rail, and A sources it unless A also sinks it (a block passing a rail on); a supply without a
+  rail uses A's title, as its flag did; a name no block has stays on Connects. Kept shapes, ports, and labels move
+  from `<id>|supplies` to `<id>|connects`; the stored records are copied, every other field kept. The demo's Main
+  PCBA was converted (demo `VERSION` 21). The real reviews that used Supplies were converted the same way
+  (2026-11-19), each proven to keep the same bars and the same power lines, plus circles on the rails made.

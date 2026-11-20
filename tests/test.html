@@ -1438,6 +1438,34 @@
     eq(states('[Relays go off]{REQ-001}. Check: is it 100 ms?'), ['linked', 'note'], 'a note after a linked sentence is its own sentence');
     // Plain text keeps the space before a dotted word.
     eq([M.specPlain('Open the .cfg file.'), M.specPlain('Make it pulse @req.'), M.specPlain('A , b'), M.specPlain('[x]{std} .')], ['Open the .cfg file.', 'Make it pulse.', 'A, b', 'x.'], 'specPlain drops a space before punctuation only where it ends a word');
+    // Power (EE, 2026-11-19): a Power line of rails, and Supplies converted to Connects and Power.
+    // Under EE's own Scribe settings (this block runs under a plain description's).
+    var PW_KEEP = window.SIGNOFF_CONFIG.spec; window.SIGNOFF_CONFIG.spec = TOOL_SPEC;
+    if (M.specPowerOn()) {
+      eq(M.specPowerItems('16.4V (sink), 3V0 (source), VBAT'), [{ rail: '16.4V', role: 'sink' }, { rail: '3V0', role: 'source' }, { rail: 'VBAT', role: 'sink' }], 'Power: rails with source or sink (sink when none is written)');
+      eq(M.specOfferWords(), ['Connects'], 'EE offers Connects only; Supplies is still read');
+      var pwp = M.newProject({ name: 'Power', checklists: ['spec'], profile: [] }, 'Ann', T); pwp.spec = {}; pwp.reqs = pwp.reqs || {};
+      M.specSave(pwp, null, '# Board\n## Power\n### Conn\nSupplies: Rail (16.4V), Ghost (5V)\n### Rail\nSupplies: LDO (16.4V), Radio (16.4V)\n### LDO\nSupplies: MCU (3V0)\nConnects: MCU (EN)\n## Control\n### MCU\nText.\n### Radio\nText.', 'Ann').forEach(function (r) { pwp.spec[r.id] = r; });
+      var byT = function (t) { return M.liveSpec(pwp).filter(function (x) { return x.title === t; })[0]; };
+      var cv = M.specPowerConvert(pwp), cvT = {};
+      cv.forEach(function (r) { cvT[r.title] = r.body.split('\n').filter(function (l) { return /^(connects|power|supplies):/i.test(l); }); });
+      eq(cvT, {
+        Conn: ['Connects: Rail (16.4V), Ghost (5V)', 'Power: 16.4V (source)'],
+        Rail: ['Connects: LDO (16.4V), Radio (16.4V)', 'Power: 16.4V (sink)'],
+        LDO: ['Connects: MCU (EN)', 'Power: 16.4V (sink), 3V0 (source)'],
+        MCU: ['Power: 3V0 (sink)'],
+        Radio: ['Power: 16.4V (sink)']
+      }, 'Supplies to Connects and Power: a rail passed on is only a sink; a name no block has stays on Connects');
+      ok(cv.filter(function (r) { return r.title === 'LDO'; })[0].body.indexOf('Connects: MCU (EN)') >= 0 && !/MCU \(3V0\)/.test(cvT.LDO.join()), 'a supply to a block already on Connects keeps that connection as it was');
+      var pwRoutes = Object.assign({}, byT('Conn'), { routes: { x: 1 }, ports: {}, labels: {} });
+      pwRoutes.routes = {}; pwRoutes.routes[byT('Rail').id + '|supplies'] = { made: 'by hand' };
+      pwp.spec[pwRoutes.id] = pwRoutes;
+      eq(Object.keys(M.specPowerConvert(pwp).filter(function (r) { return r.title === 'Conn'; })[0].routes), [byT('Rail').id + '|connects'], 'a kept shape moves from |supplies to |connects');
+      cv.forEach(function (r) { pwp.spec[r.id] = r; });
+      var pa = M.specAnalysis(pwp), pwOf = function (t) { return pa.sections.filter(function (x) { return x.sec.title === t; })[0].power; };
+      eq([pwOf('LDO'), pwOf('MCU')], [[{ rail: '16.4V', role: 'sink' }, { rail: '3V0', role: 'source' }], [{ rail: '3V0', role: 'sink' }]], 'the analysis carries each block’s rails');
+    }
+    window.SIGNOFF_CONFIG.spec = PW_KEEP;
     // Rich text and lists in Scribe (2026-11-19).
     var rich = function (t) { return M.specRich(t).map(function (r) { return (r.b ? 'B' : '') + (r.i ? 'I' : '') + (r.s ? 'S' : '') + ':' + r.t; }); };
     eq(rich('a **b** *i* ~~s~~ 5 * 3 and **x'), [':a ', 'B:b', ': ', 'I:i', ': ', 'S:s', ': 5 * 3 and **x'], 'Scribe: bold, italic, and struck words; a marker that isn’t closed stays as typed');
