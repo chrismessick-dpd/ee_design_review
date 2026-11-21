@@ -407,9 +407,10 @@ planner is the engine file `assets/pinmap.js` (`window.SignoffPinmap`). EE only 
   direction, written back into that block's text (`specSigEdit`). Several signals in one entry are written
   `MCU (I2C2 + ALERT, both ways)`; the pin planner reads each on its own, and they share the entry's direction.
   Supply lines keep the single Signal, bus, or rail field.
-- **Marks on the diagram's lines:** a connection the plan covers shows its peripheral and pins after its label
-  ("I2C · I2C1 PB6/PB9", `specPinTags`), with ✕ and a red outline when the part can't do it ("USB · ✕ not on
-  STM32G071KBU6") and ▲ and a dashed outline when it needs a look; the reason is in the label's tooltip. Only the
+- **Marks on the diagram's lines:** a connection's label stays its net name (Chris, 2026-11-21: no peripheral or MCU
+  pins after it; they were "I2C · I2C1 PB6/PB9" until then). A connection the plan can't do gets ✕ and a red outline
+  ("USB ✕"), and one that needs a look ▲ and a dashed outline (`specPinTags`); the reason is in the label's tooltip,
+  and an entry with several signals takes its worst. Only the
   drawing changes: the label keeps its plain text in `data-text`, which the draw.io export reads, so the marks never
   go out to draw.io or come back as label edits. Plans are memoized per block (`pinCache`).
 - **New part… and Edit part…** (FTEs): Pincheck's own part window (`../pincheck/assets/editor.js`, its styles
