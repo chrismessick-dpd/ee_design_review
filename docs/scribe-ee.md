@@ -390,8 +390,17 @@ planner is the engine file `assets/pinmap.js` (`window.SignoffPinmap`). EE only 
   Package (QFP and QFN on four sides with an exposed pad under the body, SO on two, BGA as a grid), Block, Ports,
   Matrix, and Table (`ui.pinView` remembers which). A connection lights the pins it could use, free or taken; a pin
   opens its functions, and a click is a pick, written to `pins.map` by pad as one Scribe edit (Back undoes it), and
-  the plan moves around it. A pick whose connection is gone shows as "not in Scribe" with Remove. Read only while
-  comparing versions. The map draws again on every render (the plan is memoized).
+  the plan moves around it. A pick for a function no connection asks for is kept, listed with Remove the pick. Read
+  only while comparing versions. The map draws again on every render (the plan is memoized).
+  Then (2026-11-21, Chris: a pin picked to move a memory LCD pin took every free pin, with nothing to undo): the
+  planner never places a negative count (more picks than the label asks for kept, with a ▲ note), every pick
+  toasts Undo, the header has Scribe's Back and Forward (`specHistHtml`), a connection with picks has *Clear picks*
+  (`onClear`), and on windows wider than 960 px the connection list scrolls on its own beside a fixed map.
+  Then (2026-11-21, Chris: "Sense1_I2C" should be set to I2C from a list of the MCU's peripherals): each row has a
+  **Type** list (From the label, GPIO, then each kind the part has, any or one instance: I2C, I2C1, I2C2, TIM14…),
+  stored as `pins.types` (`{ '<conn id>#<item>': 'I2C2' }`, checked by `model.specPins`) and read by
+  `SignoffPinmap.plan(part, conns, map, types)` over the label, which stays as written. Setting an instance can
+  join a bus (I2C1 on a net name joins the I2C1 bus). A change drops that row's picks; Undo puts them back.
 - **Marks on the diagram's lines:** a connection the plan covers shows its peripheral and pins after its label
   ("I2C · I2C1 PB6/PB9", `specPinTags`), with ✕ and a red outline when the part can't do it ("USB · ✕ not on
   STM32G071KBU6") and ▲ and a dashed outline when it needs a look; the reason is in the label's tooltip. Only the

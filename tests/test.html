@@ -2212,6 +2212,23 @@
     var stray = PM.plan(part, conns([['Header', 'PB6']]), map);
     eq([stray.stray, stray.counts.warnings], [[{ pad: '13', fn: 'I2C1_SDA' }], 1], 'pin planner: a pick whose connection is gone is “not in Scribe”');
     eq(PM.unpick(map, '13'), {}, 'pin planner: unpick');
+    // More picks than the label asks for (Chris, 2026-11-21: a pin picked to move one took every free pin).
+    var c4 = conns([['LCD', '2 GPIO'], ['Pad', 'GPIO']]), r4 = PM.plan(part, c4, {}), lcd = byLabel(r4, '2 GPIO')[0], m4 = {};
+    lcd.slots.concat(byLabel(r4, 'GPIO')[0].slots).forEach(function (sl) { m4 = PM.pick(m4, r4, part, sl.pad, null, lcd.id); });
+    r4 = PM.plan(part, c4, m4);
+    eq([byLabel(r4, '2 GPIO')[0].slots.length, byLabel(r4, '2 GPIO')[0].notes.some(function (n) { return n.code === 'over' && n.sev === 'warn'; }), byLabel(r4, 'GPIO')[0].slots.length, byLabel(r4, 'GPIO')[0].problems.length], [3, true, 1, 0], 'pin planner: three picks for two GPIOs keep three, say so, and take no other pins');
+    eq(r4.counts.used, 4, 'pin planner: and the free pins stay free');
+    // A type set in the pin map, over the label (Chris, 2026-11-21: "Sense1_I2C" set to I2C).
+    var c5 = conns([['Sensor', 'Sense1_I2C'], ['IMU', 'I2C1']]), r5 = PM.plan(part, c5, {});
+    eq(byLabel(r5, 'Sense1_I2C')[0].type, 'GPIO', 'pin planner: a net name is one GPIO until a type is set');
+    var k5 = byLabel(r5, 'Sense1_I2C')[0].users[0].key;
+    r5 = PM.plan(part, c5, {}, { [k5]: 'I2C' });
+    var s5 = byLabel(r5, 'Sense1_I2C')[0];
+    eq([s5.type, s5.slots.length, s5.notes.some(function (n) { return n.code === 'set'; }), s5.inst !== byLabel(r5, 'I2C1')[0].inst], ['I2C', 2, true, true], 'pin planner: set to I2C, it plans as its own I2C bus beside I2C1');
+    r5 = PM.plan(part, c5, {}, { [k5]: 'I2C1' });
+    eq([r5.reqs.length, r5.reqs[0].id, r5.reqs[0].users.length], [1, 'bus:I2C|I2C1', 2], 'pin planner: set to I2C1, it joins the I2C1 bus');
+    eq([PM.typeOf('TIM14'), PM.typeOf('USART1'), PM.typeOf('PINS'), PM.typeOptions(part).some(function (g) { return g.type === 'I2C' && g.insts.indexOf('I2C1') >= 0; })], [{ type: 'TIM', inst: 'TIM14' }, { type: 'UART', inst: 'USART1' }, null, true], 'pin planner: the Type list reads names and instances');
+    eq(M.specPins({ types: { 'a>b#0#0': 'I2C2', 'bad key': 'I2C', 'a>b#1#0': 'i2c' } }), { types: { 'a>b#0#0': 'I2C2' } }, 'pin planner: types kept on the section, checked');
     var ch = PM.choices(part, res, '8', 'bus:I2C|I2C1');
     eq(ch.map(function (c) { return [c.fn.full, c.req ? c.req.id : null]; }), [['I2C1_SCL', 'bus:I2C|I2C1'], ['USART1_TX', null], ['SPI2_SCK', null]], 'pin planner: a pad’s choices, with the requirement each serves');
     var reordered = PM.plan(part, [{ id: 'c2', block: 'Sensor', label: 'PB8' }, { id: 'c0', block: 'IMU', label: 'I2C1' }, { id: 'c1', block: 'Header', label: 'PB6' }], map);
