@@ -15,7 +15,7 @@
 <div id="out"></div>
 <script>
 // Load the engine fresh on every run, so a browser cache never tests old code.
-['config', 'templates', 'model', 'localstore', 'auth', 'github', 'workspace', 'demo', 'history', 'pptx', 'home', 'specedit', 'drawio', 'pinmap'].forEach(function (n) { document.write('<script src="../assets/' + n + '.js?t=' + Date.now() + '"><\/script>'); });
+['config', 'templates', 'model', 'localstore', 'auth', 'github', 'workspace', 'demo', 'history', 'pptx', 'home', 'specedit', 'drawio', 'pinmap', 'pinview'].forEach(function (n) { document.write('<script src="../assets/' + n + '.js?t=' + Date.now() + '"><\/script>'); });
 </script>
 <script>
 /* Unit tests for the model and the GitHub sync, run against a fake GitHub API.
@@ -2215,6 +2215,28 @@
     var reordered = PM.plan(part, [{ id: 'c2', block: 'Sensor', label: 'PB8' }, { id: 'c0', block: 'IMU', label: 'I2C1' }, { id: 'c1', block: 'Header', label: 'PB6' }], map);
     eq(reordered.reqs.map(function (r) { return r.id; }).sort(), ['bus:I2C|I2C1', 'c1#0', 'c2#0'], 'pin planner: requirement ids don’t depend on order');
     ok(reordered.reqs.find(function (r) { return r.type === 'I2C'; }).slots.some(function (s) { return s.pad === '13' && s.lock; }), 'pin planner: so picks survive a reorder');
+
+    // The pin map (assets/pinview.js): drawn from a plan; picks go out through callbacks, never into data.
+    var PV = window.SignoffPinView; if (!PV) { ok(false, 'pinview.js loads'); return; }
+    var box = document.createElement('div'); box.style.cssText = 'position:absolute;left:-9999px;width:1200px';
+    document.body.appendChild(box);
+    var picks = [], vres = PM.plan(part, c3, {});
+    var view = PV.mount(box, { part: part, result: vres, map: {}, onPick: function (pad, fn, req) { picks.push([pad, fn, req]); } });
+    eq([box.querySelectorAll('.pv-conn').length, box.querySelectorAll('.pv-pad').length], [3, 16], 'pin map: a row per connection, and every pin drawn');
+    ok(/\d+ of 13 I\/O pins planned/.test(box.querySelector('.pv-sum').textContent), 'pin map: the count');
+    box.querySelector('.pv-conn[data-req="bus:I2C|I2C1"]').click();
+    ok(box.querySelectorAll('.pv-pad.cand').length >= 3, 'pin map: a selected connection lights the pins it could use');
+    box.querySelector('.pv-view [data-pad="13"]').dispatchEvent(new MouseEvent('click', { bubbles: true, clientX: 10, clientY: 10 }));
+    var sda = [].filter.call(box.querySelectorAll('.pv-pop-i'), function (b) { return b.dataset.fn === 'I2C1_SDA'; })[0];
+    ok(sda && /IMU/.test(sda.textContent), 'pin map: a pin’s functions, with the block each serves');
+    if (sda) sda.click();
+    eq(picks, [['13', 'I2C1_SDA', 'bus:I2C|I2C1']], 'pin map: a pick goes out through onPick');
+    ['block', 'ports', 'matrix', 'table'].forEach(function (v) { box.querySelector('.pv-views [data-view="' + v + '"]').click(); ok(box.querySelector('.pv-view.v-' + v) && box.querySelector('.pv-view').innerHTML.length > 100, 'pin map: the ' + v + ' view draws'); });
+    view.update({ result: PM.plan(part, conns([['A', 'PB15']]), {}) });
+    eq(box.querySelectorAll('.pv-conn.issue').length, 1, 'pin map: update draws the new plan');
+    var ro = PV.mount(document.createElement('div'), { part: part, result: res, map: {}, canEdit: false, onFix: function () {} });
+    ro.destroy();
+    view.destroy(); box.remove();
   })();
 
   var failed = results.filter(function (r) { return !r.ok; });

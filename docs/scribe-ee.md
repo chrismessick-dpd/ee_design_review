@@ -381,6 +381,13 @@ planner is the engine file `assets/pinmap.js` (`window.SignoffPinmap`). EE only 
   either end (the other block's line points the other way), not power links (a rail either block's Power line
   names). Ids come from section ids (`<from>><to>#<n>`), so renames keep picks.
 - **Stored:** `pins: { part, map }` on the section record, kept by `cleanSection` (`specPins`: known keys only,
-  capped), merged like the rest of the section (newer wins). Picks (`map`, by pad) come with the full-window pin map.
-- Tests: EE 686 (the planner, the Part line, the copy, cleaning, merge, the connections), CLI 40 (a pin plan
+  capped), merged like the rest of the section (newer wins).
+- **The pin map** (*Open pin map* under the list; Escape closes) fills the window with the engine file
+  `assets/pinview.js` (`window.SignoffPinView.mount`), the same views Pincheck's lab draws: the connection list, and
+  Package (QFP and QFN on four sides with an exposed pad under the body, SO on two, BGA as a grid), Block, Ports,
+  Matrix, and Table (`ui.pinView` remembers which). A connection lights the pins it could use, free or taken; a pin
+  opens its functions, and a click is a pick, written to `pins.map` by pad as one Scribe edit (Back undoes it), and
+  the plan moves around it. A pick whose connection is gone shows as "not in Scribe" with Remove. Read only while
+  comparing versions. The map draws again on every render (the plan is memoized).
+- Tests: EE 696 (the planner, the Part line, the copy, cleaning, merge, the connections, the pin map), CLI 40 (a pin plan
   survives a pull, an edit to the section's text, and the merge).

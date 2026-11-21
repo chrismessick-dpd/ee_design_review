@@ -18,7 +18,7 @@ Read next:
 ## Rules
 
 - **Engine files**: `assets/model.js`, `auth.js` (Sign in with GitHub; `../signoff/docs/sign-in.md`), `github.js`, `workspace.js`, `app.js`, `demo.js`,
-  `specguide.js`, `specedit.js` (Scribe's editor), `drawio.js` (draw.io files: Scribe's `.drawio.svg` export and import; `docs/scribe-ee.md`, *draw.io*), `pinmap.js` (the MCU pin planner, pure: `window.SignoffPinmap`; plan in `../pincheck/docs/pin-planner.md`; 2026-11-20; Scribe EE's MCU block, `docs/scribe-ee.md`, *Pins*; synced into ME and FW, inert there), `history.js`, `localstore.js` (the reviews' local store in IndexedDB; `../CLAUDE.md`), `styles.css`, and `tools/build.py`, `package.py`, `validate_templates.py`, `signoff.js`,
+  `specguide.js`, `specedit.js` (Scribe's editor), `drawio.js` (draw.io files: Scribe's `.drawio.svg` export and import; `docs/scribe-ee.md`, *draw.io*), `pinmap.js` (the MCU pin planner, pure: `window.SignoffPinmap`) and `pinview.js` (its pin map, drawn: `window.SignoffPinView`; plan in `../pincheck/docs/pin-planner.md`; 2026-11-20; Scribe EE's MCU block, `docs/scribe-ee.md`, *Pins*; synced into ME and FW, inert there), `history.js`, `localstore.js` (the reviews' local store in IndexedDB; `../CLAUDE.md`), `styles.css`, and `tools/build.py`, `package.py`, `validate_templates.py`, `signoff.js`,
   `signoff_test.js`. Edit them only here. Then copy them to the other tools:
 
   | Tool | Command |
