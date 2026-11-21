@@ -70,7 +70,7 @@ window.SIGNOFF_CONFIG = {
   "legacyTabs": ["schematic", "interfaces", "pcb", "assembly", "fab"],
   "pl": { "tool": "ee", "dataRepo": "signoff_pl_data" },
   "home": { "repo": "ee_standards", "decks": [{ "id": "footprints", "title": "Footprints", "cat": "Layout" }, { "id": "schematics", "title": "Schematics", "cat": "Schematic" }] },
-  "spec": {"label": "Scribe", "layout": "flow", "parts": true, "guide": 7, "kinds": [], "links": ["Connects", "Supplies"], "legacyLinks": ["Supplies"], "power": true},
+  "spec": {"label": "Scribe", "layout": "flow", "parts": true, "guide": 7, "kinds": [], "links": ["Connects", "Supplies"], "legacyLinks": ["Supplies"], "power": true, "pins": true},
   "words": {
     "unit": "board",
     "units": "boards",

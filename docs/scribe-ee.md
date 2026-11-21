@@ -360,3 +360,27 @@ The block diagram goes out to draw.io and comes back, as one file (feasibility: 
   - Text shapes, pictures, loose lines, and rail pictures on no block are left out and listed.
 - **Tests:** the *draw.io* block in `tests/test.html` (20). Tried in the demo, and through the real draw.io editor: draw.io keeps
   the UserObject data, custom ids, and positions relative to sections, and reads the SVG's `content`.
+
+## Pins: an MCU block's pin plan (Chris, 2026-11-20)
+
+Chris: "a CubeMX type functionality in the MCU block": know that an I2C connection has an I2C on the MCU, which
+one, and on which pins. The plan, his decisions, and the lab are in `../../pincheck/docs/pin-planner.md`; the
+planner is the engine file `assets/pinmap.js` (`window.SignoffPinmap`). EE only (`config.spec.pins`).
+
+- **`Part: STM32G0B1CBT6`** on a block names its part (beside `Parts: U4`). Parsed only with `config.spec.pins`
+  (`specPinsOn`, block type `part`, `x.part` in the analysis), drawn as a chip, exported, and badged by the editor.
+- **The block panel** has a Part field (an FTE gets the part library's MCUs as suggestions) and, once a part is named,
+  a **Pins** section: *Start a pin plan* when the part is in Pincheck's library in this browser (`../pincheck/assets/
+  library.js`, IndexedDB `pincheck`, or `pincheck-demo` in the demo; EE loads Pincheck's `params.js` and `library.js`).
+  Starting copies the part file onto the section (`pins.part`, `model.specPinPart`: only what the planner reads, and
+  `from` with the library's blob sha), so everyone the review is shared with plans from the same pins (Chris: copy
+  into the review). The section then lists each connection's peripheral, pins, and problems, and offers the
+  planner's fix ("Write it as DAC1 OUT2"), written into whichever block's Connects line holds the label, with Undo.
+  A newer library file, or a Part line naming another part, is noted with a button to refresh the copy.
+- **The connections** are `model.specMcuConns(analysis, id)`: Connects lines between the block and another, from
+  either end (the other block's line points the other way), not power links (a rail either block's Power line
+  names). Ids come from section ids (`<from>><to>#<n>`), so renames keep picks.
+- **Stored:** `pins: { part, map }` on the section record, kept by `cleanSection` (`specPins`: known keys only,
+  capped), merged like the rest of the section (newer wins). Picks (`map`, by pad) come with the full-window pin map.
+- Tests: EE 686 (the planner, the Part line, the copy, cleaning, merge, the connections), CLI 40 (a pin plan
+  survives a pull, an edit to the section's text, and the merge).

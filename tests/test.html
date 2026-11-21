@@ -1460,6 +1460,31 @@
       eq(ptClean.ptree, { ports: { 'y|5v': { side: 'r', t: 0.5 } }, routes: { 'y|5v': { v: [100], a: 'r', b: 'l' } }, labels: { 'y|5v': { t: 0.3, x: 4, y: -9 } } }, 'the power tree layout is kept, cleaned (a bad place dropped, unknown keys left out)');
       eq('ptree' in M.liveSpec({ spec: { x: { id: 'x', title: 'X', body: '' } } })[0], false, 'a section without a power tree layout gets none');
       eq('ptree' in M.liveSpec({ spec: { x: { id: 'x', title: 'X', body: '', ptree: { pos: null } } } })[0], false, 'an empty power tree layout is left out');
+      // Pins (2026-11-20): a block's Part: line, its pin plan kept on the section, and its connections for the planner.
+      var pinFile = { schema: 'pincheck.part/1', id: 'madeup16', mpn: 'MADEUP16', manufacturer: 'Made Up', package: 'QFN16', kind: 'mcu', local: { sha: 'abc123', dirty: false }, updated: '2026-11-20T00:00:00Z',
+        peripherals: ['I2C1', 'DAC1'], values: [{ k: 'supply.range', min: 1.8, max: 3.6 }],
+        pins: [{ num: '8', name: 'PB6', role: 'io', domain: 'VDD', functions: ['I2C1_SCL AF6'], note: 'x' }, { num: '11', name: 'PA11 [PA9]', role: 'io', functions: ['USB_DM'], bond: [{ name: 'PA9', functions: ['I2C1_SCL AF6'], remap: 'PINREMAP' }] }] };
+      var pinCopy = M.specPinPart(pinFile);
+      eq(pinCopy, { mpn: 'MADEUP16', manufacturer: 'Made Up', package: 'QFN16', pins: [{ num: '8', name: 'PB6', role: 'io', functions: ['I2C1_SCL AF6'] }, { num: '11', name: 'PA11 [PA9]', role: 'io', functions: ['USB_DM'], bond: [{ name: 'PA9', functions: ['I2C1_SCL AF6'], remap: 'PINREMAP' }] }], peripherals: ['I2C1', 'DAC1'], from: { id: 'madeup16', sha: 'abc123', updated: '2026-11-20T00:00:00Z' } },
+        'pins: the part’s copy keeps only what the planner reads, and where it came from');
+      eq(M.specPinPart(pinCopy), pinCopy, 'pins: a copy cleans to itself');
+      var pinRec = { id: 'x', title: 'X', body: '', pins: { part: pinFile, map: { 8: { req: 'bus:I2C|I2C1', sig: 'SCL', fn: 'I2C1_SCL', extra: 1 }, 'no good key!': { sig: 'X' }, 9: { req: 'r' }, 10: 'x' }, junk: 1 } };
+      eq(M.liveSpec({ spec: { x: pinRec } })[0].pins, { part: pinCopy, map: { 8: { req: 'bus:I2C|I2C1', sig: 'SCL', fn: 'I2C1_SCL' } } }, 'pins: a section keeps its pin plan, cleaned');
+      eq('pins' in M.liveSpec({ spec: { x: { id: 'x', title: 'X', body: '', pins: { map: {} } } } })[0], false, 'pins: an empty plan is left out');
+      var pinOld = Object.assign({}, pinRec, { updatedAt: '2026-11-19T00:00:00Z', pins: null }), pinNew = Object.assign({}, pinRec, { updatedAt: '2026-11-20T00:00:00Z' });
+      eq(M.liveSpec(M.mergeProjects({ id: 'p', spec: { x: pinOld } }, { id: 'p', spec: { x: pinNew } }))[0].pins.map, { 8: { req: 'bus:I2C|I2C1', sig: 'SCL', fn: 'I2C1_SCL' } }, 'pins: a merge keeps the newer section’s plan');
+      var mcp = M.newProject({ name: 'Pins', checklists: ['spec'], profile: [] }, 'Ann', T); mcp.spec = {}; mcp.reqs = mcp.reqs || {};
+      M.specSave(mcp, null, '# Board\n### MCU\nPart: MADEUP16\nParts: U4\nConnects: IMU (I2C1), LCD (LCD SPI), IMU (INT)\nPower: 3V3 (sink)\n### IMU\nText.\n### LCD\nText.\n### LDO\nConnects: MCU (3V3)\nPower: 3V3 (source)\n### Sensor\nConnects: MCU (ADC)\n### Buck\nConnects: MCU (DAC1, in)\n### Loose\nPart: not an mcu', 'Ann').forEach(function (r) { mcp.spec[r.id] = r; });
+      var mca = M.specAnalysis(mcp), mcx = mca.sections.filter(function (x) { return x.sec.title === 'MCU'; })[0], idOf = function (t) { return mca.sections.filter(function (x) { return x.sec.title === t; })[0].sec.id; };
+      eq([mcx.part, mcx.parts, mca.sections.filter(function (x) { return x.sec.title === 'Loose'; })[0].part], ['MADEUP16', ['U4'], 'not an mcu'], 'pins: a Part: line names the block’s part, apart from Parts');
+      var mcc = M.specMcuConns(mca, mcx.sec.id);
+      eq(mcc.map(function (c) { return [c.block, c.label, c.dir]; }), [['IMU', 'I2C1', 'out'], ['LCD', 'LCD SPI', 'out'], ['IMU', 'INT', 'out'], ['Sensor', 'ADC', 'in'], ['Buck', 'DAC1', 'out']],
+        'pins: the MCU’s connections from both ends, a line on the other block pointing the other way, and no power link');
+      eq(mcc.map(function (c) { return c.id; }), [mcx.sec.id + '>' + idOf('IMU') + '#1', mcx.sec.id + '>' + idOf('LCD') + '#1', mcx.sec.id + '>' + idOf('IMU') + '#2', idOf('Sensor') + '>' + mcx.sec.id + '#1', idOf('Buck') + '>' + mcx.sec.id + '#1'], 'pins: connection ids come from section ids');
+      ok(/\*Part: MADEUP16\*/.test(M.specMarkdown(mcp)), 'pins: the Part line exports');
+      Signoff.config.spec.pins = false;
+      eq(M.specAnalysis(mcp).sections.filter(function (x) { return x.sec.title === 'MCU'; })[0].part, '', 'pins: without config.spec.pins a Part: line is just text');
+      Signoff.config.spec.pins = true;
       eq(M.specOfferWords(), ['Connects'], 'EE offers Connects only; Supplies is still read');
       var pwp = M.newProject({ name: 'Power', checklists: ['spec'], profile: [] }, 'Ann', T); pwp.spec = {}; pwp.reqs = pwp.reqs || {};
       M.specSave(pwp, null, '# Board\n## Power\n### Conn\nSupplies: Rail (16.4V), Ghost (5V)\n### Rail\nSupplies: LDO (16.4V), Radio (16.4V)\n### LDO\nSupplies: MCU (3V0)\nConnects: MCU (EN)\n## Control\n### MCU\nText.\n### Radio\nText.', 'Ann').forEach(function (r) { pwp.spec[r.id] = r; });
@@ -2156,6 +2181,8 @@
     var d2 = byLabel(res, 'DAC2')[0];
     eq([d2.problems[0].code, d2.fix], ['no-instance', { from: 'DAC2', to: 'DAC1 OUT2' }], 'pin planner: no DAC2, and the fix names DAC1’s second output');
     eq([pins(byLabel(res, 'DAC1 via RC')[0]), byLabel(res, 'touch sense, in')[0].problems[0].code], ['PA4:OUT1', 'no-type'], 'pin planner: DAC1 placed; no touch controller');
+    var adc2 = byLabel(PM.plan(part, conns([['Probe', 'ADC2']]), {}), 'ADC2')[0];
+    eq([adc2.problems[0].code, adc2.fix], ['no-instance', null], 'pin planner: no ADC2, and no DAC-style fix (ADC2 is an instance, not ADC1’s second input)');
     eq([res.counts.problems, res.counts.io], [2, 13], 'pin planner: counts');
     eq(PM.plan(part, conns(six), {}).reqs.map(pins), res.reqs.map(pins), 'pin planner: the same input plans the same way');
 

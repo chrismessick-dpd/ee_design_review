@@ -161,7 +161,8 @@
     if (inst) { r.want = inst; return; }
     r.dead = true;
     const n = +it.inst.replace(/^\D+/, '');
-    const chans = T.pat && have.length === 1 ? [...new Set(part.pads.flatMap(p => p.fns.filter(f => f.inst === have[0] && T.pat.test(f.sig)).map(f => f.sig)))].sort(nat) : [];
+    // DACn for a part with one DAC means its nth output (DAC2 → DAC1_OUT2); an ADCn or TIMn means an instance.
+    const chans = r.type === 'DAC' && have.length === 1 ? [...new Set(part.pads.flatMap(p => p.fns.filter(f => f.inst === have[0] && T.pat.test(f.sig)).map(f => f.sig)))].sort(nat) : [];
     if (chans[n - 1]) {
       r.problems.push({ code: 'no-instance', text: `No ${it.inst} on this part. It has one ${r.type}, ${have[0]}, with ${chans.join(' and ')}: did you mean ${have[0]}_${chans[n - 1]}?` });
       r.fix = { from: it.inst, to: have[0] + ' ' + chans[n - 1] };
