@@ -2229,6 +2229,9 @@
     eq([r5.reqs.length, r5.reqs[0].id, r5.reqs[0].users.length], [1, 'bus:I2C|I2C1', 2], 'pin planner: set to I2C1, it joins the I2C1 bus');
     eq([PM.typeOf('TIM14'), PM.typeOf('USART1'), PM.typeOf('PINS'), PM.typeOptions(part).some(function (g) { return g.type === 'I2C' && g.insts.indexOf('I2C1') >= 0; })], [{ type: 'TIM', inst: 'TIM14' }, { type: 'UART', inst: 'USART1' }, null, true], 'pin planner: the Type list reads names and instances');
     eq(M.specPins({ types: { 'a>b#0#0': 'I2C2', 'bad key': 'I2C', 'a>b#1#0': 'i2c' } }), { types: { 'a>b#0#0': 'I2C2' } }, 'pin planner: types kept on the section, checked');
+    // Several signals in one connection entry (2026-11-21): written "I2C2 + ALERT", read back as one entry, planned as two.
+    var sig = M.specLinkItems(M.specLinkText([{ name: 'MCU', label: 'I2C2 + ALERT', dir: 'both' }]));
+    eq([sig.length, sig[0].label, sig[0].dir, PM.parseLabel(sig[0].label).items.map(function (x) { return x.type; })], [1, 'I2C2 + ALERT', 'both', ['I2C', 'GPIO']], 'Scribe: an entry with two signals round-trips, and the planner reads both');
     var ch = PM.choices(part, res, '8', 'bus:I2C|I2C1');
     eq(ch.map(function (c) { return [c.fn.full, c.req ? c.req.id : null]; }), [['I2C1_SCL', 'bus:I2C|I2C1'], ['USART1_TX', null], ['SPI2_SCK', null]], 'pin planner: a pad’s choices, with the requirement each serves');
     var reordered = PM.plan(part, [{ id: 'c2', block: 'Sensor', label: 'PB8' }, { id: 'c0', block: 'IMU', label: 'I2C1' }, { id: 'c1', block: 'Header', label: 'PB6' }], map);

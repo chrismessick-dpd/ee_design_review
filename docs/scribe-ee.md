@@ -401,6 +401,12 @@ planner is the engine file `assets/pinmap.js` (`window.SignoffPinmap`). EE only 
   stored as `pins.types` (`{ '<conn id>#<item>': 'I2C2' }`, checked by `model.specPins`) and read by
   `SignoffPinmap.plan(part, conns, map, types)` over the label, which stays as written. Setting an instance can
   join a bus (I2C1 on a net name joins the I2C1 bus). A change drops that row's picks; Undo puts them back.
+- **A line's Signals** (2026-11-21, Chris: a line read "I2C2 / ALERT on shared INT" but its panel showed only I2C2):
+  the diagram draws one line for a pair of blocks and joins both blocks' entries, so a connection line's panel lists
+  each block's entry (`specSignalsHtml`): its signals, one row each with × to remove, *Add a signal*, and the entry's
+  direction, written back into that block's text (`specSigEdit`). Several signals in one entry are written
+  `MCU (I2C2 + ALERT, both ways)`; the pin planner reads each on its own, and they share the entry's direction.
+  Supply lines keep the single Signal, bus, or rail field.
 - **Marks on the diagram's lines:** a connection the plan covers shows its peripheral and pins after its label
   ("I2C · I2C1 PB6/PB9", `specPinTags`), with ✕ and a red outline when the part can't do it ("USB · ✕ not on
   STM32G071KBU6") and ▲ and a dashed outline when it needs a look; the reason is in the label's tooltip. Only the
