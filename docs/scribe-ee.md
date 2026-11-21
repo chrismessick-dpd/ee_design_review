@@ -389,5 +389,10 @@ planner is the engine file `assets/pinmap.js` (`window.SignoffPinmap`). EE only 
   opens its functions, and a click is a pick, written to `pins.map` by pad as one Scribe edit (Back undoes it), and
   the plan moves around it. A pick whose connection is gone shows as "not in Scribe" with Remove. Read only while
   comparing versions. The map draws again on every render (the plan is memoized).
+- **Marks on the diagram's lines:** a connection the plan covers shows its peripheral and pins after its label
+  ("I2C · I2C1 PB6/PB9", `specPinTags`), with ✕ and a red outline when the part can't do it ("USB · ✕ not on
+  STM32G071KBU6") and ▲ and a dashed outline when it needs a look; the reason is in the label's tooltip. Only the
+  drawing changes: the label keeps its plain text in `data-text`, which the draw.io export reads, so the marks never
+  go out to draw.io or come back as label edits. Plans are memoized per block (`pinCache`).
 - Tests: EE 696 (the planner, the Part line, the copy, cleaning, merge, the connections, the pin map), CLI 40 (a pin plan
   survives a pull, an edit to the section's text, and the merge).
