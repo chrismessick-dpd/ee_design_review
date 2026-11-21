@@ -274,6 +274,18 @@ every section (indented by depth) to move it to (`specWithinField`). A change mo
 furthest (`specHistLabel`), so a move reads "moving Status LEDs", not a neighbor it renumbered. EE's flow diagram
 only (FW's layered map has no sections).
 
+## Hierarchy folding, and no loop under a port (Chris, 2026-11-20)
+
+- **Folding the hierarchy.** The Board at its top has a chevron that folds the whole hierarchy to that one block, its
+  line then reading "N sections · M blocks" (`SPEC_TREE_BOARD`, kept in `ui.specClosed`). **Collapse all** in the
+  header folds every section; it reads **Expand all** when everything is folded, and opens it all, the board too
+  (`spec-tree-all`). Each section still folds by its own chevron. Kept for the session, as before.
+- **A loop under a port.** The engine's ends leave level, so a line that wanted to drop straight out of a bottom port
+  sometimes stepped aside, back up between the block and its lead point, and over again before heading down: a
+  small loop. `specDrop` now also drops the runs up to a later vertical run under the port (the fewest that fit, clear
+  every block, and lie along no other line), not only moves the first one. Found on a real board with 15 ports on
+  one block; no line loops there now at any of the 15 bottom positions.
+
 ## Power, and Supplies folded into Connects (Chris, 2026-11-19)
 
 - **Power** is its own line: `Power: 16.4V (sink), 3V0 (source)`, the rails a block uses (sink) and makes
@@ -314,3 +326,37 @@ only (FW's layered map has no sections).
   (`.spec-legend`), whenever a block has a Power line; it goes out with Export too.
 - **A line's panel** is read-only (`specpt|` selection): which block powers which, on what rail, and Reset route.
 - Demo: the Main PCBA's rails are ticked except Status LEDs and AC line (demo `VERSION` 22). Tests: EE 639.
+
+## draw.io (Chris, 2026-11-20)
+
+The block diagram goes out to draw.io and comes back, as one file (feasibility: `../../signoff/docs/drawio.md`).
+
+- **Export.** The diagram card's Export › *SVG drawing, editable in draw.io* saves `<review> block diagram.drawio.svg`: Scribe's
+  own picture (what the SVG export always saved), with the diagram as a draw.io file in the svg's `content` attribute, its page
+  compressed. Anything reads it as a picture; draw.io (desktop, app.diagrams.net, the VS Code extension) opens it as the
+  diagram. The power tree and FW's layered map still export plain SVGs.
+- **What's in the draw.io diagram.** Sections are containers, blocks are boxes inside them (title, then up to four
+  designators), lines are edges with their ports (`exitX`/`exitY`, `entryX`/`entryY`), corners, arrows, and signal label. Each
+  carries its Scribe data (*Edit Data* in draw.io): `scribeId`, and on a block `title`, `gist`, `parts`, `power`, and
+  `requirements`. The file's root names the review (`scribeFormat: scribe-drawio/1`, `scribeReview`).
+- **Rails as pictures** (Chris: keep the power flags and legend). Each rail on a block's Power line is a small picture over the
+  block, a child of it so it moves with it: a bar for a rail it uses (sink), a circle for one it makes (source), named for the
+  rail, with `scribeType: power`, `role`, and `tree`. The legend is the same two pictures. In draw.io, renaming a picture renames
+  the rail, deleting it takes the rail off, and a copy (from a block or the legend, renamed for its rail) dropped on a block's
+  top edge adds it. A rail is only ever read from these pictures, so rails drawn in draw.io need a diagram that came from Scribe.
+- **Import.** ☰ › *Import from draw.io…* reads a `.drawio.svg` or `.drawio` (pages plain or compressed) and lists what it will
+  change before anything does: renames, moves, sections, new blocks and sections, connections with their signals and arrows,
+  where lines meet blocks, Parts, and rails. Removals (a block, section, or connection not in the file) start unticked. The
+  ticked ones are one step: Back undoes "importing from draw.io", and it waits for Sync like any Scribe edit.
+- **The rules** (`SignoffDrawio.scribePlan` in `assets/drawio.js`, pure; applied by `specDrawioApply` in `app.js`):
+  - Nothing derived is written: it compares the file with what the diagram draws now (`specDrawioSnap`), so an unchanged
+    export imports as nothing (the auto layout's places aren't kept, and nothing is restamped).
+  - A block is matched by `scribeId`; a copy pasted in draw.io (same id) is a new block, and a file from another review matches
+    by name, with a warning. A box with no Scribe data is a new block; a container a new section around what's in it.
+  - A block's size is never read. A move snaps to the 10-unit grid and keeps every block's place from then on, as a drag does.
+    A section drawn bigger than its blocks grows (`grow`).
+  - Line shapes aren't kept: a shaped line that changed in draw.io, or whose block moved (draw.io keeps the old waypoints),
+    routes afresh (its `routes` entry goes). A moved line end becomes a kept port (`specPortAt`).
+  - Text shapes, pictures, loose lines, and rail pictures on no block are left out and listed.
+- **Tests:** the *draw.io* block in `tests/test.html` (20). Tried in the demo, and through the real draw.io editor: draw.io keeps
+  the UserObject data, custom ids, and positions relative to sections, and reads the SVG's `content`.

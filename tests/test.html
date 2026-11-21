@@ -15,7 +15,7 @@
 <div id="out"></div>
 <script>
 // Load the engine fresh on every run, so a browser cache never tests old code.
-['config', 'templates', 'model', 'localstore', 'auth', 'github', 'workspace', 'demo', 'history', 'pptx', 'home', 'specedit'].forEach(function (n) { document.write('<script src="../assets/' + n + '.js?t=' + Date.now() + '"><\/script>'); });
+['config', 'templates', 'model', 'localstore', 'auth', 'github', 'workspace', 'demo', 'history', 'pptx', 'home', 'specedit', 'drawio'].forEach(function (n) { document.write('<script src="../assets/' + n + '.js?t=' + Date.now() + '"><\/script>'); });
 </script>
 <script>
 /* Unit tests for the model and the GitHub sync, run against a fake GitHub API.
@@ -2011,6 +2011,111 @@
     var gout = X.write({ title: 'Made-up deck', items: [{ title: 'Top layer', body: 'Pads', group: 'Copper layers', pics: [] }, { title: 'Notes', body: 'x', pics: [] }] });
     eq(X.toItems(await X.read(gout)).slice(1).map(function (i) { return [i.title, i.body, i.group]; }), [['Top layer', 'Pads', 'Copper layers'], ['Notes', 'x', '']], 'an item’s group goes out to .pptx and comes back on import');
     ok(Hm.demoDeck('footprints').items.length > 0 && Hm.demoDeck('schematics').items.length > 0, 'both demo decks have made-up items');
+  })();
+
+  // ── draw.io (assets/drawio.js, 2026-11-20): Scribe's block diagram out to draw.io and back ──
+  await (async function () {
+    var D = window.SignoffDrawio; if (!D) { ok(false, 'drawio.js loads'); return; }
+    // A made-up diagram: two sections, four blocks, two lines (one shaped), rails, and the legend.
+    function snap0() {
+      return { review: { id: 'pdx1', name: 'Test Board', tool: 'Signoff EE' },
+        sections: [{ id: 's1', title: 'Power', gist: 'Rails', parent: '', x: 0, y: 0, w: 400, h: 120, grow: { l: 0, t: 0, r: 0, b: 0 } },
+          { id: 's2', title: 'Control', gist: '', parent: '', x: 0, y: 200, w: 400, h: 120, grow: { l: 0, t: 0, r: 0, b: 0 } }],
+        blocks: [{ id: 'b1', title: 'Buck', gist: 'Makes 3V3', parent: 's1', x: 20, y: 40, w: 160, h: 60, kept: false, parts: ['U1', 'L1'], reqs: ['REQ-001'], power: [{ rail: '3V3', role: 'source', tree: true, x: 130, y: 25, w: 40 }, { rail: '5V', role: 'sink', tree: false, x: 80, y: 25, w: 40 }] },
+          { id: 'b2', title: 'LDO', gist: '', parent: 's1', x: 220, y: 40, w: 160, h: 60, kept: false, parts: [], reqs: [], power: [] },
+          { id: 'b3', title: 'MCU', gist: '', parent: 's2', x: 20, y: 240, w: 160, h: 60, kept: false, parts: ['U4'], reqs: [], power: [{ rail: '3V3', role: 'sink', tree: false, x: 130, y: 225, w: 40 }] },
+          { id: 'b4', title: 'Radio', gist: '', parent: 's2', x: 220, y: 240, w: 160, h: 60, kept: false, parts: [], reqs: [], power: [] }],
+        lines: [{ key: 'b1>b2|connects', a: 'b1', b: 'b2', word: 'Connects', dir: 'out', signal: '3V3', t: 0.5, pa: { x: 180, y: 70 }, pb: { x: 220, y: 70 }, corners: [], shaped: false, srcA: 'b1', rkey: 'b2|connects' },
+          { key: 'b3>b4|connects', a: 'b3', b: 'b4', word: 'Connects', dir: 'out', signal: 'UART', t: 0.5, pa: { x: 100, y: 300 }, pb: { x: 300, y: 300 }, corners: [{ x: 100, y: 330 }, { x: 300, y: 330 }], shaped: true, srcA: 'b3', rkey: 'b4|connects' }],
+        legend: { x: 260, y: 340 } };
+    }
+    var S = snap0(), pg = D.scribePage(S);
+    var back = await D.read(D.fileXml([pg])), P = back.pages[0];
+    eq(D.scribePlan(P, S), [], 'draw.io: an unchanged export reads back as no edits');
+    var svg = await D.svgWithFile('<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10"><rect width="10" height="10"/></svg>', [pg]);
+    ok(/<svg[^>]*\scontent="&lt;mxfile/.test(svg) && /<rect/.test(svg), 'draw.io: the SVG keeps its picture and carries the file in content');
+    var fromSvg = await D.read(svg);
+    eq(D.scribePlan(fromSvg.pages[0], S), [], 'draw.io: the SVG (compressed page inside) reads back as no edits too');
+    eq(P.root.scribeReview, 'pdx1', 'draw.io: the file names its review');
+    var mcu = Object.keys(P.cells).map(function (k) { return P.cells[k]; }).filter(function (c) { return c.data.scribeId === 'b3'; })[0];
+    eq([mcu.abs.x, mcu.abs.y, mcu.parent], [20, 240, 'scribe-s2'], 'draw.io: a block sits in its section, placed relative to it, absolute on reading');
+    var refused = await D.read('<svg xmlns="http://www.w3.org/2000/svg"/>').then(function () { return ''; }, function (e) { return e.message; });
+    ok(/no draw\.io diagram/.test(refused), 'draw.io: a plain SVG is refused with a sentence');
+    eq(D.esc('"<a>&'), '&quot;&lt;a&gt;&amp;', 'draw.io: values are escaped');
+
+    // Edits made on the page as draw.io would write them.
+    async function edited(fn) {
+      var doc = new DOMParser().parseFromString(pg.model, 'text/xml'); fn(doc);
+      return (await D.read(new XMLSerializer().serializeToString(doc))).pages[0];
+    }
+    var uo = function (doc, id) { return doc.querySelector('[id="' + id + '"]'); };
+    var geo = function (el) { return el.querySelector('mxGeometry'); };
+    var add = function (doc, xml) { var frag = new DOMParser().parseFromString(xml, 'text/xml').documentElement; doc.querySelector('root').appendChild(doc.importNode(frag, true)); };
+    var plan = D.scribePlan(await edited(function (doc) {
+      var b4 = uo(doc, 'scribe-b4'); geo(b4).setAttribute('x', '243'); geo(b4).setAttribute('y', '47');   // moved, off the grid
+      uo(doc, 'scribe-b2').setAttribute('label', '<b>LDO 1V8</b><br><font>U9</font>');             // renamed
+      uo(doc, 'scribe-b1').setAttribute('parts', 'U1, L1, C1');                                 // Edit Data
+      add(doc, '<mxCell id="n1" value="ESD" style="rounded=1;" vertex="1" parent="scribe-s2"><mxGeometry x="20" y="0" width="120" height="40" as="geometry"/></mxCell>');
+      add(doc, '<mxCell id="e1" value="SPI" style="edgeStyle=orthogonalEdgeStyle;" edge="1" parent="1" source="scribe-b2" target="scribe-b4"><mxGeometry relative="1" as="geometry"/></mxCell>');
+      var dup = uo(doc, 'scribe-b3').cloneNode(true); dup.setAttribute('id', 'paste1');
+      Array.prototype.forEach.call(dup.querySelectorAll('mxCell'), function () {});
+      doc.querySelector('root').appendChild(dup);   // a copy keeps scribeId
+    }), S);
+    var ops = plan.map(function (c) { return c.op; }).sort();
+    eq(ops, ['add-block', 'add-block', 'add-link', 'move', 'parts', 'rename', 'route'], 'draw.io: a move, a rename, Parts, a new block, a pasted copy, and a new line each make their edit; the moved block’s shaped line routes again');
+    var mv = plan.filter(function (c) { return c.op === 'move'; })[0] || {};
+    eq([mv.id, mv.x, mv.y], ['b4', 240, 250], 'draw.io: a move snaps to the 10-unit grid, in page coordinates');
+    eq((plan.filter(function (c) { return c.op === 'rename'; })[0] || {}).to, 'LDO 1V8', 'draw.io: the title is the label’s first line');
+    var nb = plan.filter(function (c) { return c.op === 'add-block' && c.title === 'ESD'; })[0] || {};
+    eq([nb.parent, nb.x, nb.y], ['s2', 20, 200], 'draw.io: a new box lands in the section it was drawn in');
+    eq(plan.filter(function (c) { return c.op === 'add-link'; }).map(function (c) { return [c.from, c.to, c.signal, c.dir]; }), [['b2', 'b4', 'SPI', 'out']], 'draw.io: a new line between blocks is a connection, its signal typed on the line');
+
+    // Rails: renamed, removed, and a copied legend picture dropped on a block’s top edge.
+    plan = D.scribePlan(await edited(function (doc) {
+      uo(doc, 'scribe-b1-pw-1').setAttribute('label', '5V0');
+      var pw = uo(doc, 'scribe-b3-pw-0'); pw.parentNode.removeChild(pw);
+      var cp = uo(doc, 'scribe-legend-sink').cloneNode(true); cp.setAttribute('id', 'cp1'); cp.setAttribute('label', 'VBAT');
+      cp.querySelector('mxCell').setAttribute('parent', '1'); geo(cp).setAttribute('x', '240'); geo(cp).setAttribute('y', '224');
+      doc.querySelector('root').appendChild(cp);
+      var cp2 = uo(doc, 'scribe-legend-source').cloneNode(true); cp2.setAttribute('id', 'cp2');
+      cp2.querySelector('mxCell').setAttribute('parent', '1'); geo(cp2).setAttribute('x', '40'); geo(cp2).setAttribute('y', '24');
+      doc.querySelector('root').appendChild(cp2);
+    }), S);
+    eq(plan.filter(function (c) { return c.op === 'power'; }).map(function (c) { return [c.id, D.powerText(c.items)]; }),
+      [['b1', '3V3 (source, tree), 5V0 (sink)'], ['b3', ''], ['b4', 'VBAT (sink)']], 'draw.io: rails come back from their pictures: renamed, removed, and a copied one on a block’s top edge');
+    ok(plan.some(function (c) { return c.op === 'skip' && /still says Source/.test(c.text); }), 'draw.io: a copied legend picture not yet named for its rail is left out, with a note');
+
+    // Removals ask; a resize grows the section; arrows and signals.
+    plan = D.scribePlan(await edited(function (doc) {
+      var b2 = uo(doc, 'scribe-b2'); b2.parentNode.removeChild(b2);
+      var s2 = uo(doc, 'scribe-s2'); geo(s2).setAttribute('width', '460');
+      var l2 = doc.querySelector('[scribeLine="b3>b4|connects"] mxCell');
+      l2.setAttribute('style', l2.getAttribute('style').replace('startArrow=none', 'startArrow=block'));
+      uo(doc, 'scribe-line-2-label').setAttribute('value', 'UART1');
+    }), S);
+    eq(plan.filter(function (c) { return c.ask; }).map(function (c) { return c.op; }).sort(), ['delete-block', 'delete-link'], 'draw.io: a block and its line missing from the file are asked about, unticked');
+    eq(plan.filter(function (c) { return c.op === 'grow'; }).map(function (c) { return c.grow; }), [{ l: 0, t: 0, r: 60, b: 0 }], 'draw.io: a section drawn wider grows it');
+    eq(plan.filter(function (c) { return c.op === 'dir' || c.op === 'signal'; }).map(function (c) { return [c.op, c.to]; }).sort(), [['dir', 'both'], ['signal', 'UART1']], 'draw.io: an arrow added and a label retyped change the direction and the signal');
+
+    // A drawing made in draw.io from nothing: boxes are blocks, a container a section, lines connections.
+    var foreign = '<mxfile><diagram id="a" name="p"><mxGraphModel><root><mxCell id="0"/><mxCell id="1" parent="0"/>' +
+      '<mxCell id="g" value="Sensors" style="swimlane;" vertex="1" parent="1"><mxGeometry x="0" y="0" width="300" height="100" as="geometry"/></mxCell>' +
+      '<mxCell id="a" value="Thermistor" style="rounded=0;" vertex="1" parent="g"><mxGeometry x="10" y="30" width="100" height="40" as="geometry"/></mxCell>' +
+      '<mxCell id="b" value="ADC &amp;amp; filter" style="html=1;" vertex="1" parent="1"><mxGeometry x="400" y="30" width="100" height="40" as="geometry"/></mxCell>' +
+      '<mxCell id="t" value="just a note" style="text;" vertex="1" parent="1"><mxGeometry x="0" y="200" width="80" height="20" as="geometry"/></mxCell>' +
+      '<mxCell id="e" value="" style="" edge="1" parent="1" source="a" target="b"><mxGeometry relative="1" as="geometry"/></mxCell>' +
+      '<mxCell id="f" value="" style="" edge="1" parent="1" source="a"><mxGeometry relative="1" as="geometry"><mxPoint x="9" y="9" as="targetPoint"/></mxGeometry></mxCell>' +
+      '</root></mxGraphModel></diagram></mxfile>';
+    var empty = { review: { id: 'pdx1', name: 'Test Board' }, sections: [], blocks: [], lines: [], legend: null };
+    plan = D.scribePlan((await D.read(foreign)).pages[0], empty);
+    eq(plan.map(function (c) { return [c.op, c.title || c.signal || '', c.parent || '']; }),
+      [['add-section', 'Sensors', ''], ['add-block', 'Thermistor', 'new:g'], ['add-block', 'ADC & filter', ''], ['add-link', '', ''], ['skip', '', '']],
+      'draw.io: a drawing from nothing makes blocks, a section around its box, and a connection; text and a loose line are left out');
+    eq((plan[0] || {}).members, ['new:a'], 'draw.io: a new section holds the boxes drawn inside it');
+
+    // A file from another review is matched by name, and says so.
+    plan = D.scribePlan(P, Object.assign(snap0(), { review: { id: 'pother', name: 'Other' } }));
+    eq(plan.map(function (c) { return c.op; }), ['review'], 'draw.io: another review’s file is matched by name and flagged');
   })();
 
   var failed = results.filter(function (r) { return !r.ok; });

@@ -18,7 +18,7 @@ Read next:
 ## Rules
 
 - **Engine files**: `assets/model.js`, `auth.js` (Sign in with GitHub; `../signoff/docs/sign-in.md`), `github.js`, `workspace.js`, `app.js`, `demo.js`,
-  `specguide.js`, `specedit.js` (Scribe's editor), `history.js`, `localstore.js` (the reviews' local store in IndexedDB; `../CLAUDE.md`), `styles.css`, and `tools/build.py`, `package.py`, `validate_templates.py`, `signoff.js`,
+  `specguide.js`, `specedit.js` (Scribe's editor), `drawio.js` (draw.io files: Scribe's `.drawio.svg` export and import; `docs/scribe-ee.md`, *draw.io*), `history.js`, `localstore.js` (the reviews' local store in IndexedDB; `../CLAUDE.md`), `styles.css`, and `tools/build.py`, `package.py`, `validate_templates.py`, `signoff.js`,
   `signoff_test.js`. Edit them only here. Then copy them to the other tools:
 
   | Tool | Command |
