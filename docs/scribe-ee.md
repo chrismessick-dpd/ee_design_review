@@ -266,6 +266,14 @@ it, and "snap ports to a grid and expand parts to accommodate, so everything sna
   the drag instructions are gone (an SVG title can't be styled smaller). The note under the diagram still says how
   to drag.
 
+## Within, in a block's panel (Chris, 2026-11-20)
+
+A block's panel has **Within**, above Power: the section the block is in, or "The board (no section)", and a list of
+every section (indented by depth) to move it to (`specWithinField`). A change moves it as the hierarchy's drag does
+(`M.specNest`; the text follows), with Undo in the toast and on Back. Back's label names the section that moved
+furthest (`specHistLabel`), so a move reads "moving Status LEDs", not a neighbor it renumbered. EE's flow diagram
+only (FW's layered map has no sections).
+
 ## Power, and Supplies folded into Connects (Chris, 2026-11-19)
 
 - **Power** is its own line: `Power: 16.4V (sink), 3V0 (source)`, the rails a block uses (sink) and makes
