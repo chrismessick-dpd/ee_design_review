@@ -154,6 +154,7 @@ window.SIGNOFF_CONFIG = {
     ],
     "projects": [
       { "seed": 7, "users": ["Sam Patel", "Morgan Lee"],
+        "pins": { "MCU": "SIGNOFF_DEMO_PART" },
         "spec": [
           "# Main PCBA",
           "> Mains-powered controller board: Wi-Fi, two relay outputs, and the link to the display board.",
@@ -197,7 +198,8 @@ window.SIGNOFF_CONFIG = {
           "> Runs the thermostat: the relays, the display link, and the Wi-Fi module.",
           "[U4 is a 32-bit MCU with 128 KB of flash. The I²C bus to the display board has 2.2 kΩ pull-ups, R12 and R13.]{std}",
           "Parts: U4, C4–C7, C41, R12, R13",
-          "Connects: Wi-Fi module (UART), Relay outputs (RLY1/RLY2), Display connector (I2C), Status LEDs (GPIO)",
+          "Part: AC32G148",
+          "Connects: Wi-Fi module (UART), Relay outputs (RLY1 + RLY2), Display connector (I2C + DISP_INT, both ways), Status LEDs (GPIO)",
           "Power: 3V3 (sink, tree)",
           "",
           "### Wi-Fi module",

@@ -407,6 +407,12 @@ planner is the engine file `assets/pinmap.js` (`window.SignoffPinmap`). EE only 
   direction, written back into that block's text (`specSigEdit`). Several signals in one entry are written
   `MCU (I2C2 + ALERT, both ways)`; the pin planner reads each on its own, and they share the entry's direction.
   Supply lines keep the single Signal, bus, or rail field.
+- **The pin map's list by connection** (2026-11-21, Chris): one row per connection into the MCU, in Scribe's order
+  (`plan` returns `conns`); a connection with several signals folds open (▸) to a row per signal, each with its own
+  Type (it sets that connection's signal only, even on a shared bus), pins, notes, and fixes; a shared bus shows under
+  each block. The demo's Main PCBA MCU has a made-up part (`assets/demo-part.js`, Pincheck lab's AC32G148, handed over
+  by `config.demo.projects[].pins`; demo `VERSION` 23) and connections in the new scheme: *Relay outputs (RLY1 +
+  RLY2)* and *Display connector (I2C + DISP_INT, both ways)*.
 - **Marks on the diagram's lines:** a connection's label stays its net name (Chris, 2026-11-21: no peripheral or MCU
   pins after it; they were "I2C · I2C1 PB6/PB9" until then). A connection the plan can't do gets ✕ and a red outline
   ("USB ✕"), and one that needs a look ▲ and a dashed outline (`specPinTags`); the reason is in the label's tooltip,
