@@ -15,7 +15,7 @@
 <div id="out"></div>
 <script>
 // Load the engine fresh on every run, so a browser cache never tests old code.
-['config', 'templates', 'model', 'localstore', 'auth', 'github', 'workspace', 'demo', 'history', 'pptx', 'home', 'specedit', 'drawio'].forEach(function (n) { document.write('<script src="../assets/' + n + '.js?t=' + Date.now() + '"><\/script>'); });
+['config', 'templates', 'model', 'localstore', 'auth', 'github', 'workspace', 'demo', 'history', 'pptx', 'home', 'specedit', 'drawio', 'pinmap'].forEach(function (n) { document.write('<script src="../assets/' + n + '.js?t=' + Date.now() + '"><\/script>'); });
 </script>
 <script>
 /* Unit tests for the model and the GitHub sync, run against a fake GitHub API.
@@ -2116,6 +2116,78 @@
     // A file from another review is matched by name, and says so.
     plan = D.scribePlan(P, Object.assign(snap0(), { review: { id: 'pother', name: 'Other' } }));
     eq(plan.map(function (c) { return c.op; }), ['review'], 'draw.io: another review’s file is matched by name and flagged');
+  })();
+
+  // ── Pin planner (assets/pinmap.js, 2026-11-20): Scribe EE's MCU block, connections against the part's pins ──
+  (function () {
+    var PM = window.SignoffPinmap; if (!PM) { ok(false, 'pinmap.js loads'); return; }
+    // A made-up 16-pad MCU: I2C1 on PB6/PB7 or PB8/PB9, one DAC with two outputs, SPI1 and SPI2, UART4 and
+    // USART1, USB on pad 11, whose pad also carries PA9 by a remap, and SWD on PA13/PA14-BOOT0.
+    function pin(num, name, role, fns, extra) { return Object.assign({ num: String(num), name: name, role: role, functions: fns ? fns.split('; ') : [] }, extra || {}); }
+    var file = { schema: 'pincheck.part/1', mpn: 'MADEUP16', package: 'QFN16', peripherals: ['ADC1', 'DAC1', 'I2C1', 'SPI1', 'SPI2', 'UART4', 'USART1', 'USB', 'SYS', 'TIM3'],
+      pins: [pin(1, 'VDD', 'power-in'), pin(2, 'VSS', 'ground'), pin(3, 'NRST', 'reset'),
+        pin(4, 'PA4', 'io', 'ADC1_IN4; DAC1_OUT1; SPI1_NSS AF0'), pin(5, 'PA5', 'io', 'ADC1_IN5; DAC1_OUT2; SPI1_SCK AF0'),
+        pin(6, 'PA6', 'io', 'ADC1_IN6; SPI1_MISO AF0; TIM3_CH1 AF1'), pin(7, 'PA7', 'io', 'ADC1_IN7; SPI1_MOSI AF0; TIM3_CH2 AF1'),
+        pin(8, 'PB6', 'io', 'I2C1_SCL AF6; USART1_TX AF0; SPI2_SCK AF4'), pin(9, 'PB7', 'io', 'I2C1_SDA AF6; USART1_RX AF0; SPI2_MOSI AF4'),
+        pin(10, 'PB8', 'io', 'I2C1_SCL AF6; UART4_TX AF8; SPI2_MISO AF4'),
+        pin(11, 'PA11 [PA9]', 'io', 'USB_DM; EXTI11', { bond: [{ name: 'PA9', functions: ['I2C1_SCL AF6', 'EXTI9'], remap: 'PINREMAP' }] }),
+        pin(12, 'PA12', 'io', 'USB_DP'), pin(13, 'PB9', 'io', 'I2C1_SDA AF6; UART4_RX AF8'),
+        pin(14, 'PA13', 'io', 'SYS_SWDIO AF0'), pin(15, 'PA14-BOOT0', 'boot', 'SYS_SWCLK AF0'), pin(16, 'PC13', 'io', 'EXTI13')] };
+    var part = PM.part(file);
+    var conns = function (list) { return list.map(function (l, i) { return { id: 'c' + i, block: l[0], label: l[1] }; }); };
+    var byLabel = function (res, label) { return res.reqs.filter(function (r) { return r.label === label; }); };
+    var pins = function (r) { return r.slots.map(function (s) { return s.gpio + ':' + s.sig; }).sort().join(' '); };
+
+    eq(part.pads.find(function (p) { return p.num === '11'; }).names, ['PA11', 'PA9'], 'pin planner: a pad with a bond answers to both GPIOs');
+    eq([part.byName.PA14.also, part.insts.indexOf('UART4') >= 0], ['BOOT0', true], 'pin planner: a pin’s second name and the part’s instances');
+
+    var L = PM.parseLabel('2 ADC + 4 drive, in');
+    eq([L.dir, L.items.map(function (i) { return [i.type, i.count]; })], ['in', [['ADC', 2], ['GPIO', 4]]], 'pin planner: a label with counts and a direction');
+    eq(PM.parseLabel('PB8–PB15').items[0].pins.length, 8, 'pin planner: a pin range');
+    eq(PM.parseLabel('PA14/PA13').items[0].pins, ['PA14', 'PA13'], 'pin planner: a pin list');
+    var dac = PM.parseLabel('DAC1 via RC').items[0];
+    eq([dac.type, dac.inst, dac.extra], ['DAC', 'DAC1', ['via', 'rc']], 'pin planner: an instance, and words it reads past');
+    eq([PM.parseLabel('EXTCOMIN').items[0].guessed, PM.parseLabel('LCD SPI').items[0].type, PM.parseLabel('DAC1 OUT2').items[0].sig], [true, 'SPI', 'OUT2'], 'pin planner: an unknown word, a type among words, an explicit channel');
+
+    var six = [['IMU', 'I2C1'], ['Meter', 'I2C1'], ['Pad', 'DAC2'], ['Buck', 'DAC1 via RC'], ['Slider', 'touch sense, in'], ['Header', 'PB8–PB9']];
+    var res = PM.plan(part, conns(six), {});
+    var i2c = byLabel(res, 'I2C1');
+    eq([i2c.length, i2c[0].id, i2c[0].users.length, i2c[0].inst, pins(i2c[0])], [1, 'bus:I2C|I2C1', 2, 'I2C1', 'PB6:SCL PB7:SDA'], 'pin planner: one bus for two blocks, moved off the header’s pins');
+    var d2 = byLabel(res, 'DAC2')[0];
+    eq([d2.problems[0].code, d2.fix], ['no-instance', { from: 'DAC2', to: 'DAC1 OUT2' }], 'pin planner: no DAC2, and the fix names DAC1’s second output');
+    eq([pins(byLabel(res, 'DAC1 via RC')[0]), byLabel(res, 'touch sense, in')[0].problems[0].code], ['PA4:OUT1', 'no-type'], 'pin planner: DAC1 placed; no touch controller');
+    eq([res.counts.problems, res.counts.io], [2, 13], 'pin planner: counts');
+    eq(PM.plan(part, conns(six), {}).reqs.map(pins), res.reqs.map(pins), 'pin planner: the same input plans the same way');
+
+    // Names, buses, and room.
+    res = PM.plan(part, conns([['Flash', 'SPI1'], ['LCD', 'LCD SPI'], ['Debug', 'SWD, in']]), {});
+    eq([byLabel(res, 'SPI1')[0].inst, byLabel(res, 'LCD SPI')[0].inst, byLabel(PM.plan(part, conns([['Modem', 'USART4']]), {}), 'USART4')[0].inst], ['SPI1', 'SPI2', 'UART4'], 'pin planner: a generic SPI takes the free instance; USART4 is the part’s UART4');
+    eq(pins(byLabel(res, 'SWD, in')[0]), 'PA13:SWDIO PA14:SWCLK', 'pin planner: SWD on a boot pin');
+    res = PM.plan(part, conns([['A', 'I2C1'], ['B', 'USART1'], ['C', 'PB8'], ['D', 'PB9'], ['E', 'PA11']]), {});
+    eq(byLabel(res, 'I2C1')[0].problems[0].code, 'no-room', 'pin planner: no room says so');
+    ok(/PB6 \(B\)/.test(byLabel(res, 'I2C1')[0].problems[0].text), 'pin planner: and names who holds the pads', JSON.stringify(byLabel(res, 'I2C1')[0].problems));
+    res = PM.plan(part, conns([['X', 'PB15'], ['Y', '20 GPIO']]), {});
+    eq([byLabel(res, 'PB15')[0].problems[0].code, byLabel(res, '20 GPIO')[0].problems[0].code], ['pin-missing', 'short'], 'pin planner: an unbonded pin, and too few GPIOs');
+
+    // A pad's second GPIO, picks, and requirements kept by id.
+    var c3 = conns([['IMU', 'I2C1'], ['Header', 'PB6'], ['Sensor', 'PB8']]);
+    res = PM.plan(part, c3, {});
+    eq(pins(byLabel(res, 'I2C1')[0]), 'PA9:SCL PB9:SDA', 'pin planner: a bus can use a pad’s second GPIO');
+    ok(byLabel(res, 'I2C1')[0].notes.some(function (n) { return n.code === 'remap'; }), 'pin planner: and says it needs the remap');
+    var cand = PM.candidates(part, byLabel(res, 'I2C1')[0], res.used);
+    eq([cand['10'] && cand['10'].taken, cand['13'] && cand['13'].taken, !!cand['4']], [true, false, false], 'pin planner: candidates, taken or free');
+    var map = PM.pick({}, res, part, '13', 'I2C1_SDA', 'bus:I2C|I2C1');
+    eq(map, { 13: { req: 'bus:I2C|I2C1', sig: 'SDA', fn: 'I2C1_SDA' } }, 'pin planner: a pick is stored by pad');
+    res = PM.plan(part, c3, map);
+    ok(byLabel(res, 'I2C1')[0].slots.some(function (s) { return s.pad === '13' && s.lock; }), 'pin planner: a pick is kept');
+    var stray = PM.plan(part, conns([['Header', 'PB6']]), map);
+    eq([stray.stray, stray.counts.warnings], [[{ pad: '13', fn: 'I2C1_SDA' }], 1], 'pin planner: a pick whose connection is gone is “not in Scribe”');
+    eq(PM.unpick(map, '13'), {}, 'pin planner: unpick');
+    var ch = PM.choices(part, res, '8', 'bus:I2C|I2C1');
+    eq(ch.map(function (c) { return [c.fn.full, c.req ? c.req.id : null]; }), [['I2C1_SCL', 'bus:I2C|I2C1'], ['USART1_TX', null], ['SPI2_SCK', null]], 'pin planner: a pad’s choices, with the requirement each serves');
+    var reordered = PM.plan(part, [{ id: 'c2', block: 'Sensor', label: 'PB8' }, { id: 'c0', block: 'IMU', label: 'I2C1' }, { id: 'c1', block: 'Header', label: 'PB6' }], map);
+    eq(reordered.reqs.map(function (r) { return r.id; }).sort(), ['bus:I2C|I2C1', 'c1#0', 'c2#0'], 'pin planner: requirement ids don’t depend on order');
+    ok(reordered.reqs.find(function (r) { return r.type === 'I2C'; }).slots.some(function (s) { return s.pad === '13' && s.lock; }), 'pin planner: so picks survive a reorder');
   })();
 
   var failed = results.filter(function (r) { return !r.ok; });
