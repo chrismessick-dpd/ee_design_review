@@ -394,5 +394,12 @@ planner is the engine file `assets/pinmap.js` (`window.SignoffPinmap`). EE only 
   STM32G071KBU6") and ▲ and a dashed outline when it needs a look; the reason is in the label's tooltip. Only the
   drawing changes: the label keeps its plain text in `data-text`, which the draw.io export reads, so the marks never
   go out to draw.io or come back as label edits. Plans are memoized per block (`pinCache`).
-- Tests: EE 696 (the planner, the Part line, the copy, cleaning, merge, the connections, the pin map), CLI 40 (a pin plan
+- **New part… and Edit part…** (FTEs): Pincheck's own part window (`../pincheck/assets/editor.js`, its styles
+  `editor.css`, and `cubemx.js` for Import from CubeMX…), loaded by EE's `index.html`. New part… starts a file for the
+  Part line's number and opens on Pins; Save puts it in the shared library in this browser and syncs it to
+  `pincheck_data` on EE's sign-in (`PK.tokenSource`), so it's in Pincheck at once. *Sync the part library* pulls parts
+  made elsewhere. EE's Sign out doesn't delete the library database, as Pincheck's doesn't (it may hold unsynced parts).
+- **Labels:** a net name (`USB_LDO_EN`, `SPI_CS`) is one GPIO, not the interface a word in it names (Chris, 2026-11-20:
+  an LDO's enable was read as a second USB port).
+- Tests: EE 697 (the planner, the Part line, the copy, cleaning, merge, the connections, the pin map), CLI 40 (a pin plan
   survives a pull, an edit to the section's text, and the merge).

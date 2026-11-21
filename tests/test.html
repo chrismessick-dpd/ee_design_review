@@ -2169,6 +2169,8 @@
     var L = PM.parseLabel('2 ADC + 4 drive, in');
     eq([L.dir, L.items.map(function (i) { return [i.type, i.count]; })], ['in', [['ADC', 2], ['GPIO', 4]]], 'pin planner: a label with counts and a direction');
     eq(PM.parseLabel('PB8–PB15').items[0].pins.length, 8, 'pin planner: a pin range');
+    var net = PM.parseLabel('USB_LDO_EN').items[0];
+    eq([net.type, net.signal, net.guessed, PM.parseLabel('USB').items[0].type], ['GPIO', true, false, 'USB'], 'pin planner: a net name (USB_LDO_EN) is one GPIO, not the interface a word in it names');
     eq(PM.parseLabel('PA14/PA13').items[0].pins, ['PA14', 'PA13'], 'pin planner: a pin list');
     var dac = PM.parseLabel('DAC1 via RC').items[0];
     eq([dac.type, dac.inst, dac.extra], ['DAC', 'DAC1', ['via', 'rc']], 'pin planner: an instance, and words it reads past');
