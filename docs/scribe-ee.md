@@ -249,6 +249,13 @@ it, and "snap ports to a grid and expand parts to accommodate, so everything sna
   jumping to text keep it (`specTextView`); Diagram still goes to Document. At 860 px or less (Chris's choice) the
   tab is hidden and the page shows Document; a resize across that line draws the page again (`specNarrow`,
   `specDrawnNarrow`). Works the same in FW over its layered map.
+- **Expanded in Side by side** (Chris, 2026-11-20: "still side by side but full screen"): the expand button fills the
+  window with the whole view (`.spec-side.expanded`), the text scrolling on its own on the left and the expanded
+  diagram or power tree, with zoom, pan, and Fit, on the right; the notes and hierarchy under it step aside until Esc
+  or the collapse button. Diagram's expand is as before.
+- **The split drags** (Chris, 2026-11-20): the gutter between the columns (`.spec-side-split`) sets the text column's
+  share, 25% to 75%, in the page and expanded alike, kept in this browser (`specSideSplit`, `specSplit`); a double-click
+  goes back to half and half.
 - **The outline folds**: an Outline toggle at its top leaves a narrow rail (`specOlToggle`, `spec-outline-toggle`).
   Until it's used, the outline folds itself below 1200 px and always in Side by side (`.ol-auto`); a choice is kept
   for the session, one for Document (`ui.specOutline`) and one for Side by side (`ui.specOutlineSide`). At 860 px
