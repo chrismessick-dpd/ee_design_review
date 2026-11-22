@@ -413,7 +413,10 @@ planner is the engine file `assets/pinmap.js` (`window.SignoffPinmap`). EE only 
   each block. The demo's Main PCBA MCU has a made-up part (`assets/demo-part.js`, Pincheck lab's AC32G148, handed over
   by `config.demo.projects[].pins`; demo `VERSION` 23) and connections in the new scheme: *Relay outputs (RLY1 +
   RLY2)* and *Display connector (I2C + DISP_INT, both ways)*. The block panel's Pins section lists the same way (`specPinsField`; its open folds in
-  `pinOpen`, per block, for the page's life).
+  `pinOpen`, per block, for the page's life). Then (Chris, 2026-11-21): a chevron opens or closes a connection's fold, and a click on
+  the rest of its row selects all its signals on the drawing (`S.selConn`); assigned pins are green (`--pass`; the
+  legend says Assigned, and Your pick is gone from it, the lock glyph staying on the pin), and the selected row's pins
+  pulse blue-white (`pv-pulse`, steady under reduced motion).
 - **Marks on the diagram's lines:** a connection's label stays its net name (Chris, 2026-11-21: no peripheral or MCU
   pins after it; they were "I2C · I2C1 PB6/PB9" until then). A connection the plan can't do gets ✕ and a red outline
   ("USB ✕"), and one that needs a look ▲ and a dashed outline (`specPinTags`); the reason is in the label's tooltip,
