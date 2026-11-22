@@ -423,8 +423,8 @@ planner is the engine file `assets/pinmap.js` (`window.SignoffPinmap`). EE only 
   `counts.unassigned`). *Auto-assign* (bottom left of the drawing) runs a full plan around what's stored and saves
   the new pins with `auto: true` (`SignoffPinmap.assignAll`); *Unassign* drops every `auto` entry (`unassign`); each
   row's lock (`lock`) clears or sets `auto` on its stored pins, and a pick by hand is stored locked, as before. The
-  demo's MCU is Auto-assigned when built (demo `VERSION` 24). A review planned before this (Story Stick's Main Board)
-  shows its connections not assigned until Auto-assign is pressed once.
+  demo's MCU is Auto-assigned when built (demo `VERSION` 24). A review planned before this shows its connections not
+  assigned until Auto-assign is pressed once.
 - **A row per pin** (2026-11-21, Chris): every connection with two or more pins folds open, to a row per pin (its
   signal, SCK or RLY1; its pin; the function when it says more; its own lock, `SignoffPinmap.lockPads`), or, with
   several interfaces, to each interface's heading (Type, notes, fixes) and its pins. A pin row selects that pin alone
