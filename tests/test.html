@@ -2229,6 +2229,17 @@
     eq([r5.reqs.length, r5.reqs[0].id, r5.reqs[0].users.length], [1, 'bus:I2C|I2C1', 2], 'pin planner: set to I2C1, it joins the I2C1 bus');
     eq([PM.typeOf('TIM14'), PM.typeOf('USART1'), PM.typeOf('PINS'), PM.typeOptions(part).some(function (g) { return g.type === 'I2C' && g.insts.indexOf('I2C1') >= 0; })], [{ type: 'TIM', inst: 'TIM14' }, { type: 'UART', inst: 'USART1' }, null, true], 'pin planner: the Type list reads names and instances');
     eq(M.specPins({ types: { 'a>b#0#0': 'I2C2', 'bad key': 'I2C', 'a>b#1#0': 'i2c' } }), { types: { 'a>b#0#0': 'I2C2' } }, 'pin planner: types kept on the section, checked');
+    // Stored assignments (2026-11-21): nothing placed until Auto-assign; Unassign keeps locked rows.
+    var c6 = conns([['IMU', 'I2C1'], ['LEDs', '2 GPIO'], ['Header', 'PB8']]), r6 = PM.plan(part, c6, {}, {}, { auto: false });
+    eq([byLabel(r6, 'I2C1')[0].slots.length, PM.sevOf(byLabel(r6, 'I2C1')[0]), byLabel(r6, 'PB8')[0].slots.length, r6.counts.unassigned], [0, 'todo', 1, 2], 'pin planner: with auto off, only explicit pins are placed; the rest are not assigned');
+    var m6 = PM.assignAll({}, PM.plan(part, c6, {}, {}, { auto: true }), part);
+    eq([Object.keys(m6).length, Object.keys(m6).every(function (k) { return m6[k].auto === true; })], [4, true], 'pin planner: Auto-assign stores every placed pin, unlocked');
+    r6 = PM.plan(part, c6, m6, {}, { auto: false });
+    eq([r6.counts.unassigned, byLabel(r6, 'I2C1')[0].slots.every(function (sl) { return !sl.lock; })], [0, true], 'pin planner: and the stored plan reads back whole');
+    var i2c6 = byLabel(r6, 'I2C1')[0].id, l6 = PM.lock(m6, [i2c6], true), u6 = PM.unassign(l6);
+    eq([Object.keys(u6).length, Object.keys(u6).every(function (k) { return u6[k].req === i2c6; })], [2, true], 'pin planner: Unassign keeps a locked row only');
+    eq(Object.keys(PM.unassign(PM.lock(l6, [i2c6], false))).length, 0, 'pin planner: unlocked, it goes too');
+    eq(M.specPins({ map: { 5: { req: 'x', sig: 'SCL', fn: 'I2C1_SCL', auto: true }, 6: { req: 'x', sig: 'SDA', auto: 'yes' } } }).map, { 5: { req: 'x', sig: 'SCL', fn: 'I2C1_SCL', auto: true }, 6: { req: 'x', sig: 'SDA' } }, 'pin planner: auto kept on the section only as true');
     // Several signals in one connection entry (2026-11-21): written "I2C2 + ALERT", read back as one entry, planned as two.
     var sig = M.specLinkItems(M.specLinkText([{ name: 'MCU', label: 'I2C2 + ALERT', dir: 'both' }]));
     eq([sig.length, sig[0].label, sig[0].dir, PM.parseLabel(sig[0].label).items.map(function (x) { return x.type; })], [1, 'I2C2 + ALERT', 'both', ['I2C', 'GPIO']], 'Scribe: an entry with two signals round-trips, and the planner reads both');

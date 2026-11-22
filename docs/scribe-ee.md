@@ -417,6 +417,19 @@ planner is the engine file `assets/pinmap.js` (`window.SignoffPinmap`). EE only 
   the rest of its row selects all its signals on the drawing (`S.selConn`); assigned pins are green (`--pass`; the
   legend says Assigned, and Your pick is gone from it, the lock glyph staying on the pin), and the selected row's pins
   pulse blue-white (`pv-pulse`, steady under reduced motion).
+- **Stored assignments, locks, Unassign, and Auto-assign** (2026-11-21, Chris's choices: stored, changed only by
+  Auto-assign or a pick; a lock freezes a row and Unassign skips it). `pinPlan` plans with `{ auto: false }`: only
+  `pins.map` and explicit pins (PB8–PB15) are placed, and anything else is ○ *Not assigned* (sev `todo`, counted in
+  `counts.unassigned`). *Auto-assign* (bottom left of the drawing) runs a full plan around what's stored and saves
+  the new pins with `auto: true` (`SignoffPinmap.assignAll`); *Unassign* drops every `auto` entry (`unassign`); each
+  row's lock (`lock`) clears or sets `auto` on its stored pins, and a pick by hand is stored locked, as before. The
+  demo's MCU is Auto-assigned when built (demo `VERSION` 24). A review planned before this (Story Stick's Main Board)
+  shows its connections not assigned until Auto-assign is pressed once.
+- **A row per pin** (2026-11-21, Chris): every connection with two or more pins folds open, to a row per pin (its
+  signal, SCK or RLY1; its pin; the function when it says more; its own lock, `SignoffPinmap.lockPads`), or, with
+  several interfaces, to each interface's heading (Type, notes, fixes) and its pins. A pin row selects that pin alone
+  on the drawing; a single interface's header selects it (so the pins it could use light); several, all of them. The
+  block panel's Pins section folds the same way, with pin lines.
 - **Marks on the diagram's lines:** a connection's label stays its net name (Chris, 2026-11-21: no peripheral or MCU
   pins after it; they were "I2C · I2C1 PB6/PB9" until then). A connection the plan can't do gets ✕ and a red outline
   ("USB ✕"), and one that needs a look ▲ and a dashed outline (`specPinTags`); the reason is in the label's tooltip,
