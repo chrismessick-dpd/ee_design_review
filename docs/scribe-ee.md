@@ -435,7 +435,9 @@ planner is the engine file `assets/pinmap.js` (`window.SignoffPinmap`). EE only 
   choice of pins), and *BOOT0* and *NRST*, found by the pin's role (`boot`, `reset`) or name. A label word reads them
   (`Crystal (HSE)`, `Boot button (BOOT0)`, `Reset button (NRST)`), and the Type list offers each one the part has.
   HSE, LSE, BOOT0, and NRST are fixed (placed without Auto-assign, like explicit pins). BOOT0 and NRST are placed
-  last and share their pin when another signal holds it, with a ▲ note (an STM32G0's PA14 is BOOT0 and SWD's SWCLK).
+  last and share their pin when another signal holds it, with a ▲ note (an STM32G0's PA14 is BOOT0 and SWD's SWCLK). The
+  note is sev `shared`: drawn with ▲ but counted as none, so the rows and their connection read ✓ (Chris: both set on
+  one pin should read as set). SWD reads SWD, not its block SYS.
 - **Marks on the diagram's lines:** a connection's label stays its net name (Chris, 2026-11-21: no peripheral or MCU
   pins after it; they were "I2C · I2C1 PB6/PB9" until then). A connection the plan can't do gets ✕ and a red outline
   ("USB ✕"), and one that needs a look ▲ and a dashed outline (`specPinTags`); the reason is in the label's tooltip,
