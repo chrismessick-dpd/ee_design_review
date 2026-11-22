@@ -430,6 +430,12 @@ planner is the engine file `assets/pinmap.js` (`window.SignoffPinmap`). EE only 
   several interfaces, to each interface's heading (Type, notes, fixes) and its pins. A pin row selects that pin alone
   on the drawing; a single interface's header selects it (so the pins it could use light); several, all of them. The
   block panel's Pins section folds the same way, with pin lines.
+- **Clock and special pins** (2026-11-21, Chris: BOOT0, and an oscillator block to connect to): new types *HSE*
+  (OSC_IN and OSC_OUT) and *LSE* (OSC32_IN and OSC32_OUT) from the part's RCC functions, *MCO* (a clock output, a
+  choice of pins), and *BOOT0* and *NRST*, found by the pin's role (`boot`, `reset`) or name. A label word reads them
+  (`Crystal (HSE)`, `Boot button (BOOT0)`, `Reset button (NRST)`), and the Type list offers each one the part has.
+  HSE, LSE, BOOT0, and NRST are fixed (placed without Auto-assign, like explicit pins). BOOT0 and NRST are placed
+  last and share their pin when another signal holds it, with a ▲ note (an STM32G0's PA14 is BOOT0 and SWD's SWCLK).
 - **Marks on the diagram's lines:** a connection's label stays its net name (Chris, 2026-11-21: no peripheral or MCU
   pins after it; they were "I2C · I2C1 PB6/PB9" until then). A connection the plan can't do gets ✕ and a red outline
   ("USB ✕"), and one that needs a look ▲ and a dashed outline (`specPinTags`); the reason is in the label's tooltip,

@@ -2229,6 +2229,12 @@
     eq([r5.reqs.length, r5.reqs[0].id, r5.reqs[0].users.length], [1, 'bus:I2C|I2C1', 2], 'pin planner: set to I2C1, it joins the I2C1 bus');
     eq([PM.typeOf('TIM14'), PM.typeOf('USART1'), PM.typeOf('PINS'), PM.typeOptions(part).some(function (g) { return g.type === 'I2C' && g.insts.indexOf('I2C1') >= 0; })], [{ type: 'TIM', inst: 'TIM14' }, { type: 'UART', inst: 'USART1' }, null, true], 'pin planner: the Type list reads names and instances');
     eq(M.specPins({ types: { 'a>b#0#0': 'I2C2', 'bad key': 'I2C', 'a>b#1#0': 'i2c' } }), { types: { 'a>b#0#0': 'I2C2' } }, 'pin planner: types kept on the section, checked');
+    // Clock and special pins (2026-11-21): BOOT0 and NRST by role, shared when another signal holds the pin; HSE by RCC.
+    var c7 = conns([['Boot button and SWD', 'BOOT0 + SWD'], ['Reset button', 'NRST'], ['Oscillator', 'HSE']]), r7 = PM.plan(part, c7, {}, {}, { auto: false });
+    var b7 = byLabel(r7, 'BOOT0 + SWD').filter(function (r) { return r.type === 'BOOT0'; })[0], s7 = byLabel(r7, 'BOOT0 + SWD').filter(function (r) { return r.type === 'SWD'; })[0];
+    eq([pins(byLabel(r7, 'NRST')[0]), byLabel(r7, 'HSE')[0].problems[0].code, PM.sevOf(s7)], ['NRST:NRST', 'no-type', 'todo'], 'pin planner: NRST placed by its role without Auto-assign; no HSE pins on this part; SWD waits for Auto-assign');
+    r7 = PM.plan(part, c7, {}, {}, { auto: true }); b7 = byLabel(r7, 'BOOT0 + SWD').filter(function (r) { return r.type === 'BOOT0'; })[0]; s7 = byLabel(r7, 'BOOT0 + SWD').filter(function (r) { return r.type === 'SWD'; })[0];
+    eq([pins(s7), b7.slots[0].gpio, b7.notes.some(function (n) { return n.code === 'shared-pin' && n.sev === 'warn'; }), PM.typeOptions(part).some(function (g) { return g.type === 'BOOT0'; }), PM.typeOptions(part).some(function (g) { return g.type === 'HSE'; })], ['PA13:SWDIO PA14:SWCLK', 'PA14', true, true, false], 'pin planner: BOOT0 shares PA14 with SWD, with a note; the Type list offers only what the part has');
     // Stored assignments (2026-11-21): nothing placed until Auto-assign; Unassign keeps locked rows.
     var c6 = conns([['IMU', 'I2C1'], ['LEDs', '2 GPIO'], ['Header', 'PB8']]), r6 = PM.plan(part, c6, {}, {}, { auto: false });
     eq([byLabel(r6, 'I2C1')[0].slots.length, PM.sevOf(byLabel(r6, 'I2C1')[0]), byLabel(r6, 'PB8')[0].slots.length, r6.counts.unassigned], [0, 'todo', 1, 2], 'pin planner: with auto off, only explicit pins are placed; the rest are not assigned');
