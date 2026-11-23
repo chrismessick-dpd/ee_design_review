@@ -359,6 +359,10 @@ indicated somehow.
   `.spec-bus`, hidden while dragging), and the label shows once. Nothing new is stored: a bus is two kept shapes that
   overlap, and dragging one away or Reset route splits it. Lines out of one pin already share their first stretch, so a
   power tree fan-out draws as a trunk by itself.
+- **Blocks widen for their rails** (Chris: rails ran off a block's left edge). A block is as wide as its markers need
+  (6 in from its right edge, 6 apart, each as wide as its name up to 110), at least 160 and on the 10-unit grid (`bw` in
+  `specFlowHtml`), and that width is what the automatic layout, the place found for a new block, and the section draw
+  use. It grows to the right; a kept place doesn't move, so a widened block can reach a neighbor until one is dragged.
 - **A link the diagram can't draw is a gap** (Chris: "count it as a gap"). A link line entry that names no block, names
   a section (a heading with headings under it, which the block diagram doesn't connect to), or names the block itself
   draws nothing, so the analysis keeps it on the section as `dead` (`{ name, word, label, why: 'none' | 'section' |
