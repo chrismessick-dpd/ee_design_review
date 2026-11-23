@@ -15,7 +15,7 @@
 <div id="out"></div>
 <script>
 // Load the engine fresh on every run, so a browser cache never tests old code.
-['config', 'templates', 'model', 'localstore', 'auth', 'github', 'workspace', 'demo', 'history', 'pptx', 'home', 'specedit', 'drawio', 'pinmap', 'pinview'].forEach(function (n) { document.write('<script src="../assets/' + n + '.js?t=' + Date.now() + '"><\/script>'); });
+['config', 'templates', 'model', 'localstore', 'auth', 'github', 'workspace', 'demo', 'history', 'pptx', 'home', 'specedit', 'drawio', 'pinmap', 'pinview', 'power'].forEach(function (n) { document.write('<script src="../assets/' + n + '.js?t=' + Date.now() + '"><\/script>'); });
 </script>
 <script>
 /* Unit tests for the model and the GitHub sync, run against a fake GitHub API.
@@ -1448,14 +1448,20 @@
     // Under EE's own Scribe settings (this block runs under a plain description's).
     var PW_KEEP = window.SIGNOFF_CONFIG.spec; window.SIGNOFF_CONFIG.spec = TOOL_SPEC;
     if (M.specPowerOn()) {
-      eq(M.specPowerItems('16.4V (sink), 3V0 (source), VBAT'), [{ rail: '16.4V', role: 'sink', tree: true }, { rail: '3V0', role: 'source', tree: true }, { rail: 'VBAT', role: 'sink', tree: true }], 'Power: rails with source or sink (sink when none is written), each in the power tree');
+      eq(M.specPowerItems('16.4V (sink), 3V0 (source), VBAT'), [{ rail: '16.4V', role: 'sink', tree: true, label: 'sink' }, { rail: '3V0', role: 'source', tree: true, label: 'source' }, { rail: 'VBAT', role: 'sink', tree: true, label: '' }], 'Power: rails with source or sink (sink when none is written), each in the power tree');
       // Power tree (2026-11-22): every rail is in it unless "no tree"; the old opt-in "tree" still reads, as in.
-      eq(M.specPowerItems('5V (sink, no tree), 3V3 (source, tree), "A, B" (source), VIN (no  tree)'), [{ rail: '5V', role: 'sink', tree: false }, { rail: '3V3', role: 'source', tree: true }, { rail: 'A, B', role: 'source', tree: true }, { rail: 'VIN', role: 'sink', tree: false }], 'Power tree: in by default, "no tree" leaves a rail out, "tree" reads as in');
+      eq(M.specPowerItems('5V (sink, no tree), 3V3 (source, tree), "A, B" (source), VIN (no  tree)'), [{ rail: '5V', role: 'sink', tree: false, label: 'sink, no tree' }, { rail: '3V3', role: 'source', tree: true, label: 'source, tree' }, { rail: 'A, B', role: 'source', tree: true, label: 'source' }, { rail: 'VIN', role: 'sink', tree: false, label: 'no  tree' }], 'Power tree: in by default, "no tree" leaves a rail out, "tree" reads as in');
       ['16.4V (sink), 3V0 (source)', '5V (sink, no tree), 3V3 (source)', '"A, B" (source, no tree)'].forEach(function (t) {
         eq(M.specPowerText(M.specPowerItems(t)), t, 'Power line round-trips: ' + t);
       });
       eq(M.specPowerText(M.specPowerItems('5V (sink, tree), 3V3 (source, tree)')), '5V (sink), 3V3 (source)', 'an old "tree" flag is dropped when the line is written again (in is the default)');
       eq(M.specPowerText([{ rail: '5V', role: 'sink', tree: false }, { rail: '5V', role: 'sink' }]), '5V (sink, no tree)', 'a rail twice in one role is written once, the flag not making a second');
+      // The power budget's numbers ride in the brackets (2026-11-23): a role or tree change keeps every other word.
+      var pwNum = function (t, fn) { var it = M.specPowerItems(t); fn(it); return M.specPowerText(it); };
+      eq(pwNum('5V (sink, 4.5–5.5 V, 72 mA, max 144 mA), 3V3 (source, up to 2 A, buck 88%)', function (it) { it[0].role = 'source'; it[1].tree = false; }),
+        '5V (source, 4.5–5.5 V, 72 mA, max 144 mA), 3V3 (source, up to 2 A, buck 88%, no tree)', 'Power numbers kept when the role or the tree flag changes');
+      eq(pwNum('3V3 (3.3 V, no tree, 80 mA)', function (it) { it[0].tree = true; }), '3V3 (sink, 3.3 V, 80 mA)', 'a rail without a role gets one first; "no tree" comes out from where it was');
+      eq(pwNum('3V3 (sink, 3.3 V, 80 mA)', function () {}), '3V3 (sink, 3.3 V, 80 mA)', 'a Power line with numbers round-trips');
       // The diagram's rails and Delete rail (2026-11-22).
       var rlp = { spec: {} };
       [['a', 'Charger', 'Connects: Buck (VSYS), MCU (I2C)\nPower: VSYS (source), VBUS (sink)'], ['b', 'Buck', 'Connects: MCU (3V3)\nPower: VSYS (sink), 3V3 (source)'], ['c', 'MCU', 'Power: 3V3 (sink)']].forEach(function (r, i) {
@@ -1523,9 +1529,29 @@
       eq(Object.keys(M.specPowerConvert(pwp).filter(function (r) { return r.title === 'Conn'; })[0].routes), [byT('Rail').id + '|connects'], 'a kept shape moves from |supplies to |connects');
       cv.forEach(function (r) { pwp.spec[r.id] = r; });
       var pa = M.specAnalysis(pwp), pwOf = function (t) { return pa.sections.filter(function (x) { return x.sec.title === t; })[0].power; };
-      eq([pwOf('LDO'), pwOf('MCU')], [[{ rail: '16.4V', role: 'sink', tree: true }, { rail: '3V0', role: 'source', tree: true }], [{ rail: '3V0', role: 'sink', tree: true }]], 'the analysis carries each block’s rails');
+      eq([pwOf('LDO'), pwOf('MCU')], [[{ rail: '16.4V', role: 'sink', tree: true, label: 'sink' }, { rail: '3V0', role: 'source', tree: true, label: 'source' }], [{ rail: '3V0', role: 'sink', tree: true, label: 'sink' }]], 'the analysis carries each block’s rails');
     }
     window.SIGNOFF_CONFIG.spec = PW_KEEP;
+    // The power budget (assets/power.js, 2026-11-23): numbers read and written as typed, and the budget worked out.
+    var PB = window.SignoffPower;
+    if (PB) {
+      var pbLine = 'AC (source, 100–240 V, pass-through, limit 1.5 W), 5V (source, 4.85–5.15 V, up to 400 mA, 72%)';
+      eq(PB.write(PB.parse(pbLine)), pbLine, 'Power budget: a line reads back as written');
+      var pbIt = PB.parse('3V3 (sink, 3.0–3.6 V, 80 mA, max 350 mA, ripple <30 mV)');
+      eq([pbIt[0].vmin, pbIt[0].vmax, pbIt[0].ityp, pbIt[0].imax, pbIt[0].extra], [3, 3.6, 80, 350, ['ripple <30 mV']], 'Power budget: voltage range, currents, and a word it doesn’t know');
+      pbIt[0].imax = 300;
+      eq(PB.write(pbIt), '3V3 (sink, 3.0–3.6 V, 80 mA, max 300 mA, ripple <30 mV)', 'Power budget: only the changed word is written afresh');
+      var pbB = [
+        { id: 'a', title: 'Input', power: '5V (source, 5 V, pass-through, limit 1 W)' },
+        { id: 'b', title: 'Buck', power: '5V (sink, 4.5–5.5 V), 3V3 (source, 3.3 V, up to 100 mA, 80%)' },
+        { id: 'c', title: 'MCU', power: '3V3 (sink, 3.0–3.6 V, 50 mA, max 150 mA)' }
+      ];
+      var pbA = PB.budget(pbB, 'typ', 20), near = function (x, y) { return Math.abs(x - y) < 1e-6; };
+      ok(near(pbA.typ.t.loads, 0.165) && near(pbA.typ.t.input, 0.165 / 0.8) && near(pbA.typ.t.losses, 0.165 / 0.8 - 0.165), 'Power budget: a load, a converter’s loss, and the input');
+      ok(near(pbA.typ.byId.b.input.load.i, 0.165 / 0.8 / 5 * 1000), 'Power budget: a converter’s input current worked out from its output');
+      eq(pbA.max.issues.filter(function (x) { return x.sev === 'bad'; }).map(function (x) { return x.id || ''; }), ['b'], 'Power budget: worst case over a source’s capacity is a problem on that block');
+      ok(pbA.typ.issues.every(function (x) { return x.sev !== 'bad'; }), 'Power budget: typical is within capacity and the limit');
+    }
     // Rich text and lists in Scribe (2026-11-19).
     var rich = function (t) { return M.specRich(t).map(function (r) { return (r.b ? 'B' : '') + (r.i ? 'I' : '') + (r.s ? 'S' : '') + ':' + r.t; }); };
     eq(rich('a **b** *i* ~~s~~ 5 * 3 and **x'), [':a ', 'B:b', ': ', 'I:i', ': ', 'S:s', ': 5 * 3 and **x'], 'Scribe: bold, italic, and struck words; a marker that isn’t closed stays as typed');

@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; object-src 'none'; base-uri 'none'; form-action 'none'">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="color-scheme" content="light dark">
+<title>Power budget lab · Scribe EE</title>
+<link rel="stylesheet" href="../assets/styles.css">
+<link rel="stylesheet" href="power-budget.css">
+</head>
+<body class="pb">
+<header class="pb-head">
+  <div>
+    <h1>Power budget lab</h1>
+    <p class="pb-sub">Scribe EE, branch <code>power-budget</code>. Power parameters on each block's Power rows, and a budget
+      derived from the power tree. Made-up numbers on the demo's Main PCBA (Smart Thermostat). Edits are kept in this browser only; Reset brings the demo back.</p>
+  </div>
+  <div class="pb-head-tools">
+    <div class="seg" id="scn" role="group" aria-label="Scenario">
+      <button data-scn="typ" class="on">Typical</button><button data-scn="max">Worst case</button>
+    </div>
+    <label class="pb-margin">Margin <input class="input" id="margin" type="number" min="0" max="90" step="5" value="20"> %</label>
+    <button class="btn" id="reset">Reset</button>
+  </div>
+</header>
+
+<main class="pb-main">
+  <section class="pb-left">
+    <div class="pb-card">
+      <div class="pb-card-head">
+        <h2>Capture</h2>
+        <div class="seg" id="cap" role="group" aria-label="Capture">
+          <button data-cap="panel" class="on">Block panel</button><button data-cap="text">Text</button>
+        </div>
+      </div>
+      <p class="note pb-help" id="cap-help"></p>
+      <div class="pb-blocks" id="blocks"></div>
+      <div id="panel"></div>
+    </div>
+  </section>
+
+  <section class="pb-right">
+    <div class="pb-summary" id="summary"></div>
+    <div class="pb-card">
+      <div class="pb-card-head">
+        <h2>Display</h2>
+        <div class="seg" id="view" role="group" aria-label="Display">
+          <button data-view="tree" class="on">Annotated tree</button><button data-view="table">Budget table</button><button data-view="head">Headroom</button><button data-view="volt">Voltage windows</button><button data-view="sankey">Power flow</button>
+        </div>
+      </div>
+      <p class="note pb-help" id="view-help"></p>
+      <div id="out"></div>
+    </div>
+    <div class="pb-card" id="issues-card">
+      <h2>Checks</h2>
+      <ul class="pb-issues" id="issues"></ul>
+    </div>
+  </section>
+</main>
+
+<section class="pb-notes">
+  <div class="pb-card">
+    <h2>What others do</h2>
+    <ul>
+      <li><b>ADI LTpowerPlanner / Power Studio Planner.</b> A drawn power tree where every terminal shows its voltage and
+        current, and each converter shows its efficiency and loss under its block. Clicking a part opens a Properties
+        window (input range, output voltage, maximum load current). A Summary Report gives total input power, output power,
+        loss, and overall efficiency. This lab's <i>Annotated tree</i> and summary strip follow it.
+        (<a href="https://www.analog.com/en/resources/app-notes/an-164.html">AN-164</a>,
+        <a href="https://www.analog.com/en/resources/technical-articles/introduction-of-ltpowerplanner-program-a-system-level-power-architecture-design-tool.html">article</a>,
+        <a href="https://www.analog.com/en/resources/analog-dialogue/articles/optimization-of-the-power-supply-architecture-comes-first.html">architecture comparison</a>)</li>
+      <li><b>TI WEBENCH Power Architect.</b> Loads entered as voltage and current (with ripple) per load; the tool builds the
+        tree, lets branches move from one source to another, and picks parts per branch.
+        (<a href="https://webench.ti.com/help/PowerArchitect/Overview.htm">overview</a>,
+        <a href="https://webench.ti.com/help/PowerArchitect/Analyze1/Analyze/Analyze.htm">branches</a>)</li>
+      <li><b>FPGA and SoC estimators</b> (AMD Vivado and Power Design Manager, Intel EPE and PTC). A table of current per
+        supply rail against a per-rail budget, showing positive or negative margin; Intel's PDN guide suggests 30% regulator
+        margin. This lab's <i>Budget table</i> and <i>Headroom</i> follow them.
+        (<a href="https://docs.amd.com/r/en-US/ug907-vivado-power-analysis-optimization/Setting-Power-and-Current-Budget-for-AMD-Devices">AMD</a>,
+        <a href="https://intel.com/content/www/us/en/docs/programmable/683393/current/power-budget.html">Intel</a>)</li>
+      <li><b>Design notes and templates.</b> A spreadsheet per rail with subtotals and a safety margin; use datasheet
+        maximums, not typicals, to size regulators; count pull-ups and discretes too.
+        (<a href="https://ni.com/r/pxipowerbudget">NI PXI</a>,
+        <a href="https://www.lcsc.com/blog/calculating-circuit-power-budgets-guide-2/">LCSC guide</a>,
+        <a href="https://embedded-systems-design.github.io/EGR304DataSheetTemplate/05-Power-Budget/PowerBudgetExample.pdf">course template</a>)</li>
+      <li><b>Battery products.</b> Worst case sizes the regulators; typical predicts battery life. Budgets there add
+        operating modes (active, sleep) with a duty cycle per load and an average current.
+        (<a href="https://applied-ee.github.io/embedded/docs/foundations/power-architecture/power-budgets/">power budgets</a>)
+        Not in this lab: it would add a mode column per load. See open questions.</li>
+    </ul>
+  </div>
+  <div class="pb-card">
+    <h2>Where the numbers live: your call</h2>
+    <ol>
+      <li><b>In the Power line's text</b> (what this lab does; the <i>Text</i> capture shows it):
+        <code>3V3 (sink, 3.0–3.6 V, 80 mA, max 350 mA)</code>,
+        <code>5V (source, 4.85–5.15 V, up to 400 mA, 72%)</code>. It rides along with everything Scribe text already
+        does: the command line's <code>scribe.md</code>, the signoff-import skill, draw.io, History, and the section merge.
+        It reads well in the document. Before it ships, the engine's <code>specPowerText</code> must keep the words it
+        doesn't know: today the panel rewrites the line with only the role and <code>no tree</code>, so the numbers would
+        be lost the next time a role changes.</li>
+      <li><b>A structured field on the section</b> (<code>power: { "3v3|sink": { vmin, vmax, ityp, imax } }</code>, like
+        <code>ptree</code>). Tidier for code, invisible in the text, and it needs its own merge, command line, draw.io, and
+        History work, and the numbers wouldn't show to someone reading the document.</li>
+    </ol>
+    <p class="note">The lab recommends 1. Nothing about storage is decided until you say.</p>
+  </div>
+  <div class="pb-card">
+    <h2>Open questions</h2>
+    <ul>
+      <li>A converter's input current is derived from its outputs (and its efficiency, or quiescent current when linear).
+        Should someone be able to type it instead, for a module with a datasheet input figure?</li>
+      <li>A block with two input rails (a converter after an OR-ing diode, a charger with a power path): which input pays?
+        The lab takes the first and says so.</li>
+      <li>A rail with two sources (a USB path and a battery path into one rail): split the load, take the worst, or one per scenario?</li>
+      <li>Modes beyond Typical and Worst case (Sleep, Charging, Transmit) with a duty cycle and a battery life line?</li>
+      <li>Should a failing budget be a gap on the block (△, in the Gaps filter), a Check note, or only shown here?</li>
+      <li>Should the input limit come from a requirement (the demo's "no more than 1.5 W from mains") rather than a field?</li>
+    </ul>
+  </div>
+</section>
+
+<script src="../assets/config.js"></script>
+<script src="../assets/model.js"></script>
+<script src="power-budget.js"></script>
+</body>
+</html>
