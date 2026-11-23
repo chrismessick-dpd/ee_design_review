@@ -328,6 +328,11 @@ only (FW's layered map has no sections).
 - **Legend.** The block diagram shows the two power symbols at its bottom right, circle "Source" and bar "Sink"
   (`.spec-legend`), whenever a block has a Power line; it goes out with Export too.
 - **A line's panel** is read-only (`specpt|` selection): which block powers which, on what rail, and Reset route.
+- **Several blocks at once** (Chris, 2026-11-22). A box dragged on the tree's empty space picks every block it touches
+  (with Shift or Ctrl it adds to the pick), Shift- or Ctrl-click adds or takes out one block, and dragging any picked
+  block moves them all as one step (one Undo), lines between them keeping their shape. A plain click on empty space, a
+  click on a block not picked, or Esc lets go. The pick is the page's only (`specPtPick` in `app.js`, `.msel`: a thick
+  ring and a tint), never stored. The block diagram's empty-space drag still draws a new section.
 - Demo: the Main PCBA's rails are ticked except Status LEDs and AC line (demo `VERSION` 22). Tests: EE 639.
 
 ## Every connection shown: rails, Show line, and buses (Chris, 2026-11-22)
