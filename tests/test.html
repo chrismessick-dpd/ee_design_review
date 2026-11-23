@@ -2213,6 +2213,26 @@
     res = PM.plan(part, conns([['A', 'I2C1'], ['B', 'USART1'], ['C', 'PB8'], ['D', 'PB9'], ['E', 'PA11']]), {});
     eq(byLabel(res, 'I2C1')[0].problems[0].code, 'no-room', 'pin planner: no room says so');
     ok(/PB6 \(B\)/.test(byLabel(res, 'I2C1')[0].problems[0].text), 'pin planner: and names who holds the pads', JSON.stringify(byLabel(res, 'I2C1')[0].problems));
+
+    // 2026-11-23: an STM32G4 names its SWD pins SYS_JTMS-SWDIO and SYS_JTCK-SWCLK.
+    var g4 = PM.part(Object.assign({}, file, { pins: file.pins.map(function (p) {
+      return p.num === '14' ? pin(14, 'PA13', 'io', 'SYS_JTMS-SWDIO AF0; TIM3_CH1 AF2') : p.num === '15' ? pin(15, 'PA14', 'io', 'SYS_JTCK-SWCLK AF0') : p; }) }));
+    res = PM.plan(g4, conns([['Debug', 'SWD, in'], ['Buzzer', 'PWM']]), {});
+    eq([pins(byLabel(res, 'SWD, in')[0]), byLabel(res, 'SWD, in')[0].slots[0].fn.full], ['PA13:SWDIO PA14:SWCLK', 'SYS_JTMS-SWDIO'], 'pin planner: JTAG-named SWD pins read as SWD, and keep their own function name');
+    ok(!byLabel(res, 'PWM')[0].slots.some(function (s) { return s.gpio === 'PA13'; }), 'pin planner: so a PWM doesn’t take the SWD pin');
+
+    // The same timer channel on two pads is an issue; two channels of one timer share its frequency.
+    var t3 = PM.part(Object.assign({}, file, { pins: file.pins.map(function (p) { return p.num === '16' ? pin(16, 'PC13', 'io', 'TIM3_CH1 AF1; EXTI13') : p; }) }));
+    var twoPwm = conns([['Buck', 'PWM via RC'], ['LED', 'PWM']]);
+    res = PM.plan(t3, twoPwm, { 6: { req: 'c0#0', sig: 'CH1', fn: 'TIM3_CH1' }, 16: { req: 'c1#0', sig: 'CH1', fn: 'TIM3_CH1' } });
+    eq(res.reqs.map(function (r) { return r.problems.map(function (p) { return p.code; }).join(); }), ['timer-channel', 'timer-channel'], 'pin planner: one timer channel on two pads is an issue on both');
+    res = PM.plan(t3, twoPwm, {});
+    var chs = res.reqs.map(function (r) { return r.slots[0].fn.full; });
+    eq([chs[0] !== chs[1], res.counts.problems, res.reqs[0].notes.some(function (n) { return n.code === 'timer-shared'; })], [true, 0, true], 'pin planner: Auto-assign gives two PWMs two channels, and notes the shared timer');
+
+    // A label naming pins keeps its other items (2026-11-23: "PB0–PB7 + OE" dropped OE).
+    var po = PM.parseLabel('PB0–PB7 + OE, both ways');
+    eq([po.dir, po.items.map(function (i) { return [i.type, i.count]; })], ['both ways', [['PINS', 8], ['GPIO', 1]]], 'pin planner: pins and a signal in one label');
     res = PM.plan(part, conns([['X', 'PB15'], ['Y', '20 GPIO']]), {});
     eq([byLabel(res, 'PB15')[0].problems[0].code, byLabel(res, '20 GPIO')[0].problems[0].code], ['pin-missing', 'short'], 'pin planner: an unbonded pin, and too few GPIOs');
 
