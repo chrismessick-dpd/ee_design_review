@@ -330,6 +330,44 @@ only (FW's layered map has no sections).
 - **A line's panel** is read-only (`specpt|` selection): which block powers which, on what rail, and Reset route.
 - Demo: the Main PCBA's rails are ticked except Status LEDs and AC line (demo `VERSION` 22). Tests: EE 639.
 
+## Every connection shown: rails, Show line, and buses (Chris, 2026-11-22)
+
+Chris's aim: the block diagram shows all connection information, so no block has a connection or a rail that isn't
+indicated somehow.
+
+- **Sources right of sinks.** A block's rail markers run left to right: old Supplies flags, the rails it uses (bars),
+  then the rails it makes (circles), whatever order the Power line lists them in. Each marker carries `data-rail` and
+  `data-role`, which the draw.io snapshot matches on.
+- **Every rail is in the power tree** unless its row is unticked, written `5V (sink, no tree)`. The old opt-in
+  `(sink, tree)` still reads (as in) and is dropped the next time the line is written. So every real review's rails now
+  show in its power tree. draw.io carries the flag as `tree: '1' | '0'`.
+- **Show line.** A rail always has its markers. A power connection (a Connects entry carrying a rail) may also be a line:
+  by default within one section and not across, and its line panel's **Show line** changes that, kept on the source
+  block as `shown['<to id>|<word>'] = true | false` (`model.specShown`, written only when set). It can be turned off only
+  while both ends show the rail's marker (a circle on the block that makes it, a bar or old Supplies flag on the one
+  that uses it); otherwise the line is the only sign of the connection and is always drawn (`specLineShown`). Regular
+  connections are always lines. A sink marker fed by a power connection opens that line's panel, so a hidden line's
+  Show line is one click away.
+- **The diagram's panel.** A click on empty diagram space shows a Diagram panel in place of closing the one open (EE only,
+  `config.spec.power`). It lists the power rails (`model.specRails`: who makes each, who uses it, and how many
+  connections carry it). A row picked shows ✕, which deletes the rail everywhere (`model.specRailDelete`: it leaves every
+  Power line, and every link labeled with it goes), one step with Undo.
+- **Buses.** Lines with the same label (two I2C1 lines, two 3V3 lines) can run together, in the block diagram and the
+  power tree. Dragging a run onto a parallel run of a same-label line sticks it there (its coordinate joins the drag's
+  snap-straight lines, `specBusTargets`), and on the drop that line keeps the shape it's drawn with, so the two stay
+  together. Wherever lines of one label share a stretch, it's drawn as one thicker trunk under them (`specBusTrunks`,
+  `.spec-bus`, hidden while dragging), and the label shows once. Nothing new is stored: a bus is two kept shapes that
+  overlap, and dragging one away or Reset route splits it. Lines out of one pin already share their first stretch, so a
+  power tree fan-out draws as a trunk by itself.
+- **A link the diagram can't draw is a gap** (Chris: "count it as a gap"). A link line entry that names no block, names
+  a section (a heading with headings under it, which the block diagram doesn't connect to), or names the block itself
+  draws nothing, so the analysis keeps it on the section as `dead` (`{ name, word, label, why: 'none' | 'section' |
+  'self' }`) and, in the block diagram only (`config.spec.layout` `flow`), adds it to the block's `gaps`. The block shows
+  △ like any gap, its panel's Gaps list says how to fix each one, and the outline's Gaps filter finds it. FW's map is
+  unchanged, and so is `summary.spec` (it counts sentences, not gaps).
+- Demo: every Main PCBA rail is in the tree (demo `VERSION` 25); it has no dead links. Tests: EE 721, ME 62, FW 76,
+  CLI 40 × 3.
+
 ## draw.io (Chris, 2026-11-20)
 
 The block diagram goes out to draw.io and comes back, as one file (feasibility: `../../signoff/docs/drawio.md`).

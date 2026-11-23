@@ -1448,13 +1448,25 @@
     // Under EE's own Scribe settings (this block runs under a plain description's).
     var PW_KEEP = window.SIGNOFF_CONFIG.spec; window.SIGNOFF_CONFIG.spec = TOOL_SPEC;
     if (M.specPowerOn()) {
-      eq(M.specPowerItems('16.4V (sink), 3V0 (source), VBAT'), [{ rail: '16.4V', role: 'sink' }, { rail: '3V0', role: 'source' }, { rail: 'VBAT', role: 'sink' }], 'Power: rails with source or sink (sink when none is written)');
-      // Power tree (2026-11-19): "tree" marks a rail row, whatever its role, and round-trips.
-      eq(M.specPowerItems('5V (sink, tree), 3V3 (source, tree), "A, B" (source), VIN (tree)'), [{ rail: '5V', role: 'sink', tree: true }, { rail: '3V3', role: 'source', tree: true }, { rail: 'A, B', role: 'source' }, { rail: 'VIN', role: 'sink', tree: true }], 'Power tree: the tree flag beside either role, or alone');
-      ['16.4V (sink), 3V0 (source)', '5V (sink, tree), 3V3 (source, tree)', '"A, B" (source, tree)'].forEach(function (t) {
+      eq(M.specPowerItems('16.4V (sink), 3V0 (source), VBAT'), [{ rail: '16.4V', role: 'sink', tree: true }, { rail: '3V0', role: 'source', tree: true }, { rail: 'VBAT', role: 'sink', tree: true }], 'Power: rails with source or sink (sink when none is written), each in the power tree');
+      // Power tree (2026-11-22): every rail is in it unless "no tree"; the old opt-in "tree" still reads, as in.
+      eq(M.specPowerItems('5V (sink, no tree), 3V3 (source, tree), "A, B" (source), VIN (no  tree)'), [{ rail: '5V', role: 'sink', tree: false }, { rail: '3V3', role: 'source', tree: true }, { rail: 'A, B', role: 'source', tree: true }, { rail: 'VIN', role: 'sink', tree: false }], 'Power tree: in by default, "no tree" leaves a rail out, "tree" reads as in');
+      ['16.4V (sink), 3V0 (source)', '5V (sink, no tree), 3V3 (source)', '"A, B" (source, no tree)'].forEach(function (t) {
         eq(M.specPowerText(M.specPowerItems(t)), t, 'Power line round-trips: ' + t);
       });
-      eq(M.specPowerText([{ rail: '5V', role: 'sink', tree: true }, { rail: '5V', role: 'sink' }]), '5V (sink, tree)', 'a rail twice in one role is written once, the flag not making a second');
+      eq(M.specPowerText(M.specPowerItems('5V (sink, tree), 3V3 (source, tree)')), '5V (sink), 3V3 (source)', 'an old "tree" flag is dropped when the line is written again (in is the default)');
+      eq(M.specPowerText([{ rail: '5V', role: 'sink', tree: false }, { rail: '5V', role: 'sink' }]), '5V (sink, no tree)', 'a rail twice in one role is written once, the flag not making a second');
+      // The diagram's rails and Delete rail (2026-11-22).
+      var rlp = { spec: {} };
+      [['a', 'Charger', 'Connects: Buck (VSYS), MCU (I2C)\nPower: VSYS (source), VBUS (sink)'], ['b', 'Buck', 'Connects: MCU (3V3)\nPower: VSYS (sink), 3V3 (source)'], ['c', 'MCU', 'Power: 3V3 (sink)']].forEach(function (r, i) {
+        rlp.spec[r[0]] = { id: r[0], order: i + 1, level: 2, title: r[1], body: r[2], updatedAt: '2026-11-22T00:00:00Z', updatedBy: 'Ann' };
+      });
+      eq(M.specRails(rlp).map(function (r) { return [r.rail, r.sources.join('+'), r.sinks.join('+'), r.links]; }), [['3V3', 'Buck', 'MCU', 1], ['VBUS', '', 'Charger', 0], ['VSYS', 'Charger', 'Buck', 1]], 'specRails: each rail with who makes it, who uses it, and the connections carrying it');
+      var rld = M.specRailDelete(rlp, 'vsys'), rlb = {}; rld.forEach(function (r) { rlb[r.title] = r.body; });
+      eq(rlb, { Charger: 'Connects: MCU (I2C)\nPower: VBUS (sink)', Buck: 'Connects: MCU (3V3)\nPower: 3V3 (source)' }, 'Delete rail: it leaves every Power line, and the connections labeled with it go; other blocks are untouched');
+      eq(M.specRailDelete(rlp, 'nope').length, 0, 'deleting a rail no block has changes nothing');
+      eq(M.liveSpec({ spec: { x: { id: 'x', title: 'X', body: '', shown: { 'y|connects': false, 'z|connects': 'yes' } } } })[0].shown, { 'y|connects': false }, 'shown keeps only true or false per connection');
+      eq('shown' in M.liveSpec({ spec: { x: { id: 'x', title: 'X', body: '' } } })[0], false, 'a section without shown lines gets none');
       var ptRec = { id: 'x', title: 'X', body: '', ptree: { pos: { x: 12.4, y: 'no' }, ports: { 'y|5v': { side: 'r', t: 0.5 } }, routes: { 'y|5v': { v: [100], a: 'r', b: 'l' } }, labels: { 'y|5v': { t: 0.3, x: 4, y: -9 } }, junk: 1 } };
       var ptClean = M.liveSpec({ spec: { x: ptRec } })[0];
       eq(ptClean.ptree, { ports: { 'y|5v': { side: 'r', t: 0.5 } }, routes: { 'y|5v': { v: [100], a: 'r', b: 'l' } }, labels: { 'y|5v': { t: 0.3, x: 4, y: -9 } } }, 'the power tree layout is kept, cleaned (a bad place dropped, unknown keys left out)');
@@ -1486,7 +1498,13 @@
       eq(M.specAnalysis(mcp).sections.filter(function (x) { return x.sec.title === 'MCU'; })[0].part, '', 'pins: without config.spec.pins a Part: line is just text');
       Signoff.config.spec.pins = true;
       eq(M.specOfferWords(), ['Connects'], 'EE offers Connects only; Supplies is still read');
-      var pwp = M.newProject({ name: 'Power', checklists: ['spec'], profile: [] }, 'Ann', T); pwp.spec = {}; pwp.reqs = pwp.reqs || {};
+      // A link the block diagram can't draw is a gap (2026-11-22): a name no block has, a section, or the block itself.
+      var dlp = M.newProject({ name: 'Dead', checklists: ['spec'], profile: [] }, 'Ann', T); dlp.spec = {}; dlp.reqs = {};
+      M.specSave(dlp, null, '# Board\n## Power\n### Buck\nConnects: Ghost (5V), Control (I2C), Buck, MCU (EN)\n## Control\n### MCU\nText.', 'Ann').forEach(function (r) { dlp.spec[r.id] = r; });
+      var dla = M.specAnalysis(dlp).sections.filter(function (x) { return x.sec.title === 'Buck'; })[0];
+      eq(dla.dead.map(function (d) { return d.name + ':' + d.why; }), ['Ghost:none', 'Buck:self', 'Control:section'], 'dead links: a name no block has, the block itself, and a section');
+      eq(dla.gaps, 3, 'each one counts as a gap in the block diagram (the text has no unlinked sentences)');
+      var pwp =M.newProject({ name: 'Power', checklists: ['spec'], profile: [] }, 'Ann', T); pwp.spec = {}; pwp.reqs = pwp.reqs || {};
       M.specSave(pwp, null, '# Board\n## Power\n### Conn\nSupplies: Rail (16.4V), Ghost (5V)\n### Rail\nSupplies: LDO (16.4V), Radio (16.4V)\n### LDO\nSupplies: MCU (3V0)\nConnects: MCU (EN)\n## Control\n### MCU\nText.\n### Radio\nText.', 'Ann').forEach(function (r) { pwp.spec[r.id] = r; });
       var byT = function (t) { return M.liveSpec(pwp).filter(function (x) { return x.title === t; })[0]; };
       var cv = M.specPowerConvert(pwp), cvT = {};
@@ -1505,7 +1523,7 @@
       eq(Object.keys(M.specPowerConvert(pwp).filter(function (r) { return r.title === 'Conn'; })[0].routes), [byT('Rail').id + '|connects'], 'a kept shape moves from |supplies to |connects');
       cv.forEach(function (r) { pwp.spec[r.id] = r; });
       var pa = M.specAnalysis(pwp), pwOf = function (t) { return pa.sections.filter(function (x) { return x.sec.title === t; })[0].power; };
-      eq([pwOf('LDO'), pwOf('MCU')], [[{ rail: '16.4V', role: 'sink' }, { rail: '3V0', role: 'source' }], [{ rail: '3V0', role: 'sink' }]], 'the analysis carries each block’s rails');
+      eq([pwOf('LDO'), pwOf('MCU')], [[{ rail: '16.4V', role: 'sink', tree: true }, { rail: '3V0', role: 'source', tree: true }], [{ rail: '3V0', role: 'sink', tree: true }]], 'the analysis carries each block’s rails');
     }
     window.SIGNOFF_CONFIG.spec = PW_KEEP;
     // Rich text and lists in Scribe (2026-11-19).
@@ -2107,7 +2125,7 @@
       doc.querySelector('root').appendChild(cp2);
     }), S);
     eq(plan.filter(function (c) { return c.op === 'power'; }).map(function (c) { return [c.id, D.powerText(c.items)]; }),
-      [['b1', '3V3 (source, tree), 5V0 (sink)'], ['b3', ''], ['b4', 'VBAT (sink)']], 'draw.io: rails come back from their pictures: renamed, removed, and a copied one on a block’s top edge');
+      [['b1', '3V3 (source), 5V0 (sink, no tree)'], ['b3', ''], ['b4', 'VBAT (sink)']], 'draw.io: rails come back from their pictures: renamed, removed, and a copied one on a block’s top edge');
     ok(plan.some(function (c) { return c.op === 'skip' && /still says Source/.test(c.text); }), 'draw.io: a copied legend picture not yet named for its rail is left out, with a note');
 
     // Removals ask; a resize grows the section; arrows and signals.
