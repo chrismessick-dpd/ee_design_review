@@ -90,9 +90,9 @@ need"): there's one **+ Add block**, and the diagram is organized by **sections*
   around its blocks; sections nest. The board's own level-1 heading isn't drawn. Power is just a
   section; a `Supplies:` line on any block still puts a power flag on each block it feeds (or an arrow
   between neighbors in one section).
-- **Making sections.** Write headings under a heading, or drag on empty diagram space to draw a box
-  around blocks: you name it, and it becomes a heading with those blocks moved under it
-  (`model.specGroup`). The section panel has Add a block here, Edit its text, and Ungroup
+- **Making sections.** Write headings under a heading, or pick blocks in the diagram (a box on empty space, or
+  Shift-click) and click the Diagram panel's **Make a section…**: you name it, and it becomes a heading with those
+  blocks moved under it (`model.specGroup`, `specPickSection`; until 2026-11-22 the box itself made the section). The section panel has Add a block here, Edit its text, and Ungroup
   (`specUngroup`: its blocks move up a level; the heading goes unless it has text).
 - **Dragging in the diagram only arranges** (Chris: dropping a block outside a box left it unclear
   whether it was still in the section). A section's box always wraps its blocks, so a dragged block
@@ -328,11 +328,19 @@ only (FW's layered map has no sections).
 - **Legend.** The block diagram shows the two power symbols at its bottom right, circle "Source" and bar "Sink"
   (`.spec-legend`), whenever a block has a Power line; it goes out with Export too.
 - **A line's panel** is read-only (`specpt|` selection): which block powers which, on what rail, and Reset route.
-- **Several blocks at once** (Chris, 2026-11-22). A box dragged on the tree's empty space picks every block it touches
+- **Rail names follow their ports** (Chris, 2026-11-22). A rail's name inside a block (and a source's dot) sits by its
+  line's port: dragged to another edge, the name goes with it, live (`specPtRailSvg`, `specPtRailPos`; under the title
+  on the top edge). A rail fanning out to several blocks moves only once all its lines' ports here have been moved.
+- **Several blocks at once** (Chris, 2026-11-22; the block diagram too, below). A box dragged on the tree's empty space picks every block it touches
   (with Shift or Ctrl it adds to the pick), Shift- or Ctrl-click adds or takes out one block, and dragging any picked
   block moves them all as one step (one Undo), lines between them keeping their shape. A plain click on empty space, a
-  click on a block not picked, or Esc lets go. The pick is the page's only (`specPtPick` in `app.js`, `.msel`: a thick
-  ring and a tint), never stored. The block diagram's empty-space drag still draws a new section.
+  click on a block not picked, or Esc lets go. Each diagram's pick is the page's only (`specPick` in `app.js`, `.msel`:
+  a thick ring and a tint), never stored.
+- **In the block diagram** (Chris, 2026-11-22: "Pick; section from pick", sections too). The same gestures pick blocks
+  and section boxes: the box picks blocks it touches and sections wholly inside it, Shift- or Ctrl-click a section's
+  box to pick it. Dragging any picked one moves every picked block and section (a section with everything in it; a
+  block inside a picked section rides with it, `specPickTops`), one Undo. A box pick opens the Diagram panel, whose
+  *Picked* row says what's picked and has **Make a section…** (the box used to make the section at once) and Let go.
 - Demo: the Main PCBA's rails are ticked except Status LEDs and AC line (demo `VERSION` 22). Tests: EE 639.
 
 ## Every connection shown: rails, Show line, and buses (Chris, 2026-11-22)
