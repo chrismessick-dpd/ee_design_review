@@ -398,7 +398,8 @@ indicated somehow.
 
 ## Datasheets on a block (Chris, 2026-11-24)
 
-A block's panel has **Datasheets**, under Part: links and PDFs, each opening in a new tab.
+A block's panel has **Datasheets**, under Part: links and PDFs, each opening in a new tab. One row adds them (Chris,
+2026-11-24): a box to paste a link into, which is also where a PDF is dropped, PDF… to pick one, and Add.
 
 - **Stored PDFs.** Dropped or picked PDFs go into the review's own repo (its home: the data repo, or its
   `review-ee-*` repo once shared) at `datasheets/<review>/<id>.pdf`, in one commit, before the block lists them;
