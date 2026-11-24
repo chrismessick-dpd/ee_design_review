@@ -1473,6 +1473,8 @@
       eq(M.specRailDelete(rlp, 'nope').length, 0, 'deleting a rail no block has changes nothing');
       eq(M.liveSpec({ spec: { x: { id: 'x', title: 'X', body: '', shown: { 'y|connects': false, 'z|connects': 'yes' } } } })[0].shown, { 'y|connects': false }, 'shown keeps only true or false per connection');
       eq('shown' in M.liveSpec({ spec: { x: { id: 'x', title: 'X', body: '' } } })[0], false, 'a section without shown lines gets none');
+      eq(M.liveSpec({ spec: { x: { id: 'x', title: 'X', body: '', color: '#3A6FD8' } } })[0].color, '#3a6fd8', 'a block keeps its outline color, lower case');
+      eq(['red', '#123', 'url(x)', 5].map(function (c) { return 'color' in M.liveSpec({ spec: { x: { id: 'x', title: 'X', body: '', color: c } } })[0]; }), [false, false, false, false], 'anything but #rrggbb is no outline color');
       var ptRec = { id: 'x', title: 'X', body: '', ptree: { pos: { x: 12.4, y: 'no' }, ports: { 'y|5v': { side: 'r', t: 0.5 } }, routes: { 'y|5v': { v: [100], a: 'r', b: 'l' } }, labels: { 'y|5v': { t: 0.3, x: 4, y: -9 } }, junk: 1 } };
       var ptClean = M.liveSpec({ spec: { x: ptRec } })[0];
       eq(ptClean.ptree, { ports: { 'y|5v': { side: 'r', t: 0.5 } }, routes: { 'y|5v': { v: [100], a: 'r', b: 'l' } }, labels: { 'y|5v': { t: 0.3, x: 4, y: -9 } } }, 'the power tree layout is kept, cleaned (a bad place dropped, unknown keys left out)');

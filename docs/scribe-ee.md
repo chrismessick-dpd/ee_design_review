@@ -385,6 +385,17 @@ indicated somehow.
 - Demo: every Main PCBA rail is in the tree (demo `VERSION` 25); it has no dead links. Tests: EE 721, ME 62, FW 76,
   CLI 40 × 3.
 
+## Rail marker sides and block colors (tickets 11 and 12, Chris, 2026-11-23)
+
+- **Marker sides (ticket 11).** A block's rail markers sit by role: sinks (old Supplies flags first, then the rails
+  it uses) from the block's left edge inward, sources from its right edge inward, each side in line order. A block
+  with one sink shows it at its top left. The width a block needs is unchanged (6 in, 6 apart, each marker as wide
+  as its name), so both sides fit.
+- **Outline color (ticket 12).** The block panel's Name row has a small color wheel: eight swatches, any color
+  (the browser's picker), and Default. Stored as `color` (`#rrggbb`, only when set; `cleanSection` drops anything
+  else) on the section, drawn on the block in the block diagram and the power tree (hover and selection still show
+  the accent), and carried as the block's `strokeColor` in the draw.io export (import ignores it).
+
 ## draw.io (Chris, 2026-11-20)
 
 The block diagram goes out to draw.io and comes back, as one file (feasibility: `../../signoff/docs/drawio.md`).
