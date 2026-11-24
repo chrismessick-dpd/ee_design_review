@@ -546,6 +546,7 @@
   ok(put2.pushed === 0 && put2.skipped === 3 && (hub.blobPosts || 0) === postsBefore, 'writing the same package again uploads nothing');
   eq((await dataStoreA.listTree(fdir)).length, 3, 'listTree lists a project’s Fabcheck files');
   ok(annWs.checkerDirs().indexOf('fabcheck/') >= 0 && annWs.checkerDirs().indexOf('partcheck/') < 0, 'Signoff EE moves fabcheck/ with a shared review, and has no partcheck/');
+  ok(annWs.checkerDirs().indexOf('datasheets/') >= 0, 'Signoff EE moves datasheets/ (Scribe blocks’ PDFs) with a shared review');
   // Signoff ME's Partcheck pictures (config.previews.dir partcheck/) move the same way.
   await dataStoreA.putFiles([{ path: 'partcheck/' + F.id + '/preview/index.json', text: '{"v":1}' }], {});
   annWs.checkerDirs = function () { return ['fabcheck/', 'partcheck/']; };
@@ -1474,6 +1475,18 @@
       eq(M.liveSpec({ spec: { x: { id: 'x', title: 'X', body: '', shown: { 'y|connects': false, 'z|connects': 'yes' } } } })[0].shown, { 'y|connects': false }, 'shown keeps only true or false per connection');
       eq('shown' in M.liveSpec({ spec: { x: { id: 'x', title: 'X', body: '' } } })[0], false, 'a section without shown lines gets none');
       eq(M.liveSpec({ spec: { x: { id: 'x', title: 'X', body: '', color: '#3A6FD8' } } })[0].color, '#3a6fd8', 'a block keeps its outline color, lower case');
+      var dsSha = new Array(65).join('a');
+      eq(M.liveSpec({ spec: { x: { id: 'x', title: 'X', body: '', datasheets: [
+        { id: 'ab12cd', name: 'LDO', url: 'https://example.com/ldo.pdf', by: 'Ann', at: '2026-11-24T00:00:00Z' },
+        { id: 'ef34gh', name: 'MCU', file: 'ef34gh.pdf', sha256: dsSha, bytes: 9000000, parts: 3 },
+        { id: 'bad', name: 'Short id', url: 'https://example.com' },
+        { id: 'ij56kl', name: 'Script', url: 'javascript:alert(1)' },
+        { id: 'mn78op', name: 'No sha', file: 'mn78op.pdf' }] } } })[0].datasheets, [
+        { id: 'ab12cd', name: 'LDO', url: 'https://example.com/ldo.pdf', by: 'Ann', at: '2026-11-24T00:00:00Z' },
+        { id: 'ef34gh', name: 'MCU', file: 'ef34gh.pdf', sha256: dsSha, bytes: 9000000, parts: 3 }], 'datasheets keep web links and checked PDFs, nothing else');
+      eq('datasheets' in M.liveSpec({ spec: { x: { id: 'x', title: 'X', body: '', datasheets: [] } } })[0], false, 'a block without datasheets gets none');
+      eq(M.specDatasheetPaths('datasheets/p1/', { file: 'ab12cd.pdf', parts: 2 }), ['datasheets/p1/ab12cd.pdf.001', 'datasheets/p1/ab12cd.pdf.002'], 'a stored PDF in parts reads its parts in order');
+      eq(M.specDatasheetPaths('datasheets/p1/', { file: 'ab12cd.pdf' }), ['datasheets/p1/ab12cd.pdf'], 'a stored PDF in one piece reads one file');
       eq(['red', '#123', 'url(x)', 5].map(function (c) { return 'color' in M.liveSpec({ spec: { x: { id: 'x', title: 'X', body: '', color: c } } })[0]; }), [false, false, false, false], 'anything but #rrggbb is no outline color');
       var ptRec = { id: 'x', title: 'X', body: '', ptree: { pos: { x: 12.4, y: 'no' }, ports: { 'y|5v': { side: 'r', t: 0.5 } }, routes: { 'y|5v': { v: [100], a: 'r', b: 'l' } }, labels: { 'y|5v': { t: 0.3, x: 4, y: -9 } }, junk: 1 } };
       var ptClean = M.liveSpec({ spec: { x: ptRec } })[0];

@@ -396,6 +396,25 @@ indicated somehow.
   else) on the section, drawn on the block in the block diagram and the power tree (hover and selection still show
   the accent), and carried as the block's `strokeColor` in the draw.io export (import ignores it).
 
+## Datasheets on a block (Chris, 2026-11-24)
+
+A block's panel has **Datasheets**, under Part: links and PDFs, each opening in a new tab.
+
+- **Stored PDFs.** Dropped or picked PDFs go into the review's own repo (its home: the data repo, or its
+  `review-ee-*` repo once shared) at `datasheets/<review>/<id>.pdf`, in one commit, before the block lists them;
+  the block's record waits for Sync like any Scribe edit. Over 4 MB a PDF is stored in parts (`GitHubStore.splitParts`,
+  read back joined by `readVerified`, which checks its SHA-256). Up to 60 MB a file; bigger ones should be links.
+  The same PDF on several blocks of a review is stored once (matched by SHA-256). `datasheets/` is a checker folder,
+  so sharing a review moves its PDFs with it (`Workspace.checkerDirs`).
+- **Links.** Any http or https address, named from its host and last path part.
+- **Data.** `datasheets` on the section, only when there are any (`model.specDatasheets`): `{ id, name, url }` or
+  `{ id, name, file, sha256, bytes, parts }`, each with `by` and `at`; up to 30 a block. Removing one from a block
+  keeps the file, so Back or the toast's Undo brings it back.
+- **Storage.** Datasheets are mostly 0.3 to 5 MB, MCU reference manuals 10 to 30 MB. A board with 30 blocks at a
+  couple of PDFs each is on the order of 100 MB; GitHub asks for repositories under about 1 GB to 5 GB and files
+  under 100 MB, and the review file itself doesn't grow beyond the small records. Deleted files stay in git history.
+- EE only (`config.spec.datasheets`). In the demo, added PDFs last until the page reloads.
+
 ## draw.io (Chris, 2026-11-20)
 
 The block diagram goes out to draw.io and comes back, as one file (feasibility: `../../signoff/docs/drawio.md`).
