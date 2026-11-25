@@ -416,6 +416,34 @@ A block's panel has **Datasheets**, under Part: links and PDFs, each opening in 
   under 100 MB, and the review file itself doesn't grow beyond the small records. Deleted files stay in git history.
 - EE only (`config.spec.datasheets`). In the demo, added PDFs last until the page reloads.
 
+## Batteries in the power budget (2026-11-24)
+
+A block's Power row has a fourth choice after Source and Sink: **Battery**. A battery is a source rail, marked by
+the word `battery` in its brackets, so the diagram, the power tree, and draw.io treat it as any source
+(`model.specPowerItems` reads `battery` as a source even without the word `source`). Its numbers are more words on
+the Power line, read and written by `assets/power.js`:
+
+    Power: VBAT (source, battery, Li-ion, 3.0–4.2 V, nominal 3.6 V, 2000 mAh, usable 80%)
+
+- **Panel.** Chemistry (a list: Li-ion, LiPo, LiFePO4, Li-MnO2, Li-SOCl2, NiMH, Alkaline, and Lead-acid), Voltage
+  (min, nominal, and max), Capacity (mAh; `2 Ah` also reads), Usable (% of the capacity, 100% assumed when blank), and
+  an optional Can supply (its most discharge current, the usual `up to …`). Picking a chemistry sets all three
+  voltages to that chemistry's (`PW.CHEMS`, `PW.setChem`), keeping the number of cells in series: a 2S Li-ion pack
+  (6.0–8.4 V, nominal 7.2 V) switched to LiFePO4 becomes 5.0–7.3 V, nominal 6.4 V. The count comes from the old
+  chemistry when the voltages are a whole number of its cells, else the nominal against the new cell's; blank
+  voltages are one cell. Typed voltages can still be changed afterwards.
+- **Voltage.** Typical takes the battery's rail at its nominal (the middle of the range only when the nominal is
+  blank); worst case keeps the range's top for a load's power and its bottom for a converter's input.
+- **Runtime.** Usable charge (capacity × usable share) over the current the rail gives. Loads that draw a steady
+  current whatever the cell's voltage (a sink given in mA, a linear regulator, a pass-through) count as current;
+  loads that draw a steady power (a switching converter, a sink given only in mW) are turned into current at the
+  nominal, the average over a discharge. Both scenarios use the nominal, so worst case differs only by the loads'
+  worst-case numbers. Example: 2000 mAh at 80% with a 20 mA load is 1600 ÷ 20 = 80 h, typical and worst case.
+  Shown in the row, its open numbers (with mAh and Wh usable), the power tree's footer, and the Power view's summary
+  (*VBAT battery life*). The budget treats a battery like a pass-through input.
+- **Notes.** A battery with no capacity, a blank usable share, and a nominal outside its range are flagged.
+- **Leaving Battery** (Source or Sink) drops `battery`, the chemistry, the nominal, the capacity, and the usable share.
+
 ## draw.io (Chris, 2026-11-20)
 
 The block diagram goes out to draw.io and comes back, as one file (feasibility: `../../signoff/docs/drawio.md`).

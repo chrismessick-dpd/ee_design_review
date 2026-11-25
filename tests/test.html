@@ -1566,6 +1566,48 @@
       ok(near(pbA.typ.byId.b.input.load.i, 0.165 / 0.8 / 5 * 1000), 'Power budget: a converter’s input current worked out from its output');
       eq(pbA.max.issues.filter(function (x) { return x.sev === 'bad'; }).map(function (x) { return x.id || ''; }), ['b'], 'Power budget: worst case over a source’s capacity is a problem on that block');
       ok(pbA.typ.issues.every(function (x) { return x.sev !== 'bad'; }), 'Power budget: typical is within capacity and the limit');
+      // A battery (2026-11-24): a source marked "battery", with a chemistry, nominal voltage, capacity, and usable share.
+      var pbBat = 'VBAT (source, battery, Li-ion, 3.0–4.2 V, nominal 3.6 V, 2000 mAh, usable 80%)';
+      eq(PB.write(PB.parse(pbBat)), pbBat, 'Battery: a line reads back as written');
+      var pbBi = PB.parse(pbBat)[0];
+      eq([pbBi.role, pbBi.battery, pbBi.chem, pbBi.vmin, pbBi.vnom, pbBi.vmax, pbBi.mah, pbBi.usable], ['source', true, 'li-ion', 3, 3.6, 4.2, 2000, 80], 'Battery: role, chemistry, voltages, capacity, and usable share');
+      eq(M.specPowerItems('VBAT (battery, 2 Ah)')[0].role, 'source', 'Battery: "battery" alone makes the rail a source for the diagram');
+      eq(PB.parse('VBAT (battery, 2 Ah)')[0].mah, 2000, 'Battery: a capacity in Ah');
+      pbBi.chem = 'lifepo4'; pbBi.usable = 90;
+      eq(PB.write([pbBi]), 'VBAT (source, battery, LiFePO4, 3.0–4.2 V, nominal 3.6 V, 2000 mAh, usable 90%)', 'Battery: only the changed words are written afresh');
+      var pbOff = PB.parse(pbBat)[0]; pbOff.battery = false; pbOff.chem = ''; pbOff.vnom = pbOff.mah = pbOff.usable = null;
+      eq(PB.write([pbOff]), 'VBAT (source, 3.0–4.2 V)', 'Battery: back to a plain source drops the battery’s words');
+      var pbCh = function (line, key) { var x = PB.setChem(PB.parse(line)[0], key); return [x.chem, x.vmin, x.vnom, x.vmax]; };
+      eq(pbCh(pbBat, 'lifepo4'), ['lifepo4', 2.5, 3.2, 3.65], 'Battery: a new chemistry sets the voltages to its cell');
+      eq(pbCh('VBAT (source, battery, Li-ion, 6.0–8.4 V, nominal 7.2 V)', 'lifepo4'), ['lifepo4', 5, 6.4, 7.3], 'Battery: a new chemistry keeps the cells in series');
+      eq(pbCh('VBAT (source, battery)', 'nimh'), ['nimh', 1, 1.2, 1.45], 'Battery: a chemistry on blank voltages fills one cell');
+      eq(pbCh('VBAT (source, battery, 10–14 V, nominal 12 V)', 'lead-acid'), ['lead-acid', 10.5, 12, 12.9], 'Battery: typed voltages with no chemistry take the nearest cell count');
+      eq(PB.write([PB.setChem(PB.parse(pbBat)[0], 'lipo')]), 'VBAT (source, battery, LiPo, 3.0–4.2 V, nominal 3.7 V, 2000 mAh, usable 80%)', 'Battery: a new chemistry writes its voltages to the line');
+      eq(PB.write(PB.parse('3V3 (source, 3.3 V, up to 1 A, 90%)')),'3V3 (source, 3.3 V, up to 1 A, 90%)', 'Battery: a plain source is unchanged');
+      var pbBB = PB.budget([
+        { id: 'bat', title: 'Cell', power: pbBat },
+        { id: 'ldo', title: 'LDO', power: 'VBAT (sink, 3.0–4.2 V), 3V3 (source, 3.3 V, up to 300 mA, linear)' },
+        { id: 'mcu', title: 'MCU', power: '3V3 (sink, 3.0–3.6 V, 20 mA, max 100 mA)' }
+      ], 'typ', 20);
+      var pbS = pbBB.typ.byId.bat.items[0], pbSm = pbBB.max.byId.bat.items[0];
+      ok(near(pbS.whUse, 2 * 3.6 * 0.8) && near(pbS.runtime, 1600 / 20), 'Battery: a linear regulator’s current runs down the usable charge', pbS.runtime);
+      ok(near(pbSm.runtime, 1600 / 100) && pbBB.typ.byId.bat.root, 'Battery: worst case uses the loads’ worst-case current, and the battery is the input', pbSm.runtime);
+      // A steady current runs a battery down at the same rate whatever its voltage; a switcher draws power.
+      var pbCC = PB.budget([{ id: 'bat', title: 'Cell', power: pbBat }, { id: 'mcu', title: 'MCU', power: 'VBAT (sink, 20 mA)' }], 'typ', 20);
+      ok(near(pbCC.typ.byId.bat.items[0].runtime, 80) && near(pbCC.max.byId.bat.items[0].runtime, 80), 'Battery: a load in current gives the same runtime in both scenarios', pbCC.max.byId.bat.items[0].runtime);
+      var pbFe = 'VBAT (source, battery, LiFePO4, 2.5–3.65 V, nominal 3.2 V, 1000 mAh)';
+      var pbSw = PB.budget([
+        { id: 'bat', title: 'Cell', power: pbFe },
+        { id: 'buck', title: 'Buck', power: 'VBAT (sink), 1V8 (source, 1.8 V, 90%)' },
+        { id: 'cpu', title: 'CPU', power: '1V8 (sink, 1.8 V, 100 mA)' },
+        { id: 'led', title: 'LED', power: 'VBAT (sink, 64 mW)' }
+      ], 'typ', 20), pbSwB = pbSw.typ.byId.bat.items[0];
+      ok(near(pbSw.typ.railV(pbSw.typ.byId.bat.items[0].r), 3.2), 'Battery: typical uses the nominal voltage, not the middle of the range');
+      ok(near(pbSwB.drawW, 0.18 / 0.9 + 0.064) && near(pbSwB.drawMa, 0) && near(pbSwB.runtime, 1000 / ((0.2 + 0.064) / 3.2 * 1000)), 'Battery: a switcher and a load in power use energy, taken at the nominal', pbSwB.runtime);
+      eq([PB.fmtH(0.5), PB.fmtH(5.5), PB.fmtH(pbS.runtime), PB.fmtH(24 * 800)], ['30 min', '5.5 h', '3.3 days', '2.2 years'], 'Battery: runtime in minutes, hours, days, or years');
+      var pbNo = PB.budget([{ id: 'x', title: 'Cell', power: 'VBAT (source, battery, 3.7 V)' }], 'typ', 20).typ;
+      ok(pbNo.issues.some(function (x) { return /no capacity for the VBAT battery/.test(x.text); }), 'Battery: no capacity is noted');
+      ok(PB.rowsHtml(pbBB, 'bat', { 0: true }).indexOf('data-k="chem"') > 0 && PB.rowsHtml(pbBB, 'bat', {}).indexOf('data-role="battery"') > 0, 'Battery: the panel has the Battery tab and the chemistry list');
     }
     // Rich text and lists in Scribe (2026-11-19).
     var rich = function (t) { return M.specRich(t).map(function (r) { return (r.b ? 'B' : '') + (r.i ? 'I' : '') + (r.s ? 'S' : '') + ':' + r.t; }); };
