@@ -427,8 +427,11 @@ the Power line, read and written by `assets/power.js`:
 
 - **Panel.** Chemistry (a list: Li-ion, LiPo, LiFePO4, Li-MnO2, Li-SOCl2, NiMH, Alkaline, and Lead-acid), Voltage
   (min, nominal, and max), Capacity (mAh; `2 Ah` also reads), Usable (% of the capacity, 100% assumed when blank), and
-  an optional Can supply (its most discharge current, the usual `up to …`). Picking a chemistry while all three
-  voltages are blank fills in one cell's (`PW.CHEMS`); a pack's voltages are typed over them.
+  an optional Can supply (its most discharge current, the usual `up to …`). Picking a chemistry sets all three
+  voltages to that chemistry's (`PW.CHEMS`, `PW.setChem`), keeping the number of cells in series: a 2S Li-ion pack
+  (6.0–8.4 V, nominal 7.2 V) switched to LiFePO4 becomes 5.0–7.3 V, nominal 6.4 V. The count comes from the old
+  chemistry when the voltages are a whole number of its cells, else the nominal against the new cell's; blank
+  voltages are one cell. Typed voltages can still be changed afterwards.
 - **Voltage.** Typical takes the battery's rail at its nominal (the middle of the range only when the nominal is
   blank); worst case keeps the range's top for a load's power and its bottom for a converter's input.
 - **Runtime.** Usable charge (capacity × usable share) over the current the rail gives. Loads that draw a steady
