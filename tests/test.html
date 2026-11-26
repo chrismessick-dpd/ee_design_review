@@ -1583,6 +1583,29 @@
       eq(pbCh('VBAT (source, battery)', 'nimh'), ['nimh', 1, 1.2, 1.45], 'Battery: a chemistry on blank voltages fills one cell');
       eq(pbCh('VBAT (source, battery, 10–14 V, nominal 12 V)', 'lead-acid'), ['lead-acid', 10.5, 12, 12.9], 'Battery: typed voltages with no chemistry take the nearest cell count');
       eq(PB.write([PB.setChem(PB.parse(pbBat)[0], 'lipo')]), 'VBAT (source, battery, LiPo, 3.0–4.2 V, nominal 3.7 V, 2000 mAh, usable 80%)', 'Battery: a new chemistry writes its voltages to the line');
+      var pbC = PB.parse('VBAT (source, battery, Li-ion, 4S2P, 12–16.8 V, nominal 14.4 V, 4000 mAh)')[0];
+      eq([pbC.cs, pbC.cp], [4, 2], 'Cells: "4S2P" reads as 4 in series, 2 in parallel');
+      eq(PB.write([pbC]), 'VBAT (source, battery, Li-ion, 4S2P, 12–16.8 V, nominal 14.4 V, 4000 mAh)', 'Cells: an unchanged line writes back as written');
+      var pbS = PB.setCells(PB.parse(pbBat)[0], 'cs', 3);
+      eq([pbS.vmin, pbS.vnom, pbS.vmax], [9, 10.8, 12.6], 'Cells: a series count sets the voltages to that many cells');
+      eq(PB.write([pbS]), 'VBAT (source, battery, Li-ion, 3S1P, 9–12.6 V, nominal 10.8 V, 2000 mAh, usable 80%)', 'Cells: a series count writes the configuration');
+      var pbP = PB.setCells(PB.parse(pbBat)[0], 'cp', 2);
+      eq([pbP.cp, pbP.vmin, pbP.vnom, pbP.vmax], [2, 3, 3.6, 4.2], 'Cells: a parallel count leaves the voltages');
+      eq([pbP.mah, PB.cellMah(pbP)], [4000, 2000], 'Cells: a parallel count makes the pack the cell’s capacity times it');
+      eq(PB.write([pbP]), 'VBAT (source, battery, Li-ion, 1S2P, 3.0–4.2 V, nominal 3.6 V, 4000 mAh, usable 80%)', 'Cells: the line keeps the pack’s capacity');
+      PB.setCells(pbP, 'cp', 3);
+      eq([pbP.mah, PB.cellMah(pbP)], [6000, 2000], 'Cells: a new parallel count keeps the cell’s capacity');
+      PB.setCells(pbP, 'cp', 1);
+      eq(pbP.mah, 2000, 'Cells: back to 1P, the pack is one cell');
+      var pbM = PB.setCellMah(PB.parse('VBAT (source, battery, Li-ion, 2S2P, 6–8.4 V, nominal 7.2 V, 4000 mAh)')[0], 2500);
+      eq([pbM.mah, PB.cellMah(pbM)], [5000, 2500], 'Cells: a cell’s capacity sets the pack’s');
+      eq(PB.cellMah(PB.setCellMah(pbM, null)), null, 'Cells: a blank cell capacity blanks the pack’s');
+      eq(PB.write([PB.setCells(PB.parse(pbBat)[0], 'cs', null)]), 'VBAT (source, battery, Li-ion, 3.0–4.2 V, nominal 3.6 V, 2000 mAh, usable 80%)', 'Cells: blank is one cell, and 1S1P is not written');
+      var pbE = PB.setCells(PB.parse(pbBat)[0], 'cs', 2); pbE.vnom = 7;
+      eq(PB.write([pbE]), 'VBAT (source, battery, Li-ion, 2S1P, 6–8.4 V, nominal 7 V, 2000 mAh, usable 80%)', 'Cells: the voltages stay editable after a series count');
+      eq(pbCh('VBAT (source, battery, Li-ion, 4S1P, 10–15 V, nominal 13 V)', 'lifepo4'), ['lifepo4', 10, 12.8, 14.6], 'Cells: a new chemistry uses the row’s series count');
+      eq(PB.seriesOf(PB.parse('VBAT (source, battery, Li-ion, 12–16.8 V, nominal 14.4 V)')[0]), 4, 'Cells: a row without a count shows the one its voltages fit');
+      eq(PB.seriesOf(PB.parse('VBAT (source, battery, Li-ion, 10–15 V)')[0]), 1, 'Cells: voltages that fit no count show 1');
       eq(PB.write(PB.parse('3V3 (source, 3.3 V, up to 1 A, 90%)')),'3V3 (source, 3.3 V, up to 1 A, 90%)', 'Battery: a plain source is unchanged');
       var pbBB = PB.budget([
         { id: 'bat', title: 'Cell', power: pbBat },
@@ -1595,6 +1618,27 @@
       // A steady current runs a battery down at the same rate whatever its voltage; a switcher draws power.
       var pbCC = PB.budget([{ id: 'bat', title: 'Cell', power: pbBat }, { id: 'mcu', title: 'MCU', power: 'VBAT (sink, 20 mA)' }], 'typ', 20);
       ok(near(pbCC.typ.byId.bat.items[0].runtime, 80) && near(pbCC.max.byId.bat.items[0].runtime, 80), 'Battery: a load in current gives the same runtime in both scenarios', pbCC.max.byId.bat.items[0].runtime);
+      // Running from (2026-11-25): one input on, the others and what only they feed off.
+      var pbTwo = [
+        { id: 'ac', title: 'Mains', power: 'AC (source, 230 V, pass-through, limit 2 W)' },
+        { id: 'psu', title: 'PSU', power: 'AC (sink), 5V (source, 5 V, up to 1 A, 80%)' },
+        { id: 'cell', title: 'Cell', power: 'VBAT (source, battery, Li-ion, 3.0–4.2 V, nominal 3.6 V, 1000 mAh)' },
+        { id: 'boost', title: 'Boost', power: 'VBAT (sink), 5V (source, 5 V, up to 1 A, 90%)' },
+        { id: 'load', title: 'Load', power: '5V (sink, 100 mA)' }
+      ];
+      var pbAll = PB.budget(pbTwo, 'typ', 20), pbOnCell = PB.budget(pbTwo, 'typ', 20, 'cell'), pbOnAc = PB.budget(pbTwo, 'typ', 20, 'ac');
+      eq(pbAll.inputs.map(function (x) { return x.id; }), ['ac', 'cell'], 'Running from: the inputs are the blocks that only make rails');
+      ok(near(pbAll.typ.byId.psu.items[1].iout, 50) && near(pbAll.typ.byId.boost.items[1].iout, 50) && pbAll.from === '', 'Running from: all inputs split a shared rail evenly, as before');
+      ok(near(pbOnCell.typ.byId.boost.items[1].iout, 100) && near(pbOnCell.typ.byId.psu.items[1].iout, 0) && pbOnCell.typ.byId.psu.items[1].off, 'Running from: the battery’s converter carries the whole rail, the mains converter is off');
+      ok(near(pbOnCell.typ.byId.cell.items[0].runtime, 1000 / (0.5 / 0.9 / 3.6 * 1000)), 'Running from: the battery’s runtime takes the whole load', pbOnCell.typ.byId.cell.items[0].runtime);
+      ok(near(pbOnCell.typ.t.input, 0.5 / 0.9) && pbOnCell.typ.t.limit == null, 'Running from: the input total and limit are the running input’s only', pbOnCell.typ.t.input);
+      ok(pbOnAc.typ.byId.cell.items[0].off && pbOnAc.typ.byId.cell.items[0].runtime == null && near(pbOnAc.typ.byId.psu.items[1].iout, 100) && near(pbOnAc.typ.t.input, 0.5 / 0.8), 'Running from: on mains the battery is off and the supply carries it all');
+      ok(!pbOnCell.typ.issues.some(function (x) { return /split evenly/.test(x.text); }) && pbAll.typ.issues.some(function (x) { return /split evenly/.test(x.text); }), 'Running from: the split note shows only while two sources are on');
+      eq(PB.budget(pbTwo, 'typ', 20, 'gone').from, '', 'Running from: an input not on the board reads as all inputs');
+      var pbClk = PB.budget(pbTwo.concat([{ id: 'clk', title: 'Clock', power: 'VBAT (sink, 1 mA)' }]), 'typ', 20, 'ac');
+      ok(pbClk.typ.issues.some(function (x) { return x.text === 'Running from Mains, nothing makes VBAT (used by Clock).'; }), 'Running from: a load left with no source on is flagged');
+      ok(/off while running from Cell/.test(PB.rowsHtml(pbOnCell, 'psu', {})), 'Running from: an off source says so in its row');
+      ok(/AC<small>off while running from Cell/.test(PB.viewHtml(pbOnCell, 'table')), 'Running from: the budget table says a rail’s source is off, not missing');
       var pbFe = 'VBAT (source, battery, LiFePO4, 2.5–3.65 V, nominal 3.2 V, 1000 mAh)';
       var pbSw = PB.budget([
         { id: 'bat', title: 'Cell', power: pbFe },

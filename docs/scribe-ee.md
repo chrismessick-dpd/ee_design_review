@@ -432,6 +432,13 @@ the Power line, read and written by `assets/power.js`:
   (6.0–8.4 V, nominal 7.2 V) switched to LiFePO4 becomes 5.0–7.3 V, nominal 6.4 V. The count comes from the old
   chemistry when the voltages are a whole number of its cells, else the nominal against the new cell's; blank
   voltages are one cell. Typed voltages can still be changed afterwards.
+- **Configuration** (2026-11-25), between Chemistry and Voltage: cells in series (S) and in parallel (P), each 1
+  by default, written as one word, `4S2P`, after the chemistry (left out at 1S1P). A new S sets the voltages to
+  S times the chemistry's cell (`PW.setCells`). Capacity in the panel is one cell's (`PW.cellMah`), and the line's
+  mAh is the whole pack's, one cell's times P: a new P keeps the cell's capacity and sets the pack's (2000 mAh at
+  1P becomes 4000 mAh at 2P), and a new cell capacity sets the pack's (`PW.setCellMah`). The panel shows the pack's
+  beside it when P is over 1, and runtime uses the pack's. A chemistry change uses the row's S; a row without one shows the S its voltages fit (`PW.seriesOf`), else 1, and
+  a chemistry change then writes the count it found. The voltages stay editable after either.
 - **Voltage.** Typical takes the battery's rail at its nominal (the middle of the range only when the nominal is
   blank); worst case keeps the range's top for a load's power and its bottom for a converter's input.
 - **Runtime.** Usable charge (capacity × usable share) over the current the rail gives. Loads that draw a steady
@@ -442,7 +449,25 @@ the Power line, read and written by `assets/power.js`:
   Shown in the row, its open numbers (with mAh and Wh usable), the power tree's footer, and the Power view's summary
   (*VBAT battery life*). The budget treats a battery like a pass-through input.
 - **Notes.** A battery with no capacity, a blank usable share, and a nominal outside its range are flagged.
-- **Leaving Battery** (Source or Sink) drops `battery`, the chemistry, the nominal, the capacity, and the usable share.
+- **Leaving Battery** (Source or Sink) drops `battery`, the chemistry, the configuration, the nominal, the capacity, and the usable share.
+
+### Running from: several power inputs (2026-11-25)
+
+An **input** is a block whose Power rows only make rails (mains, a battery, a USB port). With two or more, the
+Power view's bar has **Running from**: *All inputs* (the default) or one input.
+
+- **All inputs** is the budget as before: a rail with several sources splits its load evenly between them, with a
+  note saying so.
+- **One input:** the other inputs are off, and so is every converter whose input rail has no source still on
+  (worked out to a standstill, so a chain of converters follows). An off source carries nothing, so a shared
+  rail's load goes to the sources still on: running from the demo's VBAT input, VBAT buck carries all of 5V and
+  the battery's runtime takes the whole load; running from Mains input, the battery is off and has no runtime.
+  The input total, limit, and losses are the running input's. A load whose rail has no source left on is flagged.
+- **Shown** in the summary (*Input from …*), each off source's row (*off while running from …*) and open numbers,
+  the five displays, the power tree's numbers, and the checks.
+- **Kept in this browser** with the display, scenario, and margin (localStorage `powerUi.from`, an input block's
+  id); nothing is written to the review, and an id the review doesn't have reads as all inputs.
+  `PW.budget(blocks, scn, margin, from)` returns `from` and `inputs` (`[{ id, title }]`).
 
 ## draw.io (Chris, 2026-11-20)
 

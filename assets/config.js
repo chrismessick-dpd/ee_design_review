@@ -155,6 +155,12 @@ window.SIGNOFF_CONFIG = {
     "projects": [
       { "seed": 7, "users": ["Sam Patel", "Morgan Lee"],
         "pins": { "MCU": "SIGNOFF_DEMO_PART" },
+        "layout": {
+          "Mains input": [40, 80], "Isolated supply": [240, 80], "3V3 buck": [440, 80],
+          "VBAT input": [40, 180], "VBAT buck": [240, 180],
+          "USB-C service port": [40, 360], "MCU": [240, 360], "Wi-Fi module": [440, 360],
+          "Relay outputs": [40, 540], "Status LEDs": [240, 540], "Display connector": [440, 540]
+        },
         "spec": [
           "# Main PCBA",
           "> Mains-powered controller board: Wi-Fi, two relay outputs, and the link to the display board.",
@@ -177,6 +183,20 @@ window.SIGNOFF_CONFIG = {
           "Parts: PS1",
           "Connects: 3V3 buck (5V), Relay outputs (5V)",
           "Power: AC (sink, 85–264 V), 5V (source, 4.85–5.15 V, up to 400 mA, 72%)",
+          "",
+          "### VBAT input",
+          "> A Li-ion backup pack that keeps the board running through a mains outage.",
+          "[J5 takes a 4S2P Li-ion pack of 1000 mAh cells, behind a 3 A fuse, F2, and a reverse-polarity MOSFET, Q3.]{std}",
+          "Parts: J5, F2, Q3",
+          "Connects: VBAT buck (VBAT)",
+          "Power: VBAT (source, battery, Li-ion, 4S2P, 12–16.8 V, nominal 14.4 V, 2000 mAh)",
+          "",
+          "### VBAT buck",
+          "> Steps the pack down to the 5 V rail.",
+          "[U9 is a 1 A buck from 6–36 V that diode-ORs onto the 5 V rail beside the isolated supply.]{std}",
+          "Parts: U9, L2, C13–C15",
+          "Connects: 3V3 buck (5V)",
+          "Power: VBAT (sink, 6–36 V), 5V (source, 4.85–5.15 V, up to 1 A, buck 90%)",
           "",
           "### 3V3 buck",
           "> Steps 5 V down to the 3.3 V rail.",
