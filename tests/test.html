@@ -1583,6 +1583,29 @@
       eq(pbCh('VBAT (source, battery)', 'nimh'), ['nimh', 1, 1.2, 1.45], 'Battery: a chemistry on blank voltages fills one cell');
       eq(pbCh('VBAT (source, battery, 10–14 V, nominal 12 V)', 'lead-acid'), ['lead-acid', 10.5, 12, 12.9], 'Battery: typed voltages with no chemistry take the nearest cell count');
       eq(PB.write([PB.setChem(PB.parse(pbBat)[0], 'lipo')]), 'VBAT (source, battery, LiPo, 3.0–4.2 V, nominal 3.7 V, 2000 mAh, usable 80%)', 'Battery: a new chemistry writes its voltages to the line');
+      var pbC = PB.parse('VBAT (source, battery, Li-ion, 4S2P, 12–16.8 V, nominal 14.4 V, 4000 mAh)')[0];
+      eq([pbC.cs, pbC.cp], [4, 2], 'Cells: "4S2P" reads as 4 in series, 2 in parallel');
+      eq(PB.write([pbC]), 'VBAT (source, battery, Li-ion, 4S2P, 12–16.8 V, nominal 14.4 V, 4000 mAh)', 'Cells: an unchanged line writes back as written');
+      var pbS = PB.setCells(PB.parse(pbBat)[0], 'cs', 3);
+      eq([pbS.vmin, pbS.vnom, pbS.vmax], [9, 10.8, 12.6], 'Cells: a series count sets the voltages to that many cells');
+      eq(PB.write([pbS]), 'VBAT (source, battery, Li-ion, 3S1P, 9–12.6 V, nominal 10.8 V, 2000 mAh, usable 80%)', 'Cells: a series count writes the configuration');
+      var pbP = PB.setCells(PB.parse(pbBat)[0], 'cp', 2);
+      eq([pbP.cp, pbP.vmin, pbP.vnom, pbP.vmax], [2, 3, 3.6, 4.2], 'Cells: a parallel count leaves the voltages');
+      eq([pbP.mah, PB.cellMah(pbP)], [4000, 2000], 'Cells: a parallel count makes the pack the cell’s capacity times it');
+      eq(PB.write([pbP]), 'VBAT (source, battery, Li-ion, 1S2P, 3.0–4.2 V, nominal 3.6 V, 4000 mAh, usable 80%)', 'Cells: the line keeps the pack’s capacity');
+      PB.setCells(pbP, 'cp', 3);
+      eq([pbP.mah, PB.cellMah(pbP)], [6000, 2000], 'Cells: a new parallel count keeps the cell’s capacity');
+      PB.setCells(pbP, 'cp', 1);
+      eq(pbP.mah, 2000, 'Cells: back to 1P, the pack is one cell');
+      var pbM = PB.setCellMah(PB.parse('VBAT (source, battery, Li-ion, 2S2P, 6–8.4 V, nominal 7.2 V, 4000 mAh)')[0], 2500);
+      eq([pbM.mah, PB.cellMah(pbM)], [5000, 2500], 'Cells: a cell’s capacity sets the pack’s');
+      eq(PB.cellMah(PB.setCellMah(pbM, null)), null, 'Cells: a blank cell capacity blanks the pack’s');
+      eq(PB.write([PB.setCells(PB.parse(pbBat)[0], 'cs', null)]), 'VBAT (source, battery, Li-ion, 3.0–4.2 V, nominal 3.6 V, 2000 mAh, usable 80%)', 'Cells: blank is one cell, and 1S1P is not written');
+      var pbE = PB.setCells(PB.parse(pbBat)[0], 'cs', 2); pbE.vnom = 7;
+      eq(PB.write([pbE]), 'VBAT (source, battery, Li-ion, 2S1P, 6–8.4 V, nominal 7 V, 2000 mAh, usable 80%)', 'Cells: the voltages stay editable after a series count');
+      eq(pbCh('VBAT (source, battery, Li-ion, 4S1P, 10–15 V, nominal 13 V)', 'lifepo4'), ['lifepo4', 10, 12.8, 14.6], 'Cells: a new chemistry uses the row’s series count');
+      eq(PB.seriesOf(PB.parse('VBAT (source, battery, Li-ion, 12–16.8 V, nominal 14.4 V)')[0]), 4, 'Cells: a row without a count shows the one its voltages fit');
+      eq(PB.seriesOf(PB.parse('VBAT (source, battery, Li-ion, 10–15 V)')[0]), 1, 'Cells: voltages that fit no count show 1');
       eq(PB.write(PB.parse('3V3 (source, 3.3 V, up to 1 A, 90%)')),'3V3 (source, 3.3 V, up to 1 A, 90%)', 'Battery: a plain source is unchanged');
       var pbBB = PB.budget([
         { id: 'bat', title: 'Cell', power: pbBat },
