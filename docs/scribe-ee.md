@@ -451,6 +451,24 @@ the Power line, read and written by `assets/power.js`:
 - **Notes.** A battery with no capacity, a blank usable share, and a nominal outside its range are flagged.
 - **Leaving Battery** (Source or Sink) drops `battery`, the chemistry, the configuration, the nominal, the capacity, and the usable share.
 
+### Running from: several power inputs (2026-11-25)
+
+An **input** is a block whose Power rows only make rails (mains, a battery, a USB port). With two or more, the
+Power view's bar has **Running from**: *All inputs* (the default) or one input.
+
+- **All inputs** is the budget as before: a rail with several sources splits its load evenly between them, with a
+  note saying so.
+- **One input:** the other inputs are off, and so is every converter whose input rail has no source still on
+  (worked out to a standstill, so a chain of converters follows). An off source carries nothing, so a shared
+  rail's load goes to the sources still on: running from the demo's VBAT input, VBAT buck carries all of 5V and
+  the battery's runtime takes the whole load; running from Mains input, the battery is off and has no runtime.
+  The input total, limit, and losses are the running input's. A load whose rail has no source left on is flagged.
+- **Shown** in the summary (*Input from …*), each off source's row (*off while running from …*) and open numbers,
+  the five displays, the power tree's numbers, and the checks.
+- **Kept in this browser** with the display, scenario, and margin (localStorage `powerUi.from`, an input block's
+  id); nothing is written to the review, and an id the review doesn't have reads as all inputs.
+  `PW.budget(blocks, scn, margin, from)` returns `from` and `inputs` (`[{ id, title }]`).
+
 ## draw.io (Chris, 2026-11-20)
 
 The block diagram goes out to draw.io and comes back, as one file (feasibility: `../../signoff/docs/drawio.md`).
